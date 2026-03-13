@@ -372,18 +372,27 @@ const ORIGIN_CFG: Record<Op["origin"], { icon: string; label: string; cls: strin
 };
 
 // ─────────────────────────────────────────────
-// MODULE AGGREGATION STATES — supervisory-level readiness across 9 modules
+// MODULE AGGREGATION STATES — accounting export package readiness
+// Mirrors the real ASAB export pipeline: ops → accounting entry → ERP batch → ERP import
 // ─────────────────────────────────────────────
-type ModuleAggState = "empty"|"blocked"|"partially_reviewed"|"awaiting_final"|"ready_for_export"|"exported"|"complete";
+type ModuleAggState =
+  | "empty"               // no ops in this module
+  | "incomplete"          // has pending ops — workflow not complete
+  | "ready_consolidation" // all ops reviewed/approved, no finals yet — ready to consolidate
+  | "consolidated"        // all ops final-approved — accounting entry locked, ready to batch
+  | "ready_erp"           // consolidated + no ERP batch yet — ready to export
+  | "exported"            // all final-approved ops are ERP-posted
+  | "erp_imported";       // ★ aspirational — ERP acknowledged receipt (not in state machine)
 
-const MODULE_AGG_CFG: Record<ModuleAggState, { label:string; icon:string; cls:string; dot:string }> = {
-  empty:              { label:"لا يوجد",         icon:"○",  cls:"bg-gray-100 text-gray-400 border-gray-200",        dot:"bg-gray-300"   },
-  blocked:            { label:"معلق",             icon:"🔴", cls:"bg-red-50 text-red-700 border-red-200",             dot:"bg-red-500"    },
-  partially_reviewed: { label:"جزئياً",           icon:"🟡", cls:"bg-amber-50 text-amber-700 border-amber-200",       dot:"bg-amber-500"  },
-  awaiting_final:     { label:"ينتظر الاعتماد",  icon:"🔵", cls:"bg-sky-50 text-sky-700 border-sky-200",             dot:"bg-sky-500"    },
-  ready_for_export:   { label:"جاهز لـ ERP",     icon:"🟢", cls:"bg-emerald-50 text-emerald-700 border-emerald-200", dot:"bg-emerald-500"},
-  exported:           { label:"مُرحَّل",          icon:"🟣", cls:"bg-indigo-50 text-indigo-700 border-indigo-200",    dot:"bg-indigo-500" },
-  complete:           { label:"مكتمل",            icon:"✓",  cls:"bg-emerald-50 text-emerald-700 border-emerald-200", dot:"bg-emerald-500"},
+interface ModuleAggCfg { label:string; sublabel:string; step:number; cls:string; dot:string; headerCls:string }
+const MODULE_AGG_CFG: Record<ModuleAggState, ModuleAggCfg> = {
+  empty:               { label:"لا بيانات",            sublabel:"لم يُرفع أي بيان",                  step:0, cls:"bg-gray-50 text-gray-400 border-gray-200",          dot:"bg-gray-300",    headerCls:"text-gray-400"    },
+  incomplete:          { label:"غير مكتمل",            sublabel:"توجد بيانات معلقة في المراجعة",      step:1, cls:"bg-red-50 text-red-700 border-red-200",              dot:"bg-red-500",     headerCls:"text-red-700"     },
+  ready_consolidation: { label:"جاهز للتجميع",         sublabel:"كل البيانات راجعة — ابدأ التجميع",   step:2, cls:"bg-amber-50 text-amber-700 border-amber-200",        dot:"bg-amber-500",   headerCls:"text-amber-700"   },
+  consolidated:        { label:"مُجمَّع",               sublabel:"قيد محاسبي مُغلق — جاهز للدفعة",     step:3, cls:"bg-sky-50 text-sky-700 border-sky-200",              dot:"bg-sky-500",     headerCls:"text-sky-700"     },
+  ready_erp:           { label:"جاهز لـ ERP",          sublabel:"دفعة جاهزة للإرسال",                step:4, cls:"bg-emerald-50 text-emerald-700 border-emerald-200",   dot:"bg-emerald-500", headerCls:"text-emerald-700" },
+  exported:            { label:"مُصدَّر",               sublabel:"مُرحَّل في ERP — انتظار التأكيد",    step:5, cls:"bg-indigo-50 text-indigo-700 border-indigo-200",     dot:"bg-indigo-500",  headerCls:"text-indigo-700"  },
+  erp_imported:        { label:"مُستورَد في ERP ★",    sublabel:"ERP أكّد الاستلام — مرحلة مستقبلية", step:6, cls:"bg-purple-50 text-purple-700 border-purple-200",     dot:"bg-purple-500",  headerCls:"text-purple-700"  },
 };
 
 function getModuleAggState(moduleOps: Op[]): ModuleAggState {
@@ -394,11 +403,12 @@ function getModuleAggState(moduleOps: Op[]): ModuleAggState {
   const allFinalPosted = hasFinal && moduleOps.filter(o=>o.status==="final-approved").every(o=>o.erpPosted);
 
   if(allFinalPosted && !hasPending && !hasApproved) return "exported";
-  if(hasFinal && !hasPending && !hasApproved)        return "ready_for_export";
-  if(!hasPending && hasApproved)                     return "awaiting_final";
-  if(hasPending && (hasApproved || hasFinal))        return "partially_reviewed";
-  if(hasPending)                                     return "blocked";
-  return "complete";
+  if(hasFinal && !hasPending && !hasApproved)        return "ready_erp";
+  if(!hasPending && !hasFinal && hasApproved)        return "ready_consolidation";
+  if(!hasPending && hasFinal && hasApproved)         return "consolidated";
+  if(hasPending && (hasApproved || hasFinal))        return "incomplete";
+  if(hasPending)                                     return "incomplete";
+  return "consolidated";
 }
 
 const fmtAmt = (n: number) => n.toLocaleString("ar-SA");
@@ -1140,80 +1150,127 @@ function PageRouter({ state, pageProps, adminUsers, setAdminUsers }:{
 }
 
 // ─────────────────────────────────────────────
-// EXCEPTION PANEL  — risk & bottleneck visibility on dashboards
+// EXCEPTION PANEL  — action-oriented risk & intervention layer
+// Each exception surfaces: who owns it, what action is required,
+// how long it has been unresolved, and what the financial impact is.
 // ─────────────────────────────────────────────
 type ExceptionSeverity = "critical"|"high"|"medium";
-interface ExceptionItem { severity:ExceptionSeverity; icon:string; label:string; count:number; detail:string; }
+interface ExceptionItem {
+  severity:    ExceptionSeverity;
+  icon:        string;
+  label:       string;   // what is wrong
+  count:       number;
+  owner:       string;   // who currently owns / must act on it
+  action:      string;   // the specific action required to resolve
+  age:         string;   // how long it has been unresolved
+  impact:      string;   // financial or operational consequence if left unresolved
+  detail?:     string;   // extra supporting context
+}
 
 function deriveExceptions(ops: Op[], forRole: "accountant"|"head"): ExceptionItem[] {
   const items: ExceptionItem[] = [];
 
   // 1. Ops stuck too long in review (pending > 2 days)
-  const stuckInReview = ops.filter(o =>
+  const stuck = ops.filter(o =>
     o.status==="pending" &&
     (o.timeAgo.includes("3 أيام")||o.timeAgo.includes("4 أيام")||o.timeAgo.includes("أسبوع"))
   );
-  if(stuckInReview.length > 0) items.push({
-    severity:"high", icon:"⏰",
-    label:"معلقة في المراجعة منذ أكثر من يومين",
-    count:stuckInReview.length,
-    detail:stuckInReview.map(o=>`${o.branch} · ${o.moduleLabel}`).slice(0,3).join(" · ")
-      + (stuckInReview.length>3?` · و${stuckInReview.length-3} أخرى`:""),
-  });
-
-  // 2. Operations with unresolved differences (diff) still pending
-  const diffPending = ops.filter(o=>o.match==="diff" && o.status==="pending");
-  if(diffPending.length > 0) items.push({
-    severity:"critical", icon:"⚠",
-    label:"فروق في الكميات أو الأسعار لم تُحل",
-    count:diffPending.length,
-    detail:diffPending.map(o=>o.diff||"").filter(Boolean).slice(0,3).join(" · "),
-  });
-
-  // 3. Final-approved items still pending ERP export (head only)
-  if(forRole==="head") {
-    const pendingErpExport = ops.filter(o=>o.status==="final-approved" && !o.erpPosted);
-    if(pendingErpExport.length > 0) items.push({
-      severity:"medium", icon:"🔗",
-      label:"معتمدة نهائياً تنتظر الترحيل لـ ERP",
-      count:pendingErpExport.length,
-      detail:`إجمالي ${fmtAmt(pendingErpExport.reduce((s,o)=>s+o.amount,0))} ر.س معلق الترحيل`,
+  if(stuck.length > 0) {
+    const oldestAge = stuck.map(o=>o.timeAgo).sort().pop() || "";
+    const totalAmt  = stuck.reduce((s,o)=>s+o.amount,0);
+    items.push({
+      severity:"high", icon:"⏰",
+      label:"بيانات معلقة منذ أكثر من يومين بدون مراجعة",
+      count:stuck.length,
+      owner:  forRole==="head" ? "المحاسب المُكلَّف بالفرع" : "أنت — هذه ضمن فروعك",
+      action: "افتح كل عملية معلقة وأكمل المراجعة أو ارفضها بسبب واضح",
+      age:    `أطول تأخير: ${oldestAge} — تجاوز الحد المقبول`,
+      impact: `${fmtAmt(totalAmt)} ر.س لم تدخل دورة الاعتماد — تعطل التجميع الشهري`,
+      detail: stuck.map(o=>`${o.branch} · ${o.moduleLabel}`).slice(0,3).join(" | "),
     });
   }
 
+  // 2. Unresolved quantity/price differences — critical risk
+  const diffs = ops.filter(o=>o.match==="diff" && o.status==="pending");
+  if(diffs.length > 0) {
+    const totalDiff = diffs.reduce((s,o)=>s+o.amount,0);
+    items.push({
+      severity:"critical", icon:"⚠",
+      label:"فروق في الكميات أو الأسعار لم تُحل بعد",
+      count:diffs.length,
+      owner:  forRole==="head" ? "المحاسب المُكلَّف — يتطلب تدخل رئيس الحسابات للحالات المعقدة" : "أنت — الفرق يستوجب قرارك",
+      action: "راجع الفرق، أصدر عملية تعديل، أو احتسب الفرق وأقفل البيان",
+      age:    diffs.map(o=>o.timeAgo).join(" · "),
+      impact: `${fmtAmt(totalDiff)} ر.س في بيانات تحتوي فروقاً — لا يمكن تجميعها حتى تُحل`,
+      detail: diffs.map(o=>o.diff||"").filter(Boolean).slice(0,2).join(" | "),
+    });
+  }
+
+  // 3. Final-approved items still waiting ERP export — head only
+  if(forRole==="head") {
+    const pendingErp = ops.filter(o=>o.status==="final-approved" && !o.erpPosted);
+    if(pendingErp.length > 0) {
+      const pendingAmt = pendingErp.reduce((s,o)=>s+o.amount,0);
+      items.push({
+        severity:"medium", icon:"🔗",
+        label:"عمليات مُعتمدة نهائياً لم تُرحَّل لـ ERP بعد",
+        count:pendingErp.length,
+        owner:  "رئيس الحسابات — يملك صلاحية تشغيل دفعة الترحيل",
+        action: "انتقل إلى التصدير لـ ERP وأنشئ دفعة ترحيل لهذه العمليات",
+        age:    "مُعتمدة — لم تُرحَّل بعد",
+        impact: `${fmtAmt(pendingAmt)} ر.س غائبة عن ERP — التقارير المالية للمالك ناقصة`,
+      });
+    }
+  }
+
   // 4. Corrective operations pending review
-  const correctivePending = ops.filter(o=>o.isCorrection && o.status==="pending");
-  if(correctivePending.length > 0) items.push({
-    severity:"medium", icon:"🔄",
-    label:"عمليات تعديل مُرتبطة في انتظار المراجعة",
-    count:correctivePending.length,
-    detail:correctivePending.map(o=>`${o.id} ← ${o.correctiveRef||""}`).slice(0,2).join(" · "),
-  });
+  const corrections = ops.filter(o=>o.isCorrection && o.status==="pending");
+  if(corrections.length > 0) {
+    items.push({
+      severity:"medium", icon:"🔄",
+      label:"عمليات تعديل مُرتبطة بعمليات سابقة تنتظر المراجعة",
+      count:corrections.length,
+      owner:  forRole==="head" ? "المحاسب المُصدِر للتعديل" : "أنت — التعديل مرتبط ببيان أصدرته",
+      action: "راجع عملية التعديل وتحقق من صحة المبالغ المُصحَّحة قبل الموافقة",
+      age:    corrections.map(o=>o.timeAgo).slice(0,2).join(" · "),
+      impact: "عدم الموافقة على التعديل يُبقي الرصيد الأصلي مغلوطاً في قيد التجميع",
+      detail: corrections.map(o=>`${o.id} ← ${o.correctiveRef||""}`).slice(0,2).join(" | "),
+    });
+  }
 
   // 5. Branches with repeated rejection patterns (≥2 rejections)
-  const rejByBranch: Record<string,number> = {};
+  const rejByBranch: Record<string,{count:number; total:number}> = {};
   ops.filter(o=>o.status==="rejected").forEach(o=>{
-    rejByBranch[o.branch]=(rejByBranch[o.branch]||0)+1;
+    if(!rejByBranch[o.branch]) rejByBranch[o.branch]={count:0,total:0};
+    rejByBranch[o.branch].count++; rejByBranch[o.branch].total+=o.amount;
   });
-  const problemBranches = Object.entries(rejByBranch).filter(([,c])=>c>=2);
-  if(problemBranches.length > 0) items.push({
-    severity:"medium", icon:"📍",
-    label:"فروع بنمط رفض متكرر",
-    count:problemBranches.length,
-    detail:problemBranches.map(([b,c])=>`${b} (${c}×)`).join(" · "),
-  });
+  const problemBranches = Object.entries(rejByBranch).filter(([,v])=>v.count>=2);
+  if(problemBranches.length > 0) {
+    const totalRejected = problemBranches.reduce((s,[,v])=>s+v.total,0);
+    items.push({
+      severity:"medium", icon:"📍",
+      label:"فروع تظهر نمط رفض متكرر للبيانات",
+      count:problemBranches.length,
+      owner:  "مدير الفرع + " + (forRole==="head" ? "رئيس الحسابات" : "أنت"),
+      action: "تواصل مع مدير الفرع لتحديد سبب الأخطاء المتكررة وتصحيح منهجية الرفع",
+      age:    `نمط متكرر — ليس حادثة معزولة`,
+      impact: `${fmtAmt(totalRejected)} ر.س في بيانات مرفوضة — مؤشر على مشكلة بيانات هيكلية`,
+      detail: problemBranches.map(([b,v])=>`${b} (${v.count} مرفوضة)`).join(" | "),
+    });
+  }
 
   return items;
 }
 
-const EXCEPTION_SEV_CFG: Record<ExceptionSeverity,{ cls:string; dot:string; label:string; headerCls:string }> = {
-  critical: { cls:"border-red-200 bg-red-50",    dot:"bg-red-500",    label:"حرج",    headerCls:"text-red-700"    },
-  high:     { cls:"border-amber-200 bg-amber-50", dot:"bg-amber-500",  label:"عالي",   headerCls:"text-amber-700"  },
-  medium:   { cls:"border-sky-200 bg-sky-50",     dot:"bg-sky-400",    label:"متوسط",  headerCls:"text-sky-700"    },
+const EXCEPTION_SEV_CFG: Record<ExceptionSeverity,{ cls:string; barCls:string; dot:string; badgeCls:string; titleCls:string; label:string }> = {
+  critical: { cls:"border-red-200 bg-red-50/60",    barCls:"bg-red-500",    dot:"bg-red-500",    badgeCls:"bg-red-100 text-red-700 border-red-200",     titleCls:"text-red-800",   label:"حرج"   },
+  high:     { cls:"border-amber-200 bg-amber-50/60", barCls:"bg-amber-500",  dot:"bg-amber-500",  badgeCls:"bg-amber-100 text-amber-700 border-amber-200",titleCls:"text-amber-800", label:"عالي"  },
+  medium:   { cls:"border-sky-200 bg-sky-50/60",     barCls:"bg-sky-400",    dot:"bg-sky-400",    badgeCls:"bg-sky-100 text-sky-700 border-sky-200",     titleCls:"text-sky-800",   label:"متوسط" },
 };
 
 function ExceptionPanel({ ops, forRole }: { ops: Op[]; forRole:"accountant"|"head" }) {
   const [open, setOpen] = useState(true);
+  const [expanded, setExpanded] = useState<number|null>(null);
   const exceptions = deriveExceptions(ops, forRole);
   const criticalCount = exceptions.filter(e=>e.severity==="critical").length;
   const highCount     = exceptions.filter(e=>e.severity==="high").length;
@@ -1230,35 +1287,90 @@ function ExceptionPanel({ ops, forRole }: { ops: Op[]; forRole:"accountant"|"hea
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden" dir="rtl">
       <button onClick={()=>setOpen(o=>!o)}
-        className="w-full px-5 py-3.5 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors">
+        className="w-full px-5 py-3.5 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50/80 transition-colors">
         <div className="flex items-center gap-3">
-          <AlertTriangle size={16} className={criticalCount>0?"text-red-500":"text-amber-500"}/>
-          <span className="font-bold text-gray-900 text-sm">استثناءات تستوجب الانتباه</span>
+          <AlertTriangle size={15} className={criticalCount>0?"text-red-500":"text-amber-500"}/>
+          <span className="font-bold text-gray-900 text-sm">استثناءات تستوجب التدخل</span>
           <div className="flex items-center gap-1.5">
-            {criticalCount>0 && <span className="bg-red-100 text-red-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{criticalCount} حرج</span>}
-            {highCount>0    && <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{highCount} عالي</span>}
+            {criticalCount>0 && <span className="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200">{criticalCount} حرج</span>}
+            {highCount>0     && <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">{highCount} عالي</span>}
+            {exceptions.filter(e=>e.severity==="medium").length>0 &&
+              <span className="bg-sky-100 text-sky-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-sky-200">{exceptions.filter(e=>e.severity==="medium").length} متوسط</span>}
           </div>
         </div>
-        <span className="text-xs text-gray-400">{open?"▲ طي":"▼ توسيع"}</span>
+        <span className="text-[11px] text-gray-400 font-medium">{open?"▲ طي":"▼ توسيع"}</span>
       </button>
+
       {open && (
-        <div className="p-4 grid grid-cols-1 gap-2.5">
+        <div className="divide-y divide-gray-100">
           {exceptions.map((ex,i)=>{
-            const sev = EXCEPTION_SEV_CFG[ex.severity];
+            const sev   = EXCEPTION_SEV_CFG[ex.severity];
+            const isExp = expanded===i;
             return (
-              <div key={i} className={`rounded-xl border ${sev.cls} px-4 py-3 flex items-start gap-3`}>
-                <span className="text-lg flex-shrink-0 mt-0.5">{ex.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className={`font-bold text-sm ${sev.headerCls}`}>{ex.label}</span>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${sev.cls} border`}>
-                      <span className={`w-1.5 h-1.5 rounded-full inline-block mr-0.5 ${sev.dot}`}></span>
-                      {sev.label}
-                    </span>
-                    <span className={`font-mono font-extrabold text-lg ${sev.headerCls}`}>{ex.count}</span>
+              <div key={i} className={`${sev.cls} transition-colors`}>
+                {/* Summary row — always visible */}
+                <button onClick={()=>setExpanded(isExp?null:i)}
+                  className="w-full px-5 py-3.5 flex items-start gap-4 text-right hover:brightness-95 transition-all">
+                  <div className={`w-1 self-stretch rounded-full flex-shrink-0 ${sev.barCls}`}/>
+                  <span className="text-xl flex-shrink-0 mt-0.5">{ex.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className={`font-bold text-sm ${sev.titleCls}`}>{ex.label}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${sev.badgeCls}`}>{sev.label}</span>
+                      <span className={`font-mono font-extrabold text-base ${sev.titleCls}`}>{ex.count}</span>
+                    </div>
+                    {/* 4 context fields — compact inline */}
+                    <div className="flex items-center gap-4 flex-wrap text-[11px]">
+                      <span className="flex items-center gap-1 text-gray-600">
+                        <span className="font-semibold text-gray-500">المسؤول</span>
+                        <span>{ex.owner}</span>
+                      </span>
+                      <span className="text-gray-300">·</span>
+                      <span className="flex items-center gap-1 text-gray-600">
+                        <span className="font-semibold text-gray-500">منذ</span>
+                        <span>{ex.age}</span>
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-500 truncate">{ex.detail}</p>
-                </div>
+                  <span className="text-[10px] text-gray-400 flex-shrink-0 mt-1">{isExp?"▲":"▼"}</span>
+                </button>
+
+                {/* Expanded detail — action + impact */}
+                {isExp && (
+                  <div className="px-5 pb-4 pr-12 space-y-2.5">
+                    <div className="bg-white/70 rounded-xl border border-white/80 p-4 space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 mt-0.5 w-5 h-5 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center">
+                          <span className="text-[10px] font-bold text-amber-700">!</span>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-0.5">الإجراء المطلوب</p>
+                          <p className="text-sm font-semibold text-gray-800">{ex.action}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 mt-0.5 w-5 h-5 rounded-full bg-red-100 border border-red-200 flex items-center justify-center">
+                          <span className="text-[10px] font-bold text-red-700">ر</span>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-0.5">الأثر المالي / التشغيلي إذا لم يُحل</p>
+                          <p className="text-sm text-gray-700">{ex.impact}</p>
+                        </div>
+                      </div>
+                      {ex.detail && (
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 mt-0.5 w-5 h-5 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center">
+                            <span className="text-[10px] font-bold text-gray-500">i</span>
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-0.5">السياق</p>
+                            <p className="text-xs text-gray-500 font-mono">{ex.detail}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -1282,52 +1394,89 @@ const MODULE_META = [
   { key:null,                     label:"الأصول الثابتة",     icon:"🏢" },
 ];
 
-function ModuleAggregationGrid({ ops, navigate }: { ops: Op[]; navigate:(p:PageId)=>void }) {
+// Pipeline step labels shown in the legend
+const EXPORT_PIPELINE_STEPS: ModuleAggState[] = ["incomplete","ready_consolidation","consolidated","ready_erp","exported","erp_imported"];
+
+function ModuleAggregationGrid({ ops }: { ops: Op[]; navigate:(p:PageId)=>void }) {
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden" dir="rtl">
-      <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
-        <h3 className="font-bold text-gray-900 text-sm tracking-tight">حالة التجميع — جاهزية الموديولات للتصدير</h3>
-        <div className="flex items-center gap-3 text-[10px] text-gray-400">
-          {(["blocked","partially_reviewed","awaiting_final","ready_for_export","exported"] as ModuleAggState[]).map(s=>(
-            <span key={s} className="flex items-center gap-1">
-              <span className={`w-2 h-2 rounded-full inline-block ${MODULE_AGG_CFG[s].dot}`}></span>
-              {MODULE_AGG_CFG[s].label}
-            </span>
-          ))}
+
+      {/* Header */}
+      <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60">
+        <div className="flex items-center justify-between mb-2.5">
+          <div>
+            <h3 className="font-bold text-gray-900 text-sm">جاهزية التجميع المحاسبي — مسار التصدير لـ ERP</h3>
+            <p className="text-[11px] text-gray-400 mt-0.5">كل موديول يمثل حزمة قيود محاسبية · المسار: مراجعة ← تجميع ← اعتماد نهائي ← ERP</p>
+          </div>
+        </div>
+        {/* Pipeline step legend */}
+        <div className="flex items-center gap-0 overflow-x-auto">
+          {EXPORT_PIPELINE_STEPS.map((s,i)=>{
+            const cfg = MODULE_AGG_CFG[s];
+            const isLast = i===EXPORT_PIPELINE_STEPS.length-1;
+            return (
+              <div key={s} className="flex items-center gap-0 flex-shrink-0">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg">
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`}></span>
+                  <span className="text-[10px] font-semibold text-gray-600">{cfg.label}</span>
+                  {s==="erp_imported" && <span className="text-[9px] text-purple-400 font-bold">★</span>}
+                </div>
+                {!isLast && <span className="text-gray-300 text-xs flex-shrink-0">→</span>}
+              </div>
+            );
+          })}
         </div>
       </div>
+
+      {/* Module cards */}
       <div className="p-4 grid grid-cols-4 gap-3">
         {MODULE_META.map(m=>{
-          const mOps = m.key ? ops.filter(o=>o.moduleKey===m.key) : [];
+          const mOps  = m.key ? ops.filter(o=>o.moduleKey===m.key) : [];
           const state = getModuleAggState(mOps);
-          const cfg = MODULE_AGG_CFG[state];
+          const cfg   = MODULE_AGG_CFG[state];
           const counts = {
             pending:  mOps.filter(o=>o.status==="pending").length,
             approved: mOps.filter(o=>o.status==="approved").length,
             final:    mOps.filter(o=>o.status==="final-approved").length,
             erp:      mOps.filter(o=>o.erpPosted).length,
           };
+          const total   = mOps.reduce((s,o)=>s+o.amount,0);
+          const stepNum  = cfg.step;
+          const maxStep  = 5; // erp_imported is step 6 but aspirational
+
           return (
-            <div key={m.key||m.label}
-              className={`rounded-xl border p-3.5 ${cfg.cls} transition-all cursor-default`}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xl">{m.icon}</span>
-                <Badge className={`${cfg.cls} border text-[10px] font-bold`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot} flex-shrink-0`}></span>
-                  {cfg.label}
-                </Badge>
+            <div key={m.key||m.label} className={`rounded-xl border ${cfg.cls} overflow-hidden`}>
+              {/* Step progress bar */}
+              <div className="h-1 bg-gray-200/60">
+                <div className={`h-1 ${cfg.dot} transition-all`} style={{width:`${Math.min((stepNum/maxStep)*100,100)}%`}}/>
               </div>
-              <p className="font-bold text-sm text-gray-800 mb-2">{m.label}</p>
-              {mOps.length > 0 ? (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {counts.pending  > 0 && <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-semibold">{counts.pending} معلق</span>}
-                  {counts.approved > 0 && <span className="text-[9px] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full font-semibold">{counts.approved} موافق</span>}
-                  {counts.final    > 0 && <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-semibold">{counts.final} نهائي</span>}
-                  {counts.erp      > 0 && <span className="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-semibold">{counts.erp} ERP</span>}
+              <div className="p-3.5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xl">{m.icon}</span>
+                  <div className="text-right">
+                    <span className={`text-[9px] font-bold ${cfg.headerCls}`}>
+                      {stepNum>0?`م${stepNum}/5`:""} 
+                    </span>
+                  </div>
                 </div>
-              ) : (
-                <span className="text-[10px] text-gray-300">لا توجد عمليات</span>
-              )}
+                <p className="font-bold text-sm text-gray-800 mb-0.5">{m.label}</p>
+                <p className={`text-[10px] font-semibold mb-2 ${cfg.headerCls}`}>{cfg.label}</p>
+                <p className="text-[9px] text-gray-400 mb-2 leading-tight">{cfg.sublabel}</p>
+
+                {mOps.length > 0 ? (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {counts.pending  > 0 && <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-semibold">{counts.pending} معلق</span>}
+                      {counts.approved > 0 && <span className="text-[9px] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded-full font-semibold">{counts.approved} راجع</span>}
+                      {counts.final    > 0 && <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-semibold">{counts.final} مُجمَّع</span>}
+                      {counts.erp      > 0 && <span className="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-semibold">{counts.erp} ERP</span>}
+                    </div>
+                    {total>0 && <p className="text-[10px] font-mono font-bold text-gray-600">{(total/1000).toFixed(1)}K ر.س</p>}
+                  </div>
+                ) : (
+                  <span className="text-[10px] text-gray-300">لا توجد بيانات</span>
+                )}
+              </div>
             </div>
           );
         })}
@@ -1337,79 +1486,100 @@ function ModuleAggregationGrid({ ops, navigate }: { ops: Op[]; navigate:(p:PageI
 }
 
 // ─────────────────────────────────────────────
-// OWNER REPORTS PAGE  — executive-grade final financial view
-// Finance layer (internal) + Owner layer (read-only reporting destination)
+// OWNER REPORTS PAGE
+// Two distinct layers:
+//  1. "التقارير الداخلية" — finance team operational reports
+//  2. "رؤية المالك"       — executive read-only destination built on ERP-verified data only
+// The owner layer has zero workflow elements, zero action buttons,
+// and presents the financial position as a closed, unambiguous statement.
 // ─────────────────────────────────────────────
 function OwnerReportsPage({ ops }: PageProps) {
   const [tab, setTab] = useState<"internal"|"owner">("owner");
 
-  // Owner-facing metrics — only from ERP-posted ops (verified financial data)
-  const postedOps = ops.filter(o=>o.erpPosted);
-  const salesOps    = postedOps.filter(o=>o.moduleKey==="sales");
-  const expensesOps = postedOps.filter(o=>o.moduleKey==="expenses");
-  const purchasesOps= postedOps.filter(o=>o.moduleKey==="purchases");
-  const totalRevenue    = salesOps.reduce((s,o)=>s+o.amount,0);
-  const totalExpenses   = expensesOps.reduce((s,o)=>s+o.amount,0);
-  const totalPurchases  = purchasesOps.reduce((s,o)=>s+o.amount,0);
+  // — Owner layer data source: ERP-posted only — the verified financial record
+  const postedOps    = ops.filter(o=>o.erpPosted);
+  const salesPosted  = postedOps.filter(o=>o.moduleKey==="sales").reduce((s,o)=>s+o.amount,0);
+  const expPosted    = postedOps.filter(o=>o.moduleKey==="expenses").reduce((s,o)=>s+o.amount,0);
+  const purPosted    = postedOps.filter(o=>o.moduleKey==="purchases").reduce((s,o)=>s+o.amount,0);
+  const netPosition  = salesPosted - expPosted - purPosted;
 
-  // Module breakdown for owner view — only from final-approved (locked records)
-  const finalOps = ops.filter(o=>o.status==="final-approved");
-  const moduleBreakdown = MODULE_META.filter(m=>m.key).map(m=>{
-    const mOps = finalOps.filter(o=>o.moduleKey===m.key);
-    const erp  = mOps.filter(o=>o.erpPosted);
-    return { ...m, total:mOps.reduce((s,o)=>s+o.amount,0), count:mOps.length,
-      erpTotal:erp.reduce((s,o)=>s+o.amount,0), erpCount:erp.length };
-  }).filter(m=>m.count>0);
+  // Category breakdown for owner — ERP-posted amounts only
+  const ownerCategories = [
+    { key:"sales"     as ModuleKey, label:"الإيرادات",        icon:"💰", color:"bg-emerald-500", textColor:"text-emerald-700", isIncome:true  },
+    { key:"expenses"  as ModuleKey, label:"المصروفات",        icon:"💸", color:"bg-red-500",     textColor:"text-red-700",     isIncome:false },
+    { key:"purchases" as ModuleKey, label:"المشتريات",        icon:"🛒", color:"bg-orange-500",  textColor:"text-orange-700",  isIncome:false },
+    { key:"inventory" as ModuleKey, label:"المخزون",          icon:"📦", color:"bg-amber-500",   textColor:"text-amber-700",   isIncome:false },
+    { key:"shifts"    as ModuleKey, label:"الشفتات",          icon:"⏰", color:"bg-blue-500",    textColor:"text-blue-700",    isIncome:false },
+    { key:"employees" as ModuleKey, label:"مستحقات الموظفين", icon:"👥", color:"bg-indigo-500",  textColor:"text-indigo-700",  isIncome:false },
+    { key:"cash"      as ModuleKey, label:"العهد النقدية",    icon:"💼", color:"bg-purple-500",  textColor:"text-purple-700",  isIncome:false },
+  ].map(c=>{
+    const amt = postedOps.filter(o=>o.moduleKey===c.key).reduce((s,o)=>s+o.amount,0);
+    return {...c, amount:amt};
+  }).filter(c=>c.amount>0);
 
-  // Batch history from posted ops
-  const batchMap: Record<string,{id:string; count:number; total:number; modules:Set<string>}> = {};
+  const maxCatAmt = Math.max(...ownerCategories.map(c=>c.amount), 1);
+
+  // ERP batch log — source of truth
+  const batchMap: Record<string,{id:string; total:number; modules:Set<string>}> = {};
   postedOps.forEach(o=>{
-    const b = o.erpBatchId||"—";
-    if(!batchMap[b]) batchMap[b]={id:b,count:0,total:0,modules:new Set()};
-    batchMap[b].count++; batchMap[b].total+=o.amount; batchMap[b].modules.add(o.moduleLabel);
+    const b = o.erpBatchId||"دفعة غير مُسمَّاة";
+    if(!batchMap[b]) batchMap[b]={id:b,total:0,modules:new Set()};
+    batchMap[b].total+=o.amount; batchMap[b].modules.add(o.moduleLabel);
   });
   const batches = Object.values(batchMap);
 
   return (
     <div className="space-y-5" dir="rtl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-gray-800">التقارير المالية</h2>
-          <p className="text-gray-400 text-sm mt-0.5">التقارير الداخلية للفريق المالي · رؤية المالك النهائية</p>
-        </div>
+      {/* Page header — kept minimal, layer tabs carry the identity */}
+      <div>
+        <h2 className="text-xl font-bold text-gray-800">التقارير المالية</h2>
+        <p className="text-gray-400 text-sm mt-0.5">طبقتان: التقارير التشغيلية الداخلية · رؤية المالك النهائية</p>
       </div>
 
-      <div className="flex gap-2 border-b border-gray-200">
-        {[
-          { id:"internal" as const, label:"📋 التقارير الداخلية",   sub:"للفريق المالي" },
-          { id:"owner"    as const, label:"👁 رؤية المالك",         sub:"تقارير نهائية — قراءة فقط" },
-        ].map(t=>(
-          <button key={t.id} onClick={()=>setTab(t.id)}
-            className={`px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px flex flex-col items-start
-              ${tab===t.id?"border-purple-600 text-purple-700":"border-transparent text-gray-500 hover:text-gray-700"}`}>
-            {t.label}
-            <span className="text-[10px] font-normal text-gray-400">{t.sub}</span>
-          </button>
-        ))}
+      {/* Layer tabs — visually distinct to signal the boundary */}
+      <div className="flex gap-0 border-b-2 border-gray-200">
+        <button onClick={()=>setTab("internal")}
+          className={`px-6 py-3 text-sm font-semibold border-b-2 -mb-0.5 transition-all
+            ${tab==="internal"?"border-blue-600 text-blue-700 bg-blue-50/60":"border-transparent text-gray-400 hover:text-gray-600"}`}>
+          <span className="flex flex-col items-start gap-0.5">
+            <span>📋 التقارير الداخلية</span>
+            <span className="text-[10px] font-normal text-gray-400">للفريق المالي · تشغيلية</span>
+          </span>
+        </button>
+        <button onClick={()=>setTab("owner")}
+          className={`px-6 py-3 text-sm font-semibold border-b-2 -mb-0.5 transition-all
+            ${tab==="owner"?"border-indigo-600 text-indigo-700 bg-indigo-50/60":"border-transparent text-gray-400 hover:text-gray-600"}`}>
+          <span className="flex flex-col items-start gap-0.5">
+            <span>👁 رؤية المالك</span>
+            <span className="text-[10px] font-normal text-gray-400">وجهة نهائية · بيانات ERP فقط · قراءة فقط</span>
+          </span>
+        </button>
       </div>
 
+      {/* ─── INTERNAL TAB — finance team operational view ─── */}
       {tab==="internal" && (
         <div className="space-y-5">
-          <div className="bg-blue-50 border border-blue-100 rounded-xl px-5 py-3 flex items-center gap-3">
-            <span className="text-lg">📋</span>
-            <p className="text-sm text-blue-800 font-medium">تقارير داخلية — مخصصة لفريق الحسابات والإدارة المالية</p>
+          <div className="bg-blue-50 border border-blue-100 rounded-xl px-5 py-3.5 flex items-start gap-3">
+            <span className="text-xl flex-shrink-0 mt-0.5">📋</span>
+            <div>
+              <p className="text-sm font-bold text-blue-800">تقارير داخلية — الطبقة التشغيلية للفريق المالي</p>
+              <p className="text-xs text-blue-600 mt-0.5">تشمل البيانات في جميع مراحل المراجعة · تُستخدم لمتابعة الأداء الداخلي وليس للقرار المالي النهائي</p>
+            </div>
           </div>
           <div className="grid grid-cols-3 gap-4">
             {[
-              "تقرير المبيعات الشهري","تقرير المصروفات التشغيلية",
-              "تقرير المشتريات والموردين","كشف حسابات الموظفين",
-              "تقرير المخزون والجرد","تقرير الأداء العام",
+              {title:"تقرير المبيعات الشهري",     icon:"💰", desc:"إجمالي المبيعات لكل الفروع مجمعةً"},
+              {title:"تقرير المصروفات التشغيلية",  icon:"💸", desc:"المصروفات المرفوعة والمعتمدة"},
+              {title:"تقرير المشتريات والموردين",  icon:"🛒", desc:"الطلبات والفواتير الواردة"},
+              {title:"كشف مستحقات الموظفين",       icon:"👥", desc:"الرواتب والبدلات الشهرية"},
+              {title:"تقرير المخزون والجرد",        icon:"📦", desc:"حركة المخزون وفروقات الجرد"},
+              {title:"تقرير الأداء العام",          icon:"📊", desc:"ملخص شامل لجميع الموديولات"},
             ].map((r,i)=>(
-              <div key={i} className="bg-white rounded-xl border border-gray-100 p-5 hover:border-purple-200 hover:shadow-sm transition-all shadow-sm">
-                <div className="text-2xl mb-3">📊</div>
-                <p className="font-semibold text-gray-800 text-sm">{r}</p>
-                <p className="text-xs text-gray-400 mt-1">أكتوبر 2025</p>
-                <div className="flex items-center gap-2 mt-3">
+              <div key={i} className="bg-white rounded-xl border border-gray-100 p-5 hover:border-blue-200 hover:shadow-sm transition-all shadow-sm">
+                <div className="text-2xl mb-3">{r.icon}</div>
+                <p className="font-bold text-gray-800 text-sm">{r.title}</p>
+                <p className="text-xs text-gray-400 mt-1 mb-3">{r.desc}</p>
+                <div className="flex items-center gap-2">
                   <Btn size="sm"><Eye size={11}/> عرض</Btn>
                   <Btn size="sm"><Download size={11}/> تحميل</Btn>
                 </div>
@@ -1419,122 +1589,146 @@ function OwnerReportsPage({ ops }: PageProps) {
         </div>
       )}
 
+      {/* ─── OWNER TAB — executive read-only destination ─── */}
       {tab==="owner" && (
-        <div className="space-y-5">
-          {/* Owner-layer architectural header */}
-          <div className="rounded-xl overflow-hidden border border-purple-200 shadow-sm">
-            <div className="bg-gradient-to-r from-purple-700 to-indigo-700 px-6 py-4 flex items-center justify-between">
+        <div className="space-y-6">
+
+          {/* Identity header — distinct visual, communicates ERP-only data provenance */}
+          <div className="rounded-2xl overflow-hidden shadow-md" style={{background:"linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#1e3a5f 100%)"}}>
+            <div className="px-8 py-6 flex items-start justify-between">
               <div>
-                <p className="font-bold text-white text-base">التقرير المالي الموحد — رؤية المالك</p>
-                <p className="text-purple-200 text-xs mt-0.5">
-                  بيانات مُعتمدة نهائياً · مُرحَّلة في ERP · مُعالَجة وجاهزة للقرار
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center">
+                    <Eye size={18} className="text-white"/>
+                  </div>
+                  <div>
+                    <p className="font-bold text-white text-lg leading-tight">التقرير المالي الموحد</p>
+                    <p className="text-indigo-300 text-xs">رؤية المالك — المركز المالي المُعتمد</p>
+                  </div>
+                </div>
+                <p className="text-indigo-200 text-xs leading-relaxed max-w-lg">
+                  هذه الصفحة وجهة نهائية للمالك وتُعرض بيانات مُعتمدة نهائياً ومُرحَّلة في ERP حصراً.
+                  لا تظهر هنا أي بيانات في طور المراجعة أو الاعتماد أو الانتظار.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge className="bg-white/20 text-white border border-white/30 text-xs">🔒 قراءة فقط</Badge>
-                <Badge className="bg-emerald-500/30 text-emerald-200 border border-emerald-400/30 text-xs">✓ بيانات مُعتمدة</Badge>
+              <div className="flex flex-col items-end gap-2">
+                <div className="bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-center">
+                  <p className="text-indigo-200 text-[10px] font-semibold">الفترة المالية</p>
+                  <p className="text-white font-bold text-sm">أكتوبر 2025</p>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span className="text-[10px] text-emerald-300 font-semibold">بيانات ERP مُعتمدة</span>
+                </div>
               </div>
             </div>
-            <div className="bg-purple-50 border-t border-purple-100 px-6 py-2 flex items-center gap-6 text-[11px] text-purple-600">
-              <span>📅 أكتوبر 2025</span>
+            {/* Data provenance strip */}
+            <div className="bg-black/20 border-t border-white/10 px-8 py-2.5 flex items-center gap-8 text-[11px] text-indigo-300">
+              <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>المصدر: ERP مُعتمد فقط</span>
               <span>·</span>
-              <span>جميع الأرقام من العمليات المُعتمدة نهائياً والمُرحَّلة في ERP فقط</span>
+              <span>الأرقام غير المُعتمدة نهائياً مُستبعدة</span>
               <span>·</span>
-              <span>الأرقام الأولية أو غير المعتمدة غير مُدرجة</span>
+              <span>لا توجد أزرار إجراءات في هذه الصفحة</span>
+              <span>·</span>
+              <span>{postedOps.length} بيان مُدرَج</span>
             </div>
           </div>
 
-          {/* Financial KPIs for owner */}
           {postedOps.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-100 p-12 text-center">
-              <div className="text-5xl mb-4">📊</div>
-              <p className="font-bold text-gray-700 text-lg mb-2">لا توجد بيانات مُرحَّلة بعد</p>
-              <p className="text-gray-400 text-sm">بعد ترحيل العمليات المعتمدة نهائياً إلى ERP، تظهر تقارير المالك هنا</p>
-              <p className="text-gray-300 text-xs mt-2">انتقل إلى التصدير لـ ERP لمعالجة العمليات المعتمدة</p>
+            <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center shadow-sm">
+              <div className="text-5xl mb-5">📊</div>
+              <p className="font-bold text-gray-700 text-lg mb-2">لا توجد بيانات ERP مُعتمدة بعد</p>
+              <p className="text-gray-400 text-sm mb-1">تظهر هنا البيانات بعد الاعتماد النهائي والترحيل لـ ERP فقط</p>
+              <p className="text-gray-300 text-xs">الطبقة الداخلية (التبويب الأول) تُظهر جميع البيانات في مراحل المراجعة</p>
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-4 gap-4">
-                <KpiCard label="إجمالي المبيعات المُرحَّلة"  value={`${(totalRevenue/1000).toFixed(1)}K ر.س`}   sub={`${salesOps.length} عملية`}    icon={<TrendingUp size={18} className="text-emerald-600"/>} accent="emerald"/>
-                <KpiCard label="إجمالي المصروفات"            value={`${(totalExpenses/1000).toFixed(1)}K ر.س`}  sub={`${expensesOps.length} عملية`} icon={<Wallet size={18} className="text-red-500"/>}        accent="red"/>
-                <KpiCard label="إجمالي المشتريات"            value={`${(totalPurchases/1000).toFixed(1)}K ر.س`} sub={`${purchasesOps.length} عملية`} icon={<ShoppingCart size={18} className="text-blue-600"/>}  accent="blue"/>
-                <KpiCard label="عمليات مُعالَجة في ERP"      value={String(postedOps.length)}                   sub="إجمالي المُرحَّل"              icon={<ChevronsRight size={18} className="text-indigo-600"/>} accent="purple"/>
-              </div>
-
-              {/* Module breakdown table */}
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                  <h3 className="font-bold text-gray-900">الملخص المالي بالموديول</h3>
-                  <Badge className="bg-gray-100 text-gray-500 border border-gray-200 text-xs">🔒 معتمد نهائياً</Badge>
+              {/* Net position — the headline number for the owner */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-1 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">صافي المركز المالي</p>
+                    <p className={`text-4xl font-black tabular-nums leading-none mb-2 ${netPosition>=0?"text-emerald-700":"text-red-700"}`}>
+                      {netPosition>=0?"+":""}{(netPosition/1000).toFixed(1)}K
+                      <span className="text-lg font-semibold text-gray-400 mr-1">ر.س</span>
+                    </p>
+                    <p className="text-xs text-gray-400">إيرادات − مصروفات − مشتريات</p>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <div className="flex items-center justify-between text-[11px] text-gray-500 mb-1">
+                      <span>+ إيرادات</span><span className="font-mono font-bold text-emerald-700">{(salesPosted/1000).toFixed(1)}K</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-gray-500 mb-1">
+                      <span>− مصروفات</span><span className="font-mono font-bold text-red-600">{(expPosted/1000).toFixed(1)}K</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-gray-500">
+                      <span>− مشتريات</span><span className="font-mono font-bold text-orange-600">{(purPosted/1000).toFixed(1)}K</span>
+                    </div>
+                  </div>
                 </div>
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr className="text-xs text-gray-500 font-semibold text-right">
-                      <th className="px-6 py-3">الموديول</th>
-                      <th className="px-6 py-3 text-center">عدد العمليات</th>
-                      <th className="px-6 py-3 text-center">الإجمالي المالي</th>
-                      <th className="px-6 py-3 text-center">مُرحَّل لـ ERP</th>
-                      <th className="px-6 py-3 text-center">نسبة الترحيل</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {moduleBreakdown.map((m,i)=>{
-                      const erpPct = m.count>0 ? Math.round(m.erpCount/m.count*100) : 0;
+
+                {/* Category bar chart — visual financial breakdown */}
+                <div className="col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">توزيع المبالغ المُعتمدة في ERP حسب الفئة</p>
+                  <div className="space-y-3">
+                    {ownerCategories.map((c,i)=>{
+                      const pct = Math.round((c.amount/maxCatAmt)*100);
                       return (
-                        <tr key={i} className="hover:bg-gray-50/60">
-                          <td className="px-6 py-4 flex items-center gap-2">
-                            <span className="text-lg">{m.icon}</span>
-                            <span className="font-semibold text-sm text-gray-800">{m.label}</span>
-                          </td>
-                          <td className="px-6 py-4 text-center font-mono font-bold text-gray-700">{m.count}</td>
-                          <td className="px-6 py-4 text-center font-mono font-extrabold text-gray-900 tabular-nums">{(m.total/1000).toFixed(1)}K ر.س</td>
-                          <td className="px-6 py-4 text-center font-mono font-bold text-indigo-700 tabular-nums">{m.erpCount > 0 ? `${(m.erpTotal/1000).toFixed(1)}K ر.س` : "—"}</td>
-                          <td className="px-6 py-4 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <div className="w-16 bg-gray-200 rounded-full h-1.5">
-                                <div className={`h-1.5 rounded-full ${erpPct===100?"bg-indigo-500":erpPct>0?"bg-amber-400":"bg-gray-300"}`} style={{width:`${erpPct}%`}}/>
-                              </div>
-                              <span className="text-xs text-gray-500 font-mono">{erpPct}%</span>
-                            </div>
-                          </td>
-                        </tr>
+                        <div key={i} className="flex items-center gap-3">
+                          <span className="text-base flex-shrink-0 w-6 text-center">{c.icon}</span>
+                          <span className="text-xs font-semibold text-gray-600 w-24 flex-shrink-0 text-right">{c.label}</span>
+                          <div className="flex-1 bg-gray-100 rounded-full h-2.5">
+                            <div className={`h-2.5 rounded-full ${c.color}`} style={{width:`${pct}%`}}/>
+                          </div>
+                          <span className={`text-xs font-mono font-extrabold tabular-nums w-20 text-left flex-shrink-0 ${c.textColor}`}>
+                            {(c.amount/1000).toFixed(1)}K ر.س
+                          </span>
+                        </div>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </div>
+                </div>
               </div>
 
-              {/* ERP batch timeline */}
+              {/* ERP batch provenance log */}
               {batches.length > 0 && (
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                  <div className="px-6 py-4 border-b border-gray-100">
-                    <h3 className="font-bold text-gray-900">دفعات الترحيل المُعالَجة في ERP</h3>
-                    <p className="text-xs text-gray-400 mt-0.5">كل دفعة تمثل مجموعة عمليات مُعتمدة ومُرحَّلة</p>
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-gray-900">سجل دفعات ERP</h3>
+                      <p className="text-xs text-gray-400 mt-0.5">مصدر البيانات المُعتمدة في هذا التقرير — كل دفعة قيد محاسبي مُغلق</p>
+                    </div>
+                    <Badge className="bg-indigo-50 text-indigo-600 border border-indigo-100 text-xs">🔒 مُغلق</Badge>
                   </div>
-                  <div className="p-4 space-y-2">
+                  <div className="divide-y divide-gray-100">
                     {batches.map((b,i)=>(
-                      <div key={i} className="bg-indigo-50 border border-indigo-100 rounded-xl px-5 py-3.5 flex items-center gap-4">
-                        <div className="w-9 h-9 rounded-xl bg-indigo-100 border border-indigo-200 flex items-center justify-center flex-shrink-0">
-                          <ChevronsRight size={16} className="text-indigo-700"/>
+                      <div key={i} className="px-6 py-4 flex items-center gap-5">
+                        <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center flex-shrink-0">
+                          <ChevronsRight size={14} className="text-indigo-600"/>
                         </div>
                         <div className="flex-1">
-                          <p className="font-bold text-sm text-indigo-900 font-mono">{b.id}</p>
-                          <p className="text-xs text-indigo-600 mt-0.5">{[...b.modules].join(" · ")}</p>
+                          <p className="font-bold text-sm text-gray-900 font-mono">{b.id}</p>
+                          <p className="text-[11px] text-gray-400 mt-0.5">{[...b.modules].join(" · ")}</p>
                         </div>
-                        <div className="text-center">
-                          <p className="font-extrabold text-indigo-800 font-mono tabular-nums">{(b.total/1000).toFixed(1)}K ر.س</p>
-                          <p className="text-[10px] text-indigo-500">{b.count} عملية</p>
-                        </div>
-                        <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs flex-shrink-0">✓ مُعالَج</Badge>
+                        <p className="font-black text-gray-900 font-mono tabular-nums text-base">
+                          {(b.total/1000).toFixed(1)}K
+                          <span className="text-xs font-semibold text-gray-400 mr-0.5">ر.س</span>
+                        </p>
+                        <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg">✓ مُعتمد</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              <p className="text-center text-xs text-gray-300 py-2">
-                جميع الأرقام المُعروضة مُعتمدة نهائياً ومُرحَّلة في ERP · هذه الصفحة للقراءة فقط ولا تتضمن أي إجراءات تشغيلية
-              </p>
+              {/* Provenance footer */}
+              <div className="flex items-center justify-center gap-4 py-3 text-[11px] text-gray-300 border-t border-gray-100">
+                <span>جميع الأرقام من ERP المُعتمد حصراً</span>
+                <span>·</span>
+                <span>الأرقام الأولية أو غير المُجمَّعة غير مُدرجة</span>
+                <span>·</span>
+                <span>لا توجد إجراءات في هذه الصفحة</span>
+              </div>
             </>
           )}
         </div>
