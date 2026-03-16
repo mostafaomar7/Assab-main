@@ -1,0 +1,260 @@
+Hi Minus,
+
+I am sending additional detailed feedback specifically for the **Accountant Dashboard**.
+The goal of these adjustments is to make the interface **more professional, efficient, and practical for real accounting workflow inside restaurants.**
+
+Please review the following points carefully and implement them in the next revision.
+
+---
+
+## 1. Reminder Icon (Notifications / Reminders)
+
+The reminders section needs better organization and filtering.
+
+The accountant should be able to filter reminders **by module**, for example:
+
+• Sales
+• Inventory – Daily Count
+• Inventory – Monthly Count
+• Waste / Damage
+• Purchases
+• Expenses
+
+The accountant should be able to send reminders:
+
+• to a specific branch
+• or to all branches that have not submitted the required data.
+
+Example use cases:
+
+• reminding a branch that **daily sales have not been submitted**
+• reminding branches that **monthly inventory count is missing**
+• reminding branches about **missing purchases or expenses**
+
+Branch managers should receive the reminder in the mobile app and respond with structured replies such as:
+
+• will send later
+• no purchases today
+• inventory completed but upload pending
+• other explanation
+
+This communication should be clearly visible in the workflow.
+
+---
+
+## 2. Sales Module
+
+### Filtering Improvements
+
+Remove filters for:
+
+• delivery platforms
+• sales channels
+
+Instead improve **date filtering**.
+
+The accountant should be able to quickly select:
+
+• yesterday
+• last week
+• last month
+• previous days in the current week
+
+These should appear as a **dropdown list of days**, allowing the accountant to review a specific day quickly.
+
+Each day should show:
+
+• number of operations
+• number of completed operations
+
+This helps the accountant quickly identify days with missing data (for example: operations missing from three days ago).
+
+---
+
+### Reconciliation Table
+
+Inside the reconciliation table between:
+
+• POS sales
+• bank deposits
+• delivery applications
+
+The accountant must be able to **edit the values if needed and save them**.
+
+Additionally, if there is a difference (for example 150 SAR), the accountant should be able to assign that variance to employees.
+
+Example:
+
+Variance: 150 SAR
+
+The accountant can distribute the amount across multiple employees by entering:
+
+• employee number
+• employee name appears automatically
+• assigned amount per employee
+
+---
+
+## 3. Expenses Module
+
+### Filtering
+
+Remove filtering by **expense type**.
+
+Use the same **professional date filtering system used in Sales**.
+
+---
+
+### Editing Mode
+
+When edit mode is activated, the accountant should be able to edit:
+
+• supplier invoice number
+• supplier name
+• description
+• date
+
+Also add proper fields for:
+
+• VAT number
+• VAT amount
+• amount before VAT
+• amount after VAT
+
+This must be added **professionally without affecting the clean interface of the expenses list**.
+
+---
+
+## 4. Purchases Module
+
+Attachments and documentation should follow the **same structure used in the Expenses module**.
+
+Inside purchase details:
+
+Remove unnecessary fields such as:
+
+• historical price
+• requested quantity
+• receiver
+
+The table should focus on:
+
+• item name
+• unit price
+• quantity
+
+All fields should remain editable when necessary.
+
+---
+
+## 5. Inventory Module
+
+Add a button to:
+
+**Export Inventory to Excel (All Branches)**
+
+Also add professional filters to distinguish between:
+
+• daily inventory
+• monthly inventory
+
+---
+
+### Monthly Inventory
+
+Monthly inventory rows should allow:
+
+• approve
+• reject
+• edit
+• send confirmation request to branch manager
+
+If the accountant suspects a specific item, they should be able to send a confirmation request to the branch manager.
+
+When the branch manager responds confirming the count, the system should show that:
+
+**“This item was flagged by the accountant and confirmed by the branch manager.”**
+
+---
+
+### Daily Inventory
+
+Daily inventory should preferably be **separated from monthly inventory** because the workflow is different.
+
+Daily inventory reconciliation should include:
+
+Opening Balance
+
+* Purchases
+  − Sales
+* Incoming Transfers
+  − Outgoing Transfers
+  − Waste / Damage
+  = Closing Balance
+
+Workflow:
+
+1. Branch manager sends daily inventory count
+2. Accountant reviews the data
+3. Accountant enters sales quantity per item
+4. System calculates variance
+
+Result can be:
+
+• match
+• shortage
+• surplus
+
+The accountant can:
+
+• approve the report
+• return it to the branch manager for correction
+
+---
+
+## 6. Waste & Damage Module
+
+Add strong branch filtering.
+
+Allow the accountant to:
+
+• change responsible employee
+• assign a new employee if needed
+
+Also allow the accountant to change classification:
+
+• Waste
+• Damage
+
+Since classification affects whether the loss is charged to:
+
+• employee
+• restaurant
+
+---
+
+## 7. Fixed Assets Module
+
+Attachments should appear in the same professional viewer used in the **Expenses module**.
+
+Add a clear filter for asset status because there are two scenarios:
+
+1. Asset received by branch manager through the mobile application.
+2. Asset recorded by the accountant through an invoice, but the branch manager must confirm physical receipt.
+
+The system should clearly support **confirmation workflow between accountant and branch manager**.
+
+---
+
+## Final Note
+
+All these improvements are meant to make the **Accountant Dashboard a real operational review workspace**, not just a data display interface.
+
+The system should help the accountant:
+
+• review data quickly
+• detect anomalies
+• reconcile financial information
+• communicate with branches efficiently
+
+Please apply these refinements and provide the updated dashboard so I can review the improvements.

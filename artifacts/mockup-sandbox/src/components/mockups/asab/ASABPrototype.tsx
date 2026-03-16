@@ -2465,43 +2465,53 @@ function AccModulePage({ moduleKey, title, navigate, setModal, setDetailId, ops,
 
 // ─── Dedicated Sales page ────────────────────────────────────────────────────
 function AccSalesPage({ navigate, setModal, setDetailId, ops, approveOp, rejectOp, bulkApprove }:PageProps) {
-  const [filters, setFilters] = useState<Filters>({branch:"",status:"",match:"",search:""});
-  const [platform, setPlatform] = useState("");
-  const [brand,    setBrand]    = useState("");
-  const [channel,  setChannel]  = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo,   setDateTo]   = useState("");
-  const [platformModal, setPlatformModal] = useState<string|null>(null); // platform name for drill-down
+  const [filters,      setFilters]      = useState<Filters>({branch:"",status:"",match:"",search:""});
+  const [brand,        setBrand]        = useState("");
+  const [selectedDay,  setSelectedDay]  = useState("الكل");
+  const [showRecon,    setShowRecon]    = useState(false);
+  const [editRecon,    setEditRecon]    = useState(false);
+  const [reconVarOpen, setReconVarOpen] = useState(false);
+
+  // Simulated day options (current week + quick picks)
+  const DAY_OPTIONS = [
+    { label:"الكل",              val:"الكل",    ops:8, done:5 },
+    { label:"اليوم",             val:"today",   ops:3, done:1 },
+    { label:"أمس (14 أكت)",     val:"d14",     ops:4, done:4 },
+    { label:"13 أكت (الإثنين)", val:"d13",     ops:2, done:2 },
+    { label:"12 أكت (الأحد)",   val:"d12",     ops:3, done:1 },
+    { label:"11 أكت (السبت)",   val:"d11",     ops:1, done:0 },
+    { label:"10 أكت (الجمعة)",  val:"d10",     ops:2, done:2 },
+    { label:"الأسبوع الماضي",   val:"lastWeek",ops:14,done:12},
+    { label:"الشهر الماضي",     val:"lastMonth",ops:48,done:40},
+  ];
+
+  // Reconciliation rows — POS / Bank / Delivery
+  const [reconRows, setReconRows] = useState([
+    { label:"إيرادات POS (نقدي + بنكي)", val:18400, editable:true },
+    { label:"إيداعات بنكية موثّقة",        val:17200, editable:true },
+    { label:"مبيعات تطبيقات التوصيل",     val:6800,  editable:true },
+  ]);
+  const posVal   = reconRows[0].val;
+  const bankVal  = reconRows[1].val;
+  const delivVal = reconRows[2].val;
+  const totalSales = posVal + delivVal;
+  const bankDiff   = posVal - bankVal; // variance between POS cash and bank deposits
+
+  // Variance assignment employees
+  const [varEmployees, setVarEmployees] = useState<{empId:string; empName:string; amount:string}[]>([{empId:"",empName:"",amount:""}]);
+  const addVarEmp = () => setVarEmployees(p=>[...p, {empId:"",empName:"",amount:""}]);
+  const removeVarEmp = (i:number) => setVarEmployees(p=>p.filter((_,idx)=>idx!==i));
+  const MOCK_EMPLOYEES: Record<string,string> = {
+    "1001":"أحمد العمري","1002":"سارة الزهراني","1003":"فهد القحطاني","1004":"نورة المطيري","1005":"خالد السالم"
+  };
 
   const mOps    = ops.filter(o=>o.moduleKey==="sales");
   const pending  = mOps.filter(o=>o.status==="pending");
   const filtered = applyFilters(ops, filters, "sales");
-
-  // Simulated delivery platform line items
-  const PLATFORM_ITEMS: Record<string,{desc:string; qty:number; price:number}[]> = {
-    "هنقرستيشن": [
-      {desc:"برجر كلاسيك",          qty:18, price:42},
-      {desc:"برجر مزدوج",            qty:9,  price:64},
-      {desc:"وجبة دجاج مقرمش",      qty:14, price:38},
-      {desc:"إضافات — جبنة إضافية", qty:22, price:4},
-    ],
-    "جاهز": [
-      {desc:"بيتزا مارغريتا",        qty:7,  price:65},
-      {desc:"بيتزا دجاج BBQ",        qty:5,  price:72},
-      {desc:"مشروبات",               qty:12, price:10},
-    ],
-    "تو يو": [
-      {desc:"وجبة عائلية",           qty:4,  price:180},
-      {desc:"برجر كلاسيك",          qty:6,  price:42},
-    ],
-    "نينجا": [
-      {desc:"وجبة دجاج مقرمش",      qty:8,  price:38},
-      {desc:"إضافات",               qty:5,  price:8},
-    ],
-  };
+  const selectedDayInfo = DAY_OPTIONS.find(d=>d.val===selectedDay);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" dir="rtl">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-800">موديول المبيعات</h2>
@@ -2510,7 +2520,6 @@ function AccSalesPage({ navigate, setModal, setDetailId, ops, approveOp, rejectO
         {pending.length>0 && <Btn variant="success" size="sm" onClick={()=>bulkApprove(pending.map(o=>o.id))}>✓ موافقة على الكل ({pending.length})</Btn>}
       </div>
 
-      {/* KpiCards — operational counts */}
       <div className="grid grid-cols-4 gap-4">
         <KpiCard label="إجمالي البيانات المرفوعة" value={String(mOps.length)} sub="كل الحالات" icon={<FileText size={18} className="text-purple-600"/>} accent="purple"/>
         <KpiCard label="قيد المراجعة" value={String(pending.length)} sub="رُفعت من الفروع" icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
@@ -2518,9 +2527,9 @@ function AccSalesPage({ navigate, setModal, setDetailId, ops, approveOp, rejectO
         <KpiCard label="مرفوضة" value={String(mOps.filter(o=>o.status==="rejected").length)} sub="تحتاج إعادة رفع" icon={<XCircle size={18} className="text-red-600"/>} accent="red"/>
       </div>
 
-      {/* Enhanced 8-field filter bar */}
+      {/* Filter bar — branch, status, brand, date quick-select */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4" dir="rtl">
-        <div className="grid grid-cols-4 gap-3 mb-3">
+        <div className="grid grid-cols-4 gap-3">
           <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">الفرع</label>
             <select value={filters.branch} onChange={e=>setFilters(p=>({...p,branch:e.target.value==="الكل"?"":e.target.value}))} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
@@ -2534,101 +2543,49 @@ function AccSalesPage({ navigate, setModal, setDetailId, ops, approveOp, rejectO
             </select>
           </div>
           <div>
-            <label className="text-[11px] font-semibold text-gray-500 block mb-1">منصة التوصيل</label>
-            <select value={platform} onChange={e=>setPlatform(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-              {["الكل","هنقرستيشن","جاهز","تو يو","نينجا"].map(pl=><option key={pl}>{pl}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-[11px] font-semibold text-gray-500 block mb-1">قناة البيع</label>
-            <select value={channel} onChange={e=>setChannel(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-              {["الكل","نقدي","بنكي","تطبيق توصيل"].map(c=><option key={c}>{c}</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="grid grid-cols-4 gap-3">
-          <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">العلامة التجارية</label>
             <select value={brand} onChange={e=>setBrand(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
               {["الكل","برغر خليفة","بيتزا باكو","وسطاوي"].map(b=><option key={b}>{b}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-[11px] font-semibold text-gray-500 block mb-1">رقم مرجعي / وصف</label>
-            <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2">
-              <Search size={13} className="text-gray-400"/>
-              <input value={filters.search} onChange={e=>setFilters(p=>({...p,search:e.target.value}))} placeholder="بحث..." className="flex-1 text-sm outline-none"/>
-            </div>
-          </div>
-          <div>
-            <label className="text-[11px] font-semibold text-gray-500 block mb-1">من تاريخ</label>
-            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-600"/>
-          </div>
-          <div>
-            <label className="text-[11px] font-semibold text-gray-500 block mb-1">إلى تاريخ</label>
-            <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-600"/>
+            <label className="text-[11px] font-semibold text-gray-500 block mb-1">التاريخ / الفترة</label>
+            <select value={selectedDay} onChange={e=>setSelectedDay(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
+              {DAY_OPTIONS.map(d=><option key={d.val} value={d.val}>{d.label}</option>)}
+            </select>
           </div>
         </div>
-        {(filters.branch||filters.status||filters.search||platform!=="الكل"&&platform||brand!=="الكل"&&brand) && (
-          <button onClick={()=>{ setFilters({branch:"",status:"",match:"",search:""}); setPlatform(""); setBrand(""); setChannel(""); setDateFrom(""); setDateTo(""); }}
-            className="mt-2 text-xs text-purple-600 hover:underline flex items-center gap-1"><RotateCcw size={11}/> مسح الفلاتر</button>
-        )}
-      </div>
-
-      {/* Delivery platform quick-access buttons */}
-      <div className="flex items-center gap-2 flex-wrap" dir="rtl">
-        <span className="text-xs text-gray-400 font-medium ml-1">تفاصيل منصة التوصيل:</span>
-        {["هنقرستيشن","جاهز","تو يو","نينجا"].map(pl=>(
-          <button key={pl} onClick={()=>setPlatformModal(pl)}
-            className="text-xs px-3 py-1.5 rounded-full border border-gray-200 bg-white text-gray-600 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 transition-all">
-            {pl} ↗
-          </button>
-        ))}
-      </div>
-
-      {/* Platform drill-down modal panel */}
-      {platformModal && PLATFORM_ITEMS[platformModal] && (
-        <div className="bg-white rounded-xl border border-purple-200 shadow-md overflow-hidden" dir="rtl">
-          <div className="px-5 py-3.5 bg-purple-50/60 border-b border-purple-100 flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-purple-900 text-sm">تفاصيل مبيعات — {platformModal}</h3>
-              <p className="text-[11px] text-purple-500 mt-0.5">تفصيل الأصناف المُباعة عبر المنصة — 14 أكتوبر 2025</p>
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          <div>
+            <label className="text-[11px] font-semibold text-gray-500 block mb-1">بحث / مرجعي</label>
+            <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2">
+              <Search size={13} className="text-gray-400"/>
+              <input value={filters.search} onChange={e=>setFilters(p=>({...p,search:e.target.value}))} placeholder="بحث..." className="flex-1 text-sm outline-none bg-transparent"/>
             </div>
-            <button onClick={()=>setPlatformModal(null)} className="text-gray-400 hover:text-gray-700"><X size={16}/></button>
           </div>
-          <div className="p-4">
-            <table className="w-full text-xs" dir="rtl">
-              <thead className="bg-gray-50"><tr>
-                <th className="px-3 py-2 text-right font-semibold text-gray-600">الصنف</th>
-                <th className="px-3 py-2 text-center font-semibold text-gray-600">الكمية</th>
-                <th className="px-3 py-2 text-center font-semibold text-gray-600">سعر الوحدة</th>
-                <th className="px-3 py-2 text-center font-semibold text-gray-600">الإجمالي</th>
-                <th className="px-3 py-2 text-center font-semibold text-gray-600">تعديل</th>
-              </tr></thead>
-              <tbody className="divide-y divide-gray-100">
-                {PLATFORM_ITEMS[platformModal].map((item,k)=>{
-                  const total = item.qty * item.price;
-                  return (
-                    <tr key={k} className="hover:bg-gray-50">
-                      <td className="px-3 py-2.5 font-medium text-gray-800">{item.desc}</td>
-                      <td className="px-3 py-2.5 text-center">{item.qty}</td>
-                      <td className="px-3 py-2.5 text-center font-mono">{item.price} ر.س</td>
-                      <td className="px-3 py-2.5 text-center font-mono font-semibold text-purple-700">{fmtAmt(total)} ر.س</td>
-                      <td className="px-3 py-2.5 text-center"><Btn size="sm"><Edit3 size={11}/></Btn></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot className="bg-gray-50 border-t-2 border-gray-200">
-                <tr>
-                  <td colSpan={3} className="px-3 py-2.5 font-bold text-gray-900 text-right">إجمالي {platformModal}</td>
-                  <td className="px-3 py-2.5 text-center font-black font-mono text-purple-800">
-                    {fmtAmt(PLATFORM_ITEMS[platformModal].reduce((s,i)=>s+i.qty*i.price,0))} ر.س
-                  </td>
-                  <td></td>
-                </tr>
-              </tfoot>
-            </table>
+          <div className="flex items-end">
+            {(filters.branch||filters.status||filters.search||selectedDay!=="الكل"||brand!=="الكل"&&brand) && (
+              <button onClick={()=>{ setFilters({branch:"",status:"",match:"",search:""}); setBrand(""); setSelectedDay("الكل"); }}
+                className="text-xs text-purple-600 hover:underline flex items-center gap-1 pb-2"><RotateCcw size={11}/> مسح الفلاتر</button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Day-level operations summary — shows ops / completed per selected day */}
+      {selectedDay!=="الكل" && selectedDayInfo && (
+        <div className={`rounded-xl border p-4 flex items-center gap-4 ${selectedDayInfo.ops>selectedDayInfo.done?"bg-amber-50 border-amber-200":"bg-emerald-50 border-emerald-200"}`} dir="rtl">
+          <div className="flex-1">
+            <p className="text-sm font-bold text-gray-800">{selectedDayInfo.label}</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {selectedDayInfo.ops} عملية مطلوبة — {selectedDayInfo.done} مكتملة
+              {selectedDayInfo.ops>selectedDayInfo.done && <span className="text-amber-700 font-semibold"> · {selectedDayInfo.ops-selectedDayInfo.done} ناقصة</span>}
+            </p>
+          </div>
+          <div className="flex gap-6 text-center">
+            <div><p className="text-lg font-black text-gray-800">{selectedDayInfo.ops}</p><p className="text-[10px] text-gray-500">إجمالي</p></div>
+            <div><p className="text-lg font-black text-emerald-600">{selectedDayInfo.done}</p><p className="text-[10px] text-gray-500">مكتملة</p></div>
+            <div><p className={`text-lg font-black ${selectedDayInfo.ops-selectedDayInfo.done>0?"text-amber-600":"text-gray-300"}`}>{selectedDayInfo.ops-selectedDayInfo.done}</p><p className="text-[10px] text-gray-500">ناقص</p></div>
           </div>
         </div>
       )}
@@ -2650,6 +2607,102 @@ function AccSalesPage({ navigate, setModal, setDetailId, ops, approveOp, rejectO
             ))
         }
       </Card>
+
+      {/* Reconciliation table — POS / Bank / Delivery */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
+          <div>
+            <h3 className="font-bold text-gray-900 text-sm">جدول التسوية — POS / بنك / تطبيقات التوصيل</h3>
+            <p className="text-[11px] text-gray-400 mt-0.5">قارن الإيرادات عبر القنوات وعيِّن أي فروق على الموظفين</p>
+          </div>
+          <div className="flex gap-2">
+            <Btn size="sm" onClick={()=>setShowRecon(!showRecon)}>
+              {showRecon?<ChevronUp size={12}/>:<ChevronDown size={12}/>} {showRecon?"إخفاء":"عرض"}
+            </Btn>
+            {showRecon && <button onClick={()=>setEditRecon(!editRecon)} className="text-xs text-purple-600 hover:underline flex items-center gap-1"><Edit3 size={10}/> {editRecon?"حفظ التعديلات":"تعديل الأرقام"}</button>}
+          </div>
+        </div>
+        {showRecon && (
+          <div className="p-5 space-y-4">
+            <table className="w-full text-sm border border-gray-100 rounded-xl overflow-hidden" dir="rtl">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2.5 text-right font-semibold text-gray-600">البند</th>
+                  <th className="px-4 py-2.5 text-center font-semibold text-gray-600">المبلغ (ر.س)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {reconRows.map((row,ri)=>(
+                  <tr key={ri} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-800">{row.label}</td>
+                    <td className="px-4 py-3 text-center">
+                      {editRecon
+                        ? <input defaultValue={String(row.val)} onChange={e=>setReconRows(p=>p.map((r,i)=>i===ri?{...r,val:Number(e.target.value)||r.val}:r))}
+                            className="w-28 text-center border border-purple-200 rounded px-2 py-1 font-mono text-sm"/>
+                        : <span className="font-mono font-bold text-gray-800">{fmtAmt(row.val)} ر.س</span>
+                      }
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+                <tr>
+                  <td className="px-4 py-3 font-bold text-gray-900">إجمالي المبيعات (POS + توصيل)</td>
+                  <td className="px-4 py-3 text-center font-black font-mono text-purple-800">{fmtAmt(totalSales)} ر.س</td>
+                </tr>
+                <tr className={bankDiff!==0?"bg-red-50":""}>
+                  <td className="px-4 py-3 font-bold text-gray-700">الفرق (POS − إيداعات بنكية)</td>
+                  <td className={`px-4 py-3 text-center font-black font-mono ${bankDiff>0?"text-red-600":bankDiff<0?"text-amber-600":"text-emerald-600"}`}>
+                    {bankDiff>0?"+":""}{fmtAmt(Math.abs(bankDiff))} ر.س
+                    {bankDiff===0 && " ✓"}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+
+            {/* Variance assignment section */}
+            {bankDiff!==0 && (
+              <div className="border border-red-200 rounded-xl overflow-hidden">
+                <div className="px-4 py-3 bg-red-50 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-red-800">توزيع الفرق على الموظفين</p>
+                    <p className="text-xs text-red-600 mt-0.5">الفرق: {fmtAmt(Math.abs(bankDiff))} ر.س — وزِّعه على موظف أو أكثر</p>
+                  </div>
+                  <button onClick={()=>setReconVarOpen(!reconVarOpen)} className="text-xs text-red-600 hover:underline flex items-center gap-1">
+                    {reconVarOpen?<ChevronUp size={11}/>:<ChevronDown size={11}/>} {reconVarOpen?"إخفاء":"تعيين"}
+                  </button>
+                </div>
+                {reconVarOpen && (
+                  <div className="p-4 bg-white space-y-2">
+                    {varEmployees.map((emp,ei)=>(
+                      <div key={ei} className="flex items-center gap-2">
+                        <input value={emp.empId} onChange={e=>{
+                          const id=e.target.value;
+                          const name=MOCK_EMPLOYEES[id]||"";
+                          setVarEmployees(p=>p.map((v,i)=>i===ei?{...v,empId:id,empName:name}:v));
+                        }} placeholder="رقم الموظف" className="w-28 text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-center font-mono" dir="ltr"/>
+                        <span className={`flex-1 text-sm py-1.5 px-3 rounded-lg border ${emp.empName?"bg-purple-50 text-purple-800 border-purple-200 font-semibold":"bg-gray-50 text-gray-400 border-gray-200"}`}>
+                          {emp.empName||"الاسم يظهر تلقائياً"}
+                        </span>
+                        <input value={emp.amount} onChange={e=>setVarEmployees(p=>p.map((v,i)=>i===ei?{...v,amount:e.target.value}:v))}
+                          placeholder="المبلغ المُعيَّن" className="w-32 text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-center font-mono"/>
+                        <span className="text-xs text-gray-500">ر.س</span>
+                        {varEmployees.length>1 && <button onClick={()=>removeVarEmp(ei)} className="text-gray-400 hover:text-red-500"><X size={14}/></button>}
+                      </div>
+                    ))}
+                    <div className="flex items-center gap-2 pt-1">
+                      <button onClick={addVarEmp} className="text-xs text-purple-600 hover:underline flex items-center gap-1"><Plus size={11}/> إضافة موظف آخر</button>
+                      <div className="ml-auto flex gap-2">
+                        <Btn size="sm" variant="danger"><CheckCircle2 size={11}/> تحميل الفرق</Btn>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -2660,10 +2713,20 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
   const [expandedId,       setExpandedId]       = useState<string|null>(null);
   const [editingRow,       setEditingRow]       = useState<string|null>(null);
   const [brand,            setBrand]            = useState("");
-  const [expType,          setExpType]          = useState("");
-  const [dateFrom,         setDateFrom]         = useState("");
+  const [selectedDay,      setSelectedDay]      = useState("الكل");
   const [verifiedInvoices, setVerifiedInvoices] = useState<Record<string,boolean>>({});
   const [attachModal,      setAttachModal]      = useState<{opId:string; invNum:string; idx:number; total:number}|null>(null);
+
+  const EXP_DAY_OPTIONS = [
+    { label:"الكل",             val:"الكل"     },
+    { label:"اليوم",            val:"today"    },
+    { label:"أمس (14 أكت)",    val:"d14"      },
+    { label:"13 أكت",          val:"d13"      },
+    { label:"12 أكت",          val:"d12"      },
+    { label:"11 أكت",          val:"d11"      },
+    { label:"الأسبوع الماضي",  val:"lastWeek" },
+    { label:"الشهر الماضي",    val:"lastMonth"},
+  ];
 
   const mOps    = ops.filter(o=>o.moduleKey==="expenses");
   const filtered = applyFilters(ops, filters, "expenses");
@@ -2700,7 +2763,7 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
         <KpiCard label="مرفوضة" value={String(mOps.filter(o=>o.status==="rejected").length)} sub="تحتاج إعادة رفع" icon={<XCircle size={18} className="text-red-600"/>} accent="red"/>
       </div>
 
-      {/* Filter bar */}
+      {/* Filter bar — branch, status, brand, date quick-select */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4" dir="rtl">
         <div className="grid grid-cols-4 gap-3">
           <div>
@@ -2716,35 +2779,33 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
             </select>
           </div>
           <div>
-            <label className="text-[11px] font-semibold text-gray-500 block mb-1">نوع المصروف</label>
-            <select value={expType} onChange={e=>setExpType(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-              {["الكل","صيانة","مستلزمات","مرافق","رواتب","متفرقات"].map(t=><option key={t}>{t}</option>)}
-            </select>
-          </div>
-          <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">العلامة التجارية</label>
             <select value={brand} onChange={e=>setBrand(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
               {["الكل","برغر خليفة","بيتزا باكو","وسطاوي"].map(b=><option key={b}>{b}</option>)}
             </select>
           </div>
-        </div>
-        <div className="grid grid-cols-4 gap-3 mt-3">
           <div>
-            <label className="text-[11px] font-semibold text-gray-500 block mb-1">من تاريخ</label>
-            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-600"/>
+            <label className="text-[11px] font-semibold text-gray-500 block mb-1">التاريخ / الفترة</label>
+            <select value={selectedDay} onChange={e=>setSelectedDay(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
+              {EXP_DAY_OPTIONS.map(d=><option key={d.val} value={d.val}>{d.label}</option>)}
+            </select>
           </div>
-          <div className="col-span-3">
+        </div>
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">بحث / رقم الفاتورة</label>
             <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2">
               <Search size={13} className="text-gray-400"/>
-              <input value={filters.search} onChange={e=>setFilters(p=>({...p,search:e.target.value}))} placeholder="رقم الفاتورة أو اسم المورد..." className="flex-1 text-sm outline-none"/>
+              <input value={filters.search} onChange={e=>setFilters(p=>({...p,search:e.target.value}))} placeholder="رقم الفاتورة أو اسم المورد..." className="flex-1 text-sm outline-none bg-transparent"/>
             </div>
           </div>
+          <div className="flex items-end">
+            {(filters.branch||filters.status||filters.search||selectedDay!=="الكل"||brand!=="الكل"&&brand) && (
+              <button onClick={()=>{ setFilters({branch:"",status:"",match:"",search:""}); setBrand(""); setSelectedDay("الكل"); }}
+                className="text-xs text-purple-600 hover:underline flex items-center gap-1 pb-2"><RotateCcw size={11}/> مسح الفلاتر</button>
+            )}
+          </div>
         </div>
-        {(filters.branch||filters.status||filters.search||expType!=="الكل"&&expType) && (
-          <button onClick={()=>{ setFilters({branch:"",status:"",match:"",search:""}); setExpType(""); setBrand(""); setDateFrom(""); }}
-            className="mt-2 text-xs text-purple-600 hover:underline flex items-center gap-1"><RotateCcw size={11}/> مسح الفلاتر</button>
-        )}
       </div>
 
       {/* Expenses list with batch invoice expansion */}
@@ -2791,6 +2852,46 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
                         <p className="text-xs font-bold text-gray-600">تفاصيل الفواتير المضمنة في هذا البيان:</p>
                         {!isLocked && <button onClick={()=>setEditingRow(editingRow?null:op.id)} className="text-[10px] text-purple-600 hover:underline flex items-center gap-1"><Edit3 size={10}/> {editingRow===op.id?"إيقاف التعديل":"تفعيل التعديل"}</button>}
                       </div>
+                      {/* Edit mode: show VAT-aware fields */}
+                      {editingRow===op.id && (
+                        <div className="mb-3 p-3 bg-purple-50 border border-purple-100 rounded-xl">
+                          <p className="text-[11px] font-bold text-purple-700 mb-2 flex items-center gap-1.5"><Edit3 size={11}/> وضع التعديل — عدِّل بيانات الفاتورة والضريبة</p>
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            {[
+                              {label:"رقم فاتورة المورد", placeholder:"INV-XXXX", mono:true},
+                              {label:"اسم المورد",         placeholder:"اسم المورد"},
+                              {label:"البيان / الوصف",    placeholder:"وصف المصروف"},
+                              {label:"التاريخ",            placeholder:"DD/MM/YYYY"},
+                              {label:"الرقم الضريبي للمورد",placeholder:"رقم ضريبي 15 خانة", mono:true},
+                            ].map((f,fi)=>(
+                              <div key={fi} className={fi===4?"col-span-2":""}>
+                                <label className="text-[10px] font-semibold text-gray-500 block mb-1">{f.label}</label>
+                                <input placeholder={f.placeholder}
+                                  className={`w-full text-sm border border-purple-200 rounded-lg px-3 py-1.5 bg-white focus:border-purple-400 outline-none ${f.mono?"font-mono":""}`}
+                                  dir={f.mono?"ltr":"rtl"}/>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="grid grid-cols-3 gap-3 mt-2 text-xs">
+                            {[
+                              {label:"المبلغ قبل الضريبة", cls:"text-gray-800"},
+                              {label:"ضريبة القيمة المضافة (15%)", cls:"text-amber-700"},
+                              {label:"المبلغ بعد الضريبة", cls:"text-emerald-700 font-bold"},
+                            ].map((f,fi)=>(
+                              <div key={fi} className={`bg-white rounded-xl border ${fi===2?"border-emerald-200":"border-purple-200"} p-2.5`}>
+                                <label className={`text-[10px] font-semibold block mb-1 ${f.cls}`}>{f.label}</label>
+                                <input placeholder="0.00" type="number"
+                                  className={`w-full text-sm border-0 outline-none font-mono bg-transparent ${f.cls}`}/>
+                                <span className="text-[10px] text-gray-400">ر.س</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-2 flex gap-2">
+                            <Btn size="sm" variant="success"><CheckCircle2 size={11}/> حفظ التعديلات</Btn>
+                            <Btn size="sm" onClick={()=>setEditingRow(null)}>إلغاء</Btn>
+                          </div>
+                        </div>
+                      )}
                       <table className="w-full border border-gray-100 rounded-xl overflow-hidden text-xs" dir="rtl">
                         <thead className="bg-gray-100">
                           <tr>
@@ -2798,27 +2899,28 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
                             <th className="px-3 py-2 text-right">المورد</th>
                             <th className="px-3 py-2 text-right">البيان</th>
                             <th className="px-3 py-2 text-center">التاريخ</th>
-                            <th className="px-3 py-2 text-center">المبلغ</th>
+                            <th className="px-3 py-2 text-center">قبل الضريبة</th>
+                            <th className="px-3 py-2 text-center bg-amber-50/60 text-amber-700">الضريبة 15%</th>
+                            <th className="px-3 py-2 text-center bg-emerald-50/60 text-emerald-700">بعد الضريبة</th>
                             <th className="px-3 py-2 text-center">المرفقات</th>
                             <th className="px-3 py-2 text-center">توثيق</th>
-                            {editingRow===op.id && <th className="px-3 py-2 text-center">حفظ</th>}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 bg-white">
                           {invoices.map((inv,k)=>{
                             const vKey = `${op.id}-${inv.invNum}`;
                             const isInvVerified = verifiedInvoices[vKey]||false;
+                            const amtBeforeVat = Math.round(inv.amount / 1.15);
+                            const vatAmt       = inv.amount - amtBeforeVat;
                             return (
                               <tr key={k} className={`hover:bg-gray-50 ${isInvVerified?"bg-emerald-50/40":""}`}>
                                 <td className="px-3 py-2 font-mono text-purple-700 font-semibold">{inv.invNum}</td>
                                 <td className="px-3 py-2 font-medium text-gray-800">{inv.vendor}</td>
                                 <td className="px-3 py-2 text-gray-600">{inv.desc}</td>
                                 <td className="px-3 py-2 text-center text-gray-500">{inv.date}</td>
-                                <td className="px-3 py-2 text-center font-mono font-bold text-gray-800">
-                                  {editingRow===op.id
-                                    ? <input defaultValue={String(inv.amount)} className="w-20 text-center border border-purple-200 rounded px-1 py-0.5 font-mono text-xs"/>
-                                    : `${fmtAmt(inv.amount)} ر.س`}
-                                </td>
+                                <td className="px-3 py-2 text-center font-mono text-gray-600">{fmtAmt(amtBeforeVat)} ر.س</td>
+                                <td className="px-3 py-2 text-center font-mono text-amber-600 bg-amber-50/20">{fmtAmt(vatAmt)} ر.س</td>
+                                <td className="px-3 py-2 text-center font-mono font-bold text-emerald-700 bg-emerald-50/20">{fmtAmt(inv.amount)} ر.س</td>
                                 <td className="px-3 py-2 text-center">
                                   <button onClick={()=>setAttachModal({opId:op.id, invNum:inv.invNum, idx:0, total:inv.attachCount})}
                                     className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all">
@@ -2832,11 +2934,6 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
                                     <CheckSquare size={12}/>
                                   </button>
                                 </td>
-                                {editingRow===op.id && (
-                                  <td className="px-3 py-2 text-center">
-                                    <Btn size="sm" variant="success"><CheckCircle2 size={11}/></Btn>
-                                  </td>
-                                )}
                               </tr>
                             );
                           })}
@@ -2844,11 +2941,13 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
                         <tfoot className="bg-gray-50 border-t-2 border-gray-200">
                           <tr>
                             <td colSpan={4} className="px-3 py-2.5 font-bold text-gray-900 text-right">الإجمالي</td>
-                            <td className="px-3 py-2.5 text-center font-black font-mono text-gray-900">{fmtAmt(invoices.reduce((s,i)=>s+i.amount,0))} ر.س</td>
-                            <td colSpan={2} className="px-3 py-2.5 text-center text-[10px] text-gray-500">
+                            <td className="px-3 py-2.5 text-center font-mono text-gray-600">{fmtAmt(Math.round(invoices.reduce((s,i)=>s+i.amount,0)/1.15))} ر.س</td>
+                            <td className="px-3 py-2.5 text-center font-mono text-amber-600 bg-amber-50/20">{fmtAmt(invoices.reduce((s,i)=>s+Math.round(i.amount-i.amount/1.15),0))} ر.س</td>
+                            <td className="px-3 py-2.5 text-center font-black font-mono text-emerald-700 bg-emerald-50/20">{fmtAmt(invoices.reduce((s,i)=>s+i.amount,0))} ر.س</td>
+                            <td></td>
+                            <td className="px-3 py-2.5 text-center text-[10px] text-gray-500">
                               {invoices.filter(inv=>verifiedInvoices[`${op.id}-${inv.invNum}`]).length}/{invoices.length} موثّق
                             </td>
-                            {editingRow===op.id && <td></td>}
                           </tr>
                         </tfoot>
                       </table>
@@ -3339,8 +3438,10 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
   const [filterMatch,    setFilterMatch]     = useState("الكل");
   const [search,         setSearch]         = useState("");
   const [expandedId,     setExpandedId]     = useState<string|null>(null);
-  const [verifiedRows,   setVerifiedRows]   = useState<Record<string,boolean>>({});
-  const [approvedIds,    setApprovedIds]    = useState<Set<string>>(new Set());
+  const [verifiedRows,    setVerifiedRows]    = useState<Record<string,boolean>>({});
+  const [approvedIds,     setApprovedIds]     = useState<Set<string>>(new Set());
+  const [editingRecId,    setEditingRecId]    = useState<string|null>(null);
+  const [purAttachModal,  setPurAttachModal]  = useState<{recId:string; invNum:string; idx:number; total:number}|null>(null);
 
   const SUPPLIER_LIST = [...new Set(PUR_RECORDS.map(r=>r.supplier))];
   const BRANCH_LIST   = [...new Set(PUR_RECORDS.map(r=>r.branch))];
@@ -3386,44 +3487,114 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
   }).filter(Boolean);
 
   // Shared expandable product panel
-  const renderItemsPanel = (rec: PurRecord) => (
-    <div className="px-5 pb-5 bg-gray-50/40 space-y-3">
-      <div className="flex items-center gap-4 mt-3 mb-1 p-3 bg-white rounded-xl border border-blue-100">
-        <div className="flex-1">
-          <p className="text-xs font-bold text-gray-700">المورد: <span className="text-blue-700">{rec.supplier}</span></p>
-          <p className="text-xs text-gray-500 mt-0.5">رقم الفاتورة: <span className="font-mono font-semibold text-purple-600">{rec.invNum}</span> · {rec.date}</p>
-        </div>
-        <div className="text-left">
-          <p className="text-xs text-gray-400">الفرع</p>
-          <p className="text-xs font-semibold text-gray-700">{rec.branch}</p>
-        </div>
-        <div className="text-left">
-          <p className="text-xs text-gray-400">إجمالي الفاتورة</p>
-          <p className="font-mono font-bold text-blue-700">{fmtAmt(rec.amount)} ر.س</p>
-        </div>
-      </div>
-      <PurItemsTable
-        items={rec.items}
-        verifiedMap={Object.fromEntries(Object.entries(verifiedRows).filter(([k])=>k.startsWith(rec.id+"-")).map(([k,v])=>[k.slice(rec.id.length+1),v]))}
-        onToggleVerify={(key)=>toggleVerify(rec.id, key)}
-      />
-      {rec.items.some(r=>r.price-r.histPrice>2) && (
-        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2">
-          <AlertTriangle size={13} className="text-amber-600 mt-0.5 flex-shrink-0"/>
-          <div>
-            <p className="text-xs font-bold text-amber-900">تنبيه سعري: بنود أعلى من السعر التاريخي</p>
-            <p className="text-[11px] text-amber-700 mt-0.5">{rec.items.filter(r=>r.price-r.histPrice>2).map(r=>`${r.name} (${r.price} بدلاً من ${r.histPrice} ر.س)`).join(" · ")}</p>
+  const renderItemsPanel = (rec: PurRecord) => {
+    const isEditing = editingRecId===rec.id;
+    const recStatus = effectiveFiltered.find(r=>r.id===rec.id)?.status??rec.status;
+    return (
+      <div className="px-5 pb-5 bg-gray-50/40 space-y-3">
+        {/* Invoice meta bar */}
+        <div className="flex items-center gap-4 mt-3 mb-1 p-3 bg-white rounded-xl border border-blue-100">
+          <div className="flex-1">
+            <p className="text-xs font-bold text-gray-700">المورد: <span className="text-blue-700">{rec.supplier}</span></p>
+            <p className="text-xs text-gray-500 mt-0.5">رقم الفاتورة: <span className="font-mono font-semibold text-purple-600">{rec.invNum}</span> · {rec.date}</p>
+          </div>
+          <div className="text-left">
+            <p className="text-xs text-gray-400">الفرع</p>
+            <p className="text-xs font-semibold text-gray-700">{rec.branch}</p>
+          </div>
+          <div className="text-left">
+            <p className="text-xs text-gray-400">إجمالي الفاتورة</p>
+            <p className="font-mono font-bold text-blue-700">{fmtAmt(rec.amount)} ر.س</p>
+          </div>
+          {/* Attachment + edit controls */}
+          <div className="flex gap-2">
+            <button onClick={()=>setPurAttachModal({recId:rec.id, invNum:rec.invNum, idx:0, total:rec.items.length})}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-semibold transition-all">
+              <Paperclip size={11}/> المرفقات ({rec.items.length})
+            </button>
+            <button onClick={()=>setEditingRecId(isEditing?null:rec.id)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 text-xs font-semibold transition-all">
+              <Edit3 size={11}/> {isEditing?"إيقاف التعديل":"تعديل البنود"}
+            </button>
           </div>
         </div>
-      )}
-      {effectiveFiltered.find(r=>r.id===rec.id)?.status==="pending" && (
-        <div className="flex gap-2 pt-1">
-          <Btn size="sm" variant="success" onClick={()=>approveRecord(rec.id)}><ThumbsUp size={12}/> موافقة على الفاتورة</Btn>
-          <Btn size="sm" variant="danger"><ThumbsDown size={12}/> رفض</Btn>
+
+        {/* Simplified editable items table — item / unit / price / qty / total */}
+        <div className="overflow-x-auto">
+          <table className="w-full border border-gray-100 rounded-xl overflow-hidden text-xs" dir="rtl">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="px-3 py-2 text-right font-semibold text-gray-600">اسم الصنف</th>
+                <th className="px-3 py-2 text-center font-semibold text-gray-600">الوحدة</th>
+                <th className="px-3 py-2 text-center font-semibold text-gray-600">سعر الوحدة</th>
+                <th className="px-3 py-2 text-center font-semibold text-gray-600">الكمية</th>
+                <th className="px-3 py-2 text-center font-semibold text-gray-600">الإجمالي</th>
+                <th className="px-3 py-2 text-center font-semibold text-emerald-700 bg-emerald-50/50">توثيق ✓</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 bg-white">
+              {rec.items.map((row,i)=>{
+                const vKey    = `${row.name}-${i}`;
+                const verified = verifiedRows[rec.id+"-"+vKey];
+                const total    = row.received * row.price;
+                return (
+                  <tr key={i} className={`hover:bg-gray-50 ${verified?"bg-emerald-50/30":""}`}>
+                    <td className="px-3 py-2.5 font-semibold text-gray-800">
+                      {isEditing
+                        ? <input defaultValue={row.name} className="w-full border border-purple-200 rounded-lg px-2 py-1 text-xs bg-white focus:border-purple-400 outline-none"/>
+                        : row.name
+                      }
+                    </td>
+                    <td className="px-3 py-2.5 text-center text-gray-500">{row.unit}</td>
+                    <td className="px-3 py-2.5 text-center font-mono">
+                      {isEditing
+                        ? <input defaultValue={String(row.price)} className="w-20 text-center border border-purple-200 rounded-lg px-2 py-1 text-xs font-mono bg-white focus:border-purple-400 outline-none"/>
+                        : <span className="font-bold text-gray-800">{row.price} ر.س</span>
+                      }
+                    </td>
+                    <td className="px-3 py-2.5 text-center font-mono">
+                      {isEditing
+                        ? <input defaultValue={String(row.received)} className="w-16 text-center border border-purple-200 rounded-lg px-2 py-1 text-xs font-mono bg-white focus:border-purple-400 outline-none"/>
+                        : <span className="font-bold text-gray-800">{row.received}</span>
+                      }
+                    </td>
+                    <td className="px-3 py-2.5 text-center font-mono font-semibold text-blue-700">{fmtAmt(total)} ر.س</td>
+                    <td className="px-3 py-2.5 text-center">
+                      <button onClick={()=>toggleVerify(rec.id, vKey)}
+                        className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center mx-auto transition-all ${verified?"bg-emerald-500 border-emerald-500 text-white":"border-gray-300 hover:border-emerald-400"}`}>
+                        {verified && <CheckCircle2 size={12}/>}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+              <tr>
+                <td colSpan={4} className="px-3 py-2.5 font-bold text-gray-900 text-right">إجمالي الفاتورة</td>
+                <td className="px-3 py-2.5 text-center font-black font-mono text-blue-800">{fmtAmt(rec.items.reduce((s,r)=>s+r.received*r.price,0))} ر.س</td>
+                <td className="px-3 py-2.5 text-center text-[10px] text-gray-500">
+                  {Object.keys(verifiedRows).filter(k=>k.startsWith(rec.id+"-")).length}/{rec.items.length} موثّق
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
-      )}
-    </div>
-  );
+        {isEditing && (
+          <div className="flex gap-2">
+            <Btn size="sm" variant="success" onClick={()=>setEditingRecId(null)}><CheckCircle2 size={11}/> حفظ التعديلات</Btn>
+            <Btn size="sm" onClick={()=>setEditingRecId(null)}>إلغاء</Btn>
+          </div>
+        )}
+        {recStatus==="pending" && (
+          <div className="flex gap-2 pt-1">
+            <Btn size="sm" variant="success" onClick={()=>approveRecord(rec.id)}><ThumbsUp size={12}/> موافقة على الفاتورة</Btn>
+            <Btn size="sm" variant="danger"><ThumbsDown size={12}/> رفض</Btn>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-5" dir="rtl">
@@ -3643,6 +3814,37 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
             </div>
           )
       }
+
+      {/* Attachment viewer modal for purchases */}
+      {purAttachModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={()=>setPurAttachModal(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={e=>e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900">مرفقات الفاتورة</h3>
+                <p className="text-xs text-gray-400 mt-0.5">الفاتورة: <span className="font-mono text-purple-600">{purAttachModal.invNum}</span></p>
+              </div>
+              <button onClick={()=>setPurAttachModal(null)} className="text-gray-400 hover:text-gray-600 p-1"><X size={18}/></button>
+            </div>
+            <div className="p-5 space-y-3">
+              {Array.from({length: purAttachModal.total}).map((_,idx)=>(
+                <div key={idx} className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer group">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0"><FileText size={16} className="text-blue-600"/></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">مرفق_فاتورة_{purAttachModal.invNum}_{idx+1}.pdf</p>
+                    <p className="text-xs text-gray-400 mt-0.5">PDF · {(120+idx*80)}KB</p>
+                  </div>
+                  <Btn size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">عرض</Btn>
+                </div>
+              ))}
+            </div>
+            <div className="px-5 pb-4 flex gap-2">
+              <Btn size="sm"><Plus size={11}/> إرفاق مستند</Btn>
+              <Btn size="sm" onClick={()=>setPurAttachModal(null)}>إغلاق</Btn>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3672,9 +3874,20 @@ const INV_BRANCH_DATA: Record<string, {item:string; cat:string; unit:string; pre
 
 function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailId, bulkApprove }:PageProps) {
   const [expandedBranch, setExpandedBranch] = useState<string|null>(null);
-  const [dailyBranch, setDailyBranch] = useState<string|null>(null);
+  const [dailyBranch,    setDailyBranch]    = useState<string|null>(null);
+  const [invType,        setInvType]        = useState<"monthly"|"daily">("monthly");
+  const [flaggedBranches,setFlaggedBranches]= useState<Set<string>>(new Set());
+  const [branchConfirmed,setBranchConfirmed]= useState<Set<string>>(new Set());
+  const [sentToConfirm,  setSentToConfirm]  = useState<Set<string>>(new Set());
+
+  const toggleFlagged = (b:string) => setFlaggedBranches(p=>{ const s=new Set(p); s.has(b)?s.delete(b):s.add(b); return s; });
+  const toggleConfirm = (b:string) => setBranchConfirmed(p=>{ const s=new Set(p); s.has(b)?s.delete(b):s.add(b); return s; });
+  const sendConfirm   = (b:string) => setSentToConfirm(p=>new Set([...p,b]));
+
   const invOps = ops.filter(o=>o.moduleKey==="inventory");
   const pendingInv = invOps.filter(o=>o.status==="pending");
+
+  const exportExcel = () => { /* Simulated Excel export */ alert("تصدير Excel: جاري تنزيل ملف جرد الفروع..."); };
 
   // Count anomalies across all branches (change > 200% or < -50%)
   const anomalyCount = Object.values(INV_BRANCH_DATA).flat().filter(it=>{
@@ -3691,9 +3904,25 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-800">موديول المخزون</h2>
-          <p className="text-gray-400 text-sm mt-0.5">مراجعة الجرد اليومي لكل فرع — مقارنة الشهر الحالي بالشهر السابق</p>
+          <p className="text-gray-400 text-sm mt-0.5">مراجعة الجرد اليومي والشهري لكل فرع — مقارنة ومعادلة مخزون</p>
         </div>
-        <Btn variant="primary" size="sm" onClick={()=>navigate("acc-inventory-items")}><Package size={13}/> تحديد أصناف الجرد</Btn>
+        <div className="flex gap-2 items-center">
+          <button onClick={exportExcel}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100 transition-all">
+            <FileText size={12}/> تصدير Excel
+          </button>
+          <Btn variant="primary" size="sm" onClick={()=>navigate("acc-inventory-items")}><Package size={13}/> تحديد أصناف الجرد</Btn>
+        </div>
+      </div>
+
+      {/* Daily / Monthly toggle filter */}
+      <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 w-fit" dir="rtl">
+        {([["monthly","الجرد الشهري"],["daily","الجرد اليومي"]] as const).map(([val,label])=>(
+          <button key={val} onClick={()=>setInvType(val)}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${invType===val?"bg-white text-gray-800 shadow-sm":"text-gray-500 hover:text-gray-700"}`}>
+            {label}
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-4 gap-4">
@@ -3703,19 +3932,28 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
         <KpiCard label="فروع مكتملة" value={String(branchesWithOps.length)} sub={`من أصل ${BRANCHES.length} فروع`} icon={<CheckCircle2 size={18} className="text-emerald-600"/>} accent="emerald"/>
       </div>
 
-      {/* Branch-level inventory rows — click to expand detail */}
+      {/* Branch-level inventory rows — Monthly or Daily view */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
           <div>
-            <h3 className="font-bold text-gray-900 text-sm">جرد الفروع — الشهر الحالي</h3>
-            <p className="text-[11px] text-gray-400 mt-0.5">اضغط على فرع لعرض تفاصيل الأصناف ومقارنة الشهر السابق</p>
+            <h3 className="font-bold text-gray-900 text-sm">
+              {invType==="monthly" ? "الجرد الشهري — مقارنة الشهر الحالي بالسابق" : "الجرد اليومي — معادلة الجرد المخزوني"}
+            </h3>
+            <p className="text-[11px] text-gray-400 mt-0.5">
+              {invType==="monthly"
+                ? "موافقة · رفض · تعليم · إرسال تأكيد لمدير الفرع"
+                : "رصيد الفتح + مشتريات − مبيعات ± تحويلات − هدر = رصيد الإغلاق"}
+            </p>
           </div>
         </div>
         {BRANCHES.slice(0,4).map((branch,bi)=>{
-          const branchOp = invOps.find(o=>o.branch===branch);
-          const items    = INV_BRANCH_DATA[branch] || [];
-          const isExpanded = expandedBranch===branch;
+          const branchOp  = invOps.find(o=>o.branch===branch);
+          const items     = INV_BRANCH_DATA[branch] || [];
+          const isExpanded  = expandedBranch===branch;
           const isDailyOpen = dailyBranch===branch;
+          const isFlagged   = flaggedBranches.has(branch);
+          const isConfirmed = branchConfirmed.has(branch);
+          const isSent      = sentToConfirm.has(branch);
           const branchAnomalies = items.filter(it=>{
             if(it.prev===0) return false;
             return Math.abs(((it.curr-it.prev)/it.prev)*100) > 100;
@@ -3734,16 +3972,48 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
                     )}
                     {branchOp && <Badge className={STATUS_CFG[branchOp.status].cls}>{STATUS_CFG[branchOp.status].label}</Badge>}
                     {!branchOp && <Badge className="bg-gray-100 text-gray-500">لم يُرفع بعد</Badge>}
+                    {/* Monthly: flagged/confirmed indicators */}
+                    {invType==="monthly" && isFlagged && (
+                      <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold border border-purple-200 flex items-center gap-0.5">
+                        🚩 علّمه المحاسب
+                      </span>
+                    )}
+                    {invType==="monthly" && isConfirmed && (
+                      <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold border border-emerald-200 flex items-center gap-0.5">
+                        ✅ أكّده مدير الفرع
+                      </span>
+                    )}
+                    {invType==="monthly" && isSent && !isConfirmed && (
+                      <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold border border-amber-200">
+                        📤 إشعار أُرسل
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-gray-400 mt-0.5">{items.length} صنف · أُرسل {branchOp?.timeAgo||"—"}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap justify-end">
                   <Btn size="sm" onClick={()=>setExpandedBranch(isExpanded?null:branch)}>
                     {isExpanded?<ChevronUp size={12}/>:<ChevronDown size={12}/>} الأصناف
                   </Btn>
-                  <Btn size="sm" variant="primary" onClick={()=>setDailyBranch(isDailyOpen?null:branch)}>
-                    <RefreshCw size={12}/> معادلة الجرد
-                  </Btn>
+                  {invType==="daily" && (
+                    <Btn size="sm" variant="primary" onClick={()=>setDailyBranch(isDailyOpen?null:branch)}>
+                      <RefreshCw size={12}/> معادلة الجرد
+                    </Btn>
+                  )}
+                  {invType==="monthly" && (
+                    <>
+                      <button onClick={()=>toggleFlagged(branch)}
+                        title={isFlagged?"إلغاء التعليم":"تعليم بواسطة المحاسب"}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1 ${isFlagged?"bg-purple-100 text-purple-700 border-purple-300":"bg-gray-50 text-gray-500 border-gray-200 hover:bg-purple-50"}`}>
+                        🚩 {isFlagged?"مُعلَّم":"تعليم"}
+                      </button>
+                      {!isSent && <Btn size="sm" onClick={()=>sendConfirm(branch)}><Send size={11}/> إرسال للتأكيد</Btn>}
+                      <button onClick={()=>toggleConfirm(branch)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1 ${isConfirmed?"bg-emerald-100 text-emerald-700 border-emerald-300":"bg-gray-50 text-gray-500 border-gray-200 hover:bg-emerald-50"}`}>
+                        <CheckCircle2 size={11}/> {isConfirmed?"أكّده الفرع":"تسجيل تأكيد"}
+                      </button>
+                    </>
+                  )}
                   {branchOp?.status==="pending" && <>
                     <Btn size="sm" variant="success" onClick={()=>approveOp(branchOp.id)}><ThumbsUp size={12}/></Btn>
                     <Btn size="sm" variant="danger" onClick={()=>{ setDetailId(branchOp.id); setModal("reject"); }}><ThumbsDown size={12}/></Btn>
@@ -3797,8 +4067,8 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
                 </div>
               )}
 
-              {/* Daily inventory formula */}
-              {isDailyOpen && (
+              {/* Daily inventory formula — only in daily mode */}
+              {isDailyOpen && invType==="daily" && (
                 <div className="px-5 pb-4 bg-indigo-50/30">
                   <p className="text-[11px] font-bold text-indigo-700 mb-2 pt-2">معادلة الجرد اليومي — {branch}</p>
                   <div className="bg-white rounded-xl border border-indigo-100 p-4" dir="rtl">
@@ -3807,7 +4077,9 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
                         {label:"رصيد الفتح (أمس)",         val:12400, sign:"",  cls:"text-gray-800" },
                         {label:"+ مشتريات اليوم",           val:3200,  sign:"+", cls:"text-emerald-700"},
                         {label:"− مبيعات اليوم",            val:8700,  sign:"−", cls:"text-red-600"  },
-                        {label:"± تحويلات بين الفروع",      val:-200,  sign:"±", cls:"text-amber-700" },
+                        {label:"+ تحويلات واردة",           val:500,   sign:"+", cls:"text-blue-700"  },
+                        {label:"− تحويلات صادرة",           val:700,   sign:"−", cls:"text-orange-600"},
+                        {label:"− الهدر والتالف",           val:360,   sign:"−", cls:"text-rose-600"  },
                       ].map((row,k)=>(
                         <div key={k} className="flex items-center justify-between py-1 border-b border-gray-50 last:border-0">
                           <span className={`font-medium ${row.cls}`}>{row.label}</span>
@@ -3816,7 +4088,7 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
                       ))}
                       <div className="flex items-center justify-between pt-2 border-t-2 border-indigo-200 mt-1">
                         <span className="font-bold text-gray-900">= رصيد الإغلاق المحاسبي</span>
-                        <span className="font-black text-indigo-700 font-mono">6,700 ر.س</span>
+                        <span className="font-black text-indigo-700 font-mono">{fmtAmt(12400+3200-8700+500-700-360)} ر.س</span>
                       </div>
                       <div className="flex items-center justify-between py-1">
                         <span className="font-medium text-gray-700">رصيد الجرد الفعلي</span>
@@ -4287,12 +4559,15 @@ function AccAssets({}: PageProps) {
     { id:"FA-004", name:"فرن صناعي",          cat:"معدات", branch:"الدمام",            cost:45000, book:37500, case_:"acc_register",   status:"confirmed",          invNum:"INV-A004", submittedBy:"المحاسب: أحمد الفيصل",      date:"09 أكت" },
     { id:"FA-005", name:"مكيف مركزي",         cat:"معدات", branch:"الرياض - السليمانية",cost:22000,book:18000, case_:"branch_upload", status:"pending_accountant", invNum:"INV-A005", submittedBy:"مدير الفرع: نواف السالم",    date:"13 أكت" },
   ]);
-  const [expandedId, setExpandedId] = useState<string|null>(null);
+  const [expandedId,    setExpandedId]   = useState<string|null>(null);
+  const [filterStatus,  setFilterStatus] = useState<"الكل"|AssetStatus>("الكل");
+  const [assetAttach,   setAssetAttach]  = useState<{assetId:string; name:string}|null>(null);
   const confirmAsset = (id:string) => setAssets(p=>p.map(a=>a.id===id?{...a,status:"confirmed" as AssetStatus}:a));
 
   const pendingAccountant = assets.filter(a=>a.status==="pending_accountant");
   const pendingBranch     = assets.filter(a=>a.status==="pending_branch");
   const confirmed         = assets.filter(a=>a.status==="confirmed");
+  const displayedAssets   = filterStatus==="الكل" ? assets : assets.filter(a=>a.status===filterStatus);
 
   const STATUS_ASSET: Record<AssetStatus, {label:string; cls:string}> = {
     pending_branch:     { label:"ينتظر تأكيد الفرع",   cls:"bg-amber-50 text-amber-700 border border-amber-200" },
@@ -4335,13 +4610,29 @@ function AccAssets({}: PageProps) {
         </div>
       </div>
 
+      {/* Status filter */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-4">
+        <div>
+          <label className="text-[11px] font-semibold text-gray-500 block mb-1">تصفية حسب الحالة</label>
+          <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value as "الكل"|AssetStatus)} className="text-sm border border-gray-200 rounded-lg px-3 py-2 min-w-[220px]">
+            <option value="الكل">الكل — {assets.length} أصل</option>
+            <option value="pending_accountant">ينتظر مراجعة المحاسب ({pendingAccountant.length})</option>
+            <option value="pending_branch">ينتظر تأكيد الفرع ({pendingBranch.length})</option>
+            <option value="confirmed">مؤكد — مكتمل ({confirmed.length})</option>
+          </select>
+        </div>
+        {filterStatus!=="الكل" && (
+          <button onClick={()=>setFilterStatus("الكل")} className="text-xs text-purple-600 hover:underline flex items-center gap-1 mt-4"><RotateCcw size={11}/> مسح</button>
+        )}
+      </div>
+
       {/* Assets list */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
           <h3 className="font-bold text-gray-900 text-sm">سجل الأصول — اضغط لعرض التفاصيل</h3>
-          <span className="text-xs text-gray-400">{assets.length} أصل</span>
+          <span className="text-xs text-gray-400">{displayedAssets.length} أصل</span>
         </div>
-        {assets.map(a=>{
+        {displayedAssets.map(a=>{
           const isExpanded = expandedId===a.id;
           const cfg = STATUS_ASSET[a.status];
           return (
@@ -4386,6 +4677,12 @@ function AccAssets({}: PageProps) {
                     </div>
                   </div>
                   {/* Workflow state-specific actions */}
+                  {/* Attachment viewer button */}
+                  <button onClick={()=>setAssetAttach({assetId:a.id, name:a.name})}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-semibold border border-blue-200 transition-all">
+                    <Paperclip size={11}/> عرض المرفقات (صورة الأصل + الفاتورة)
+                  </button>
+
                   {a.status==="pending_accountant" && (
                     <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
                       <Smartphone size={16} className="text-blue-600 mt-0.5 flex-shrink-0"/>
@@ -4394,7 +4691,6 @@ function AccAssets({}: PageProps) {
                         <p className="text-xs text-blue-600 mt-0.5">رُفع الأصل والفاتورة من الفرع عبر تطبيق الموبايل. راجع البيانات ثم أكّد التسجيل.</p>
                       </div>
                       <div className="flex gap-2 flex-shrink-0">
-                        <Btn size="sm"><Eye size={12}/> الفاتورة</Btn>
                         <Btn size="sm" variant="success" onClick={()=>confirmAsset(a.id)}><CheckCircle2 size={12}/> تأكيد التسجيل</Btn>
                       </div>
                     </div>
@@ -4421,6 +4717,44 @@ function AccAssets({}: PageProps) {
           );
         })}
       </div>
+
+      {/* Asset attachment viewer modal */}
+      {assetAttach && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={()=>setAssetAttach(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={e=>e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900">مرفقات الأصل</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{assetAttach.name}</p>
+              </div>
+              <button onClick={()=>setAssetAttach(null)} className="text-gray-400 hover:text-gray-600 p-1"><X size={18}/></button>
+            </div>
+            <div className="p-5 space-y-3">
+              {[
+                {name:`صورة_الأصل_${assetAttach.assetId}.jpg`, type:"صورة", size:"340KB"},
+                {name:`فاتورة_شراء_${assetAttach.assetId}.pdf`, type:"PDF", size:"180KB"},
+              ].map((att,i)=>(
+                <div key={i} className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer group">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${att.type==="صورة"?"bg-purple-100":"bg-blue-100"}`}>
+                    {att.type==="صورة"
+                      ? <span className="text-lg">🖼</span>
+                      : <FileText size={16} className="text-blue-600"/>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate" dir="ltr">{att.name}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{att.type} · {att.size}</p>
+                  </div>
+                  <Btn size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity"><Eye size={11}/> عرض</Btn>
+                </div>
+              ))}
+            </div>
+            <div className="px-5 pb-4 flex gap-2">
+              <Btn size="sm"><Plus size={11}/> إضافة مرفق</Btn>
+              <Btn size="sm" onClick={()=>setAssetAttach(null)}>إغلاق</Btn>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -4431,23 +4765,27 @@ function AccAssets({}: PageProps) {
 function AccWaste({}: PageProps) {
   type WasteClass = "هدر"|"تالف";
   type Resp = "موظف"|"مطعم";
-  interface WasteProduct { name:string; qty:number; unit:string; class_:WasteClass; resp:Resp; hasImg:boolean }
+  interface WasteProduct { name:string; qty:number; unit:string; class_:WasteClass; resp:Resp; hasImg:boolean; empId:string; empName:string }
   interface WasteEntry { id:string; branch:string; date:string; status:"pending"|"approved"|"rejected"; products:WasteProduct[] }
+  const [filterBranch, setFilterBranch] = useState("الكل");
+  const MOCK_EMP_MAP: Record<string,string> = {
+    "1001":"أحمد العمري","1002":"سارة الزهراني","1003":"فهد القحطاني","1004":"نورة المطيري","1005":"خالد السالم"
+  };
   const [entries, setEntries] = useState<WasteEntry[]>([
     { id:"WD-001", branch:"فرع الرياض - العليا",    date:"14 أكت", status:"pending",
       products:[
-        {name:"دجاج طازج",     qty:3,  unit:"كجم",   class_:"تالف", resp:"موظف",  hasImg:true},
-        {name:"زيت قلي",       qty:10, unit:"لتر",   class_:"هدر",  resp:"مطعم",  hasImg:false},
+        {name:"دجاج طازج",     qty:3,  unit:"كجم",   class_:"تالف", resp:"موظف",  hasImg:true,  empId:"1001", empName:"أحمد العمري"},
+        {name:"زيت قلي",       qty:10, unit:"لتر",   class_:"هدر",  resp:"مطعم",  hasImg:false, empId:"",     empName:""},
       ]},
     { id:"WD-002", branch:"فرع جدة - الحمراء",      date:"13 أكت", status:"pending",
       products:[
-        {name:"خبز برجر",       qty:20, unit:"قطعة",  class_:"هدر",  resp:"مطعم",  hasImg:false},
-        {name:"صوص مايونيز",   qty:2,  unit:"كجم",   class_:"تالف", resp:"موظف",  hasImg:true},
-        {name:"مشروبات غازية", qty:6,  unit:"علبة",  class_:"هدر",  resp:"مطعم",  hasImg:false},
+        {name:"خبز برجر",       qty:20, unit:"قطعة",  class_:"هدر",  resp:"مطعم",  hasImg:false, empId:"",     empName:""},
+        {name:"صوص مايونيز",   qty:2,  unit:"كجم",   class_:"تالف", resp:"موظف",  hasImg:true,  empId:"1003", empName:"فهد القحطاني"},
+        {name:"مشروبات غازية", qty:6,  unit:"علبة",  class_:"هدر",  resp:"مطعم",  hasImg:false, empId:"",     empName:""},
       ]},
     { id:"WD-003", branch:"فرع مكة - المعابدة",     date:"12 أكت", status:"approved",
       products:[
-        {name:"دجاج طازج",     qty:1,  unit:"كجم",   class_:"تالف", resp:"موظف",  hasImg:true},
+        {name:"دجاج طازج",     qty:1,  unit:"كجم",   class_:"تالف", resp:"موظف",  hasImg:true,  empId:"1002", empName:"سارة الزهراني"},
       ]},
   ]);
   const [expandedId, setExpandedId] = useState<string|null>(null);
@@ -4463,18 +4801,44 @@ function AccWaste({}: PageProps) {
   };
   const approve = (id:string) => setEntries(p=>p.map(e=>e.id===id?{...e,status:"approved" as const}:e));
   const reject  = (id:string) => setEntries(p=>p.map(e=>e.id===id?{...e,status:"rejected" as const}:e));
+  const changeEmp = (entryId:string, pIdx:number, newId:string) => {
+    const name = MOCK_EMP_MAP[newId]||"";
+    setEntries(prev=>prev.map(e=>e.id===entryId?{
+      ...e, products:e.products.map((p,i)=>i===pIdx?{...p,empId:newId,empName:name}:p)
+    }:e));
+  };
 
   const pending  = entries.filter(e=>e.status==="pending");
   const approved = entries.filter(e=>e.status==="approved");
+  const displayed = filterBranch==="الكل" ? entries : entries.filter(e=>e.branch===filterBranch);
+
+  const WASTE_BRANCHES = [...new Set(entries.map(e=>e.branch))];
 
   return (
     <div className="space-y-5" dir="rtl">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-800">موديول الهدر والتالف</h2>
-          <p className="text-gray-400 text-sm mt-0.5">مراجعة بيانات الهدر — تعديل التصنيف وتحديد المسؤولية</p>
+          <p className="text-gray-400 text-sm mt-0.5">مراجعة بيانات الهدر — تعديل التصنيف وتحديد المسؤولية والموظف المسؤول</p>
         </div>
         {pending.length>0 && <Btn variant="success" size="sm" onClick={()=>setEntries(p=>p.map(e=>({...e,status:"approved" as const})))}><CheckCircle2 size={12}/> موافقة على الكل ({pending.length})</Btn>}
+      </div>
+
+      {/* Branch filter */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-4">
+        <div>
+          <label className="text-[11px] font-semibold text-gray-500 block mb-1">تصفية حسب الفرع</label>
+          <select value={filterBranch} onChange={e=>setFilterBranch(e.target.value)} className="text-sm border border-gray-200 rounded-lg px-3 py-2 min-w-[200px]">
+            <option value="الكل">الكل</option>
+            {WASTE_BRANCHES.map(b=><option key={b}>{b}</option>)}
+          </select>
+        </div>
+        {filterBranch!=="الكل" && (
+          <button onClick={()=>setFilterBranch("الكل")} className="text-xs text-purple-600 hover:underline flex items-center gap-1 mt-4"><RotateCcw size={11}/> مسح</button>
+        )}
+        <div className="flex-1 text-left">
+          <p className="text-xs text-gray-400">{displayed.length} بيان{filterBranch!=="الكل"?` من ${filterBranch}`:""}</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-4 gap-4">
@@ -4487,9 +4851,9 @@ function AccWaste({}: PageProps) {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
           <h3 className="font-bold text-gray-900 text-sm">بيانات الهدر والتالف</h3>
-          <span className="text-xs text-gray-400">{entries.length} بيان — اضغط لعرض المنتجات</span>
+          <span className="text-xs text-gray-400">{displayed.length} بيان — اضغط لعرض المنتجات</span>
         </div>
-        {entries.map(entry=>{
+        {displayed.map(entry=>{
           const isExpanded = expandedId===entry.id;
           const statusCls  = entry.status==="pending"?"bg-amber-50 text-amber-700 border border-amber-200":entry.status==="approved"?"bg-emerald-50 text-emerald-700 border border-emerald-200":"bg-red-50 text-red-700 border border-red-200";
           const statusLbl  = entry.status==="pending"?"معلق":entry.status==="approved"?"معتمد":"مرفوض";
@@ -4529,6 +4893,7 @@ function AccWaste({}: PageProps) {
                         <th className="px-3 py-2 text-center">الصورة</th>
                         <th className="px-3 py-2 text-center">التصنيف</th>
                         <th className="px-3 py-2 text-center">المسؤولية</th>
+                        <th className="px-3 py-2 text-center text-orange-700 bg-orange-50/60">تغيير الموظف</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 bg-white">
@@ -4562,6 +4927,21 @@ function AccWaste({}: PageProps) {
                               : <Badge className={prod.resp==="موظف"?"bg-orange-50 text-orange-700":"bg-gray-50 text-gray-600"}>{prod.resp}</Badge>
                             }
                           </td>
+                          {/* Employee assignment — change employee */}
+                          <td className="px-3 py-2 bg-orange-50/20">
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                value={prod.empId}
+                                onChange={e=>changeEmp(entry.id,pi,e.target.value)}
+                                placeholder="#موظف"
+                                className="w-16 text-center text-[10px] font-mono border border-orange-200 rounded-lg px-1.5 py-1 bg-white focus:border-orange-400 outline-none"
+                                dir="ltr"
+                              />
+                              <span className={`text-[10px] truncate max-w-[80px] ${prod.empName?"text-orange-800 font-semibold":"text-gray-400"}`}>
+                                {prod.empName||"—"}
+                              </span>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -4589,15 +4969,33 @@ function AccWaste({}: PageProps) {
 function AccReminders({}: PageProps) {
   type ReminderStatus = "not_sent"|"sent"|"responded";
   type ResponseType = "سيرسل لاحقاً"|"لا مشتريات اليوم"|"تم الجرد — قيد الرفع"|"توضيح: لا يوجد هدر اليوم"|null;
-  interface MissingReport { id:string; branch:string; reportType:string; requiredBy:string; daysMissing:number; urgency:"high"|"medium"|"low"; reminderStatus:ReminderStatus; response:ResponseType }
+  interface MissingReport { id:string; branch:string; reportType:string; moduleKey:string; requiredBy:string; daysMissing:number; urgency:"high"|"medium"|"low"; reminderStatus:ReminderStatus; response:ResponseType }
+
+  const MODULE_LABELS: Record<string,string> = {
+    "sales":              "المبيعات",
+    "inventory_daily":    "الجرد اليومي",
+    "inventory_monthly":  "الجرد الشهري",
+    "waste":              "الهدر والتالف",
+    "purchases":          "المشتريات",
+    "expenses":           "المصروفات",
+  };
+
+  const [filterModule, setFilterModule] = useState("الكل");
+  const [filterBranch, setFilterBranch] = useState("الكل");
+  const [broadcastModal, setBroadcastModal] = useState(false);
+  const [broadcastTarget, setBroadcastTarget] = useState<"all"|string>("all");
+  const [broadcastModule, setBroadcastModule] = useState("");
+  const [broadcastMsg,    setBroadcastMsg]    = useState("");
 
   const [reminders, setReminders] = useState<MissingReport[]>([
-    { id:"R001", branch:"فرع الرياض - العليا",       reportType:"جرد المخزون اليومي",     requiredBy:"14 أكت",  daysMissing:1, urgency:"high",   reminderStatus:"not_sent", response:null },
-    { id:"R002", branch:"فرع جدة - الحمراء",         reportType:"تقرير المبيعات اليومي",  requiredBy:"14 أكت",  daysMissing:1, urgency:"high",   reminderStatus:"sent",     response:null },
-    { id:"R003", branch:"فرع مكة - المعابدة",        reportType:"طلب الشراء الأسبوعي",    requiredBy:"13 أكت",  daysMissing:2, urgency:"medium", reminderStatus:"responded", response:"سيرسل لاحقاً" },
-    { id:"R004", branch:"فرع الدمام",                reportType:"تقرير الهدر والتالف",    requiredBy:"13 أكت",  daysMissing:2, urgency:"low",    reminderStatus:"responded", response:"توضيح: لا يوجد هدر اليوم" },
-    { id:"R005", branch:"فرع الرياض - السليمانية",   reportType:"جرد المخزون اليومي",     requiredBy:"12 أكت",  daysMissing:3, urgency:"high",   reminderStatus:"not_sent", response:null },
-    { id:"R006", branch:"فرع جدة - العزيزية",        reportType:"تقرير المشتريات",         requiredBy:"12 أكت",  daysMissing:3, urgency:"medium", reminderStatus:"responded", response:"لا مشتريات اليوم" },
+    { id:"R001", branch:"فرع الرياض - العليا",      reportType:"جرد المخزون اليومي",    moduleKey:"inventory_daily",   requiredBy:"14 أكت",  daysMissing:1, urgency:"high",   reminderStatus:"not_sent", response:null },
+    { id:"R002", branch:"فرع جدة - الحمراء",        reportType:"تقرير المبيعات اليومي", moduleKey:"sales",             requiredBy:"14 أكت",  daysMissing:1, urgency:"high",   reminderStatus:"sent",     response:null },
+    { id:"R003", branch:"فرع مكة - المعابدة",       reportType:"طلب الشراء الأسبوعي",   moduleKey:"purchases",         requiredBy:"13 أكت",  daysMissing:2, urgency:"medium", reminderStatus:"responded", response:"سيرسل لاحقاً" },
+    { id:"R004", branch:"فرع الدمام",               reportType:"تقرير الهدر والتالف",   moduleKey:"waste",             requiredBy:"13 أكت",  daysMissing:2, urgency:"low",    reminderStatus:"responded", response:"توضيح: لا يوجد هدر اليوم" },
+    { id:"R005", branch:"فرع الرياض - السليمانية",  reportType:"جرد المخزون اليومي",    moduleKey:"inventory_daily",   requiredBy:"12 أكت",  daysMissing:3, urgency:"high",   reminderStatus:"not_sent", response:null },
+    { id:"R006", branch:"فرع جدة - العزيزية",       reportType:"تقرير المشتريات",        moduleKey:"purchases",         requiredBy:"12 أكت",  daysMissing:3, urgency:"medium", reminderStatus:"responded", response:"لا مشتريات اليوم" },
+    { id:"R007", branch:"فرع الرياض - السليمانية",  reportType:"الجرد الشهري",           moduleKey:"inventory_monthly", requiredBy:"11 أكت",  daysMissing:4, urgency:"high",   reminderStatus:"not_sent", response:null },
+    { id:"R008", branch:"فرع جدة - العزيزية",       reportType:"المصروفات اليومية",      moduleKey:"expenses",          requiredBy:"11 أكت",  daysMissing:4, urgency:"medium", reminderStatus:"sent",     response:null },
   ]);
   const [expandedId, setExpandedId] = useState<string|null>(null);
   const [responseOptions] = useState<ResponseType[]>(["سيرسل لاحقاً","لا مشتريات اليوم","تم الجرد — قيد الرفع","توضيح: لا يوجد هدر اليوم"]);
@@ -4605,9 +5003,16 @@ function AccReminders({}: PageProps) {
   const sendReminder = (id:string) => setReminders(p=>p.map(r=>r.id===id?{...r,reminderStatus:"sent" as ReminderStatus}:r));
   const sendAll = () => setReminders(p=>p.map(r=>r.reminderStatus==="not_sent"?{...r,reminderStatus:"sent" as ReminderStatus}:r));
 
-  const notSent   = reminders.filter(r=>r.reminderStatus==="not_sent");
-  const sent      = reminders.filter(r=>r.reminderStatus==="sent");
-  const responded = reminders.filter(r=>r.reminderStatus==="responded");
+  const displayed = reminders.filter(r=>{
+    if(filterModule!=="الكل" && r.moduleKey!==filterModule) return false;
+    if(filterBranch!=="الكل" && r.branch!==filterBranch)  return false;
+    return true;
+  });
+  const notSent   = displayed.filter(r=>r.reminderStatus==="not_sent");
+  const sent      = displayed.filter(r=>r.reminderStatus==="sent");
+  const responded = displayed.filter(r=>r.reminderStatus==="responded");
+
+  const REM_BRANCHES = [...new Set(reminders.map(r=>r.branch))];
 
   const urgencyBadge = (u:string) =>
     u==="high"  ? "bg-red-50 text-red-700 border border-red-200" :
@@ -4620,13 +5025,19 @@ function AccReminders({}: PageProps) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-800">التذكيرات — بيانات الفروع المفقودة</h2>
-          <p className="text-gray-400 text-sm mt-0.5">أرسل تذكيراً للفرع مباشرةً من هنا — يصل على تطبيق الموبايل</p>
+          <p className="text-gray-400 text-sm mt-0.5">أرسل تذكيراً مخصصاً لفرع بعينه أو لجميع الفروع — يصل على تطبيق الموبايل</p>
         </div>
-        {notSent.length>0 && (
-          <Btn variant="primary" size="sm" onClick={sendAll}>
-            <Send size={12}/> إرسال الكل ({notSent.length})
-          </Btn>
-        )}
+        <div className="flex gap-2">
+          {notSent.length>0 && (
+            <Btn variant="primary" size="sm" onClick={sendAll}>
+              <Send size={12}/> إرسال الكل ({notSent.length})
+            </Btn>
+          )}
+          <button onClick={()=>setBroadcastModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 text-xs font-semibold hover:bg-purple-100 transition-all">
+            <Bell size={12}/> إرسال مخصص
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-4 gap-4">
@@ -4636,13 +5047,88 @@ function AccReminders({}: PageProps) {
         <KpiCard label="إجمالي المفقود" value={String(reminders.length)} sub="تقارير وبيانات" icon={<AlertTriangle size={18} className="text-purple-600"/>} accent="purple"/>
       </div>
 
+      {/* Module + Branch filters */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 grid grid-cols-3 gap-3">
+        <div>
+          <label className="text-[11px] font-semibold text-gray-500 block mb-1">الموديول</label>
+          <select value={filterModule} onChange={e=>setFilterModule(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
+            <option value="الكل">الكل</option>
+            {Object.entries(MODULE_LABELS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-[11px] font-semibold text-gray-500 block mb-1">الفرع</label>
+          <select value={filterBranch} onChange={e=>setFilterBranch(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
+            <option value="الكل">الكل</option>
+            {REM_BRANCHES.map(b=><option key={b}>{b}</option>)}
+          </select>
+        </div>
+        <div className="flex items-end">
+          {(filterModule!=="الكل"||filterBranch!=="الكل") && (
+            <button onClick={()=>{setFilterModule("الكل");setFilterBranch("الكل");}} className="text-xs text-purple-600 hover:underline flex items-center gap-1 pb-2"><RotateCcw size={11}/> مسح الفلاتر</button>
+          )}
+        </div>
+      </div>
+
+      {/* Broadcast custom reminder modal */}
+      {broadcastModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={()=>setBroadcastModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e=>e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="font-bold text-gray-900">إرسال تذكير مخصص</h3>
+              <button onClick={()=>setBroadcastModal(false)} className="text-gray-400 hover:text-gray-600"><X size={18}/></button>
+            </div>
+            <div className="p-5 space-y-4" dir="rtl">
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">إرسال إلى</label>
+                <div className="flex gap-2">
+                  <button onClick={()=>setBroadcastTarget("all")}
+                    className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${broadcastTarget==="all"?"bg-purple-100 text-purple-700 border-purple-300":"bg-gray-50 text-gray-600 border-gray-200"}`}>
+                    جميع الفروع
+                  </button>
+                  <button onClick={()=>setBroadcastTarget("specific")}
+                    className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${broadcastTarget!=="all"&&broadcastTarget!=="all"?"bg-blue-100 text-blue-700 border-blue-300":"bg-gray-50 text-gray-600 border-gray-200"}`}>
+                    فرع محدد
+                  </button>
+                </div>
+                {broadcastTarget==="specific" && (
+                  <select onChange={e=>setBroadcastTarget(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 mt-2">
+                    <option value="">اختر الفرع...</option>
+                    {REM_BRANCHES.map(b=><option key={b} value={b}>{b}</option>)}
+                  </select>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">الموديول المطلوب</label>
+                <select value={broadcastModule} onChange={e=>setBroadcastModule(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
+                  <option value="">اختر الموديول...</option>
+                  {Object.entries(MODULE_LABELS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-600 block mb-1.5">نص الرسالة</label>
+                <textarea value={broadcastMsg} onChange={e=>setBroadcastMsg(e.target.value)} rows={3}
+                  placeholder="يرجى رفع بيانات اليوم في أقرب وقت..."
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none outline-none focus:border-purple-300"/>
+              </div>
+            </div>
+            <div className="px-5 pb-4 flex gap-2">
+              <Btn size="sm" variant="primary" onClick={()=>setBroadcastModal(false)}>
+                <Send size={11}/> إرسال {broadcastTarget==="all"?"لكل الفروع":"للفرع المحدد"}
+              </Btn>
+              <Btn size="sm" onClick={()=>setBroadcastModal(false)}>إلغاء</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Reminders table */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
           <h3 className="font-bold text-gray-900 text-sm">البيانات المفقودة من الفروع</h3>
-          <span className="text-xs text-gray-400">{reminders.length} بيان مفقود</span>
+          <span className="text-xs text-gray-400">{displayed.length} بيان مفقود</span>
         </div>
-        {reminders.map(r=>{
+        {displayed.map(r=>{
           const isExpanded = expandedId===r.id;
           return (
             <div key={r.id} className="border-b border-gray-100 last:border-0">
@@ -4653,6 +5139,7 @@ function AccReminders({}: PageProps) {
                     <span className="font-semibold text-gray-800 text-sm">{r.branch}</span>
                     <span className="text-gray-300">·</span>
                     <span className="text-xs text-gray-600">{r.reportType}</span>
+                    <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-[10px]">{MODULE_LABELS[r.moduleKey]||r.moduleKey}</Badge>
                     <Badge className={`${urgencyBadge(r.urgency)} text-[10px]`}>{urgencyLbl(r.urgency)}</Badge>
                     {r.daysMissing>1 && <Badge className="bg-red-50 text-red-700 text-[10px]">⏰ {r.daysMissing} أيام متأخر</Badge>}
                   </div>

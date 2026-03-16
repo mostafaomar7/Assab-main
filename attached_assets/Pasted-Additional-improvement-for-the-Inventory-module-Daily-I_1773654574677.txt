@@ -1,0 +1,58 @@
+Additional improvement for the Inventory module – Daily Inventory Counting
+
+We need to introduce a **separate screen dedicated to Daily Inventory Counting**.
+
+Daily inventory should be clearly separated from the monthly inventory module because the workflow and purpose are different.
+
+The daily inventory screen should include **professional filtering and item selection tools** that allow the accountant to define which items must be counted by each branch.
+
+Important workflow principle:
+
+The branch manager does NOT decide which items to count.
+The accountant defines the items that must be counted for each branch.
+
+Each branch may have:
+
+• a different list of items to count
+• or the same items as other branches
+• or a partially overlapping list
+
+Therefore the system must allow the accountant to:
+
+• assign daily-count items per branch
+• edit the list of required items for each branch
+• activate or deactivate items from the daily counting list
+• filter items by branch, brand, or product category
+
+Inside the Daily Inventory screen the accountant should be able to see:
+
+• the list of items that were required to be counted
+• the quantities submitted by the branch manager
+• the expected stock calculation based on system data
+
+The reconciliation should be based on:
+
+Opening Balance
+
+* Purchases
+  − Sales
+* Incoming Transfers
+  − Outgoing Transfers
+  − Waste / Damage
+  = Expected Closing Balance
+
+Then compare that with the **actual counted quantity submitted by the branch manager**.
+
+The system should highlight:
+
+• matched items
+• shortages
+• surpluses
+
+The accountant should then be able to:
+
+• approve the daily inventory report
+• return specific items to the branch manager for correction
+• request confirmation for suspicious counts
+
+This screen must provide a **clear operational workflow for daily inventory verification**, and allow the accountant to control which products are included in the daily counting process for each branch.
