@@ -6419,7 +6419,7 @@ const BRANDS_DATA = [
 
 function AdminRestaurants({}: PageProps) {
   const [expandedBrand, setExpandedBrand]   = useState<string|null>("reem");
-  const [expandedRest,  setExpandedRest]    = useState<string|null>(null);
+  const [expandedSub,   setExpandedSubR]    = useState<string|null>(null);
   const [showAddBrand,  setShowAddBrand]    = useState(false);
   const [showAddRest,   setShowAddRest]     = useState<string|null>(null);
   const [restTab, setRestTab]               = useState<"structure"|"upload">("structure");
@@ -6657,40 +6657,47 @@ function AdminRestaurants({}: PageProps) {
                   </div>
 
                   {brand.restaurants.map(rest=>{
-                    const isRExp = expandedRest===rest.id;
+                    const isSubExp = expandedSub===rest.id;
                     const rsub = restSubs[rest.id];
                     return (
-                      <div key={rest.id} className="border-b border-gray-50 last:border-0">
-                        {/* Restaurant row */}
-                        <div className="flex items-center gap-3 px-6 py-3 hover:bg-gray-50/60 cursor-pointer transition-colors"
-                          onClick={()=>setExpandedRest(isRExp?null:rest.id)}>
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{background:brand.color+"99"}}>{rest.name[0]}</div>
-                          <div className="flex-1">
+                      <div key={rest.id} className="border-b border-gray-100 last:border-0">
+
+                        {/* ── Restaurant row ── */}
+                        <div className="flex items-center gap-3 px-6 py-3 bg-white hover:bg-gray-50/40 transition-colors">
+                          {/* Icon */}
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-sm" style={{background:brand.color+"cc"}}>{rest.name[0]}</div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-semibold text-sm text-gray-800">{rest.name}</p>
+                              <p className="font-bold text-sm text-gray-800">{rest.name}</p>
                               <Badge className={rest.status==="active"?"bg-emerald-50 text-emerald-600 text-[10px]":"bg-red-50 text-red-600 text-[10px]"}>{rest.status==="active"?"نشط":"موقوف"}</Badge>
-                              {rsub && <Badge className={`text-[10px] border ${subClsRest[rsub.status]}`}>{planIcon[rsub.plan]} باقة {rsub.plan} · {subLblRest[rsub.status]}</Badge>}
-                              {rsub && rsub.status!=="active" && <Badge className="bg-gray-50 text-gray-500 text-[10px]">{rsub.daysLeft<0?`منتهي منذ ${Math.abs(rsub.daysLeft)} يوم`:`ينتهي خلال ${rsub.daysLeft} يوم`}</Badge>}
+                              {rsub && <Badge className={`text-[10px] border ${subClsRest[rsub.status]}`}>{planIcon[rsub.plan]} {rsub.plan}</Badge>}
                             </div>
-                            <p className="text-xs text-gray-400">{rest.city} · {rest.branches.length} فروع · {rest.accountants} محاسب مخصص{rsub?` · ${rsub.price} ر.س/شهر`:""}</p>
+                            <p className="text-[11px] text-gray-400 mt-0.5">{rest.city} · {rest.branches.length} فروع · {rest.accountants} محاسب</p>
                           </div>
-                          <div className="flex items-center gap-2">
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
                             {rsub && (rsub.status==="expired"||rsub.status==="danger") && (
-                              <button onClick={e=>{e.stopPropagation();renewSub(rest.id);}}
-                                className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold ${rsub.status==="expired"?"bg-red-600 text-white hover:bg-red-700":"bg-amber-500 text-white hover:bg-amber-600"} transition-colors`}>
+                              <button onClick={()=>renewSub(rest.id)}
+                                className={`px-2 py-1 rounded-lg text-[10px] font-bold ${rsub.status==="expired"?"bg-red-600 text-white":"bg-amber-500 text-white"} transition-colors`}>
                                 {rsub.status==="expired"?"تفعيل":"تجديد"}
                               </button>
                             )}
-                            <Btn size="sm" variant="ghost" onClick={e=>{e.stopPropagation();}}><Edit2 size={11}/></Btn>
-                            <ChevronDown size={13} className={`text-gray-400 transition-transform ${isRExp?"rotate-180":""}`}/>
+                            <button onClick={()=>setExpandedSubR(isSubExp?null:rest.id)}
+                              className={`px-2 py-1 rounded-lg text-[10px] font-semibold border transition-colors flex items-center gap-1 ${isSubExp?"bg-purple-50 border-purple-200 text-purple-700":"bg-gray-50 border-gray-200 text-gray-500 hover:border-purple-200 hover:text-purple-600"}`}>
+                              الاشتراك <ChevronDown size={10} className={`transition-transform ${isSubExp?"rotate-180":""}`}/>
+                            </button>
+                            <Btn size="sm" variant="ghost"><Edit2 size={11}/></Btn>
                           </div>
                         </div>
 
-                        {/* Subscription + Branches when expanded */}
-                        {isRExp && rsub && (
+                        {/* ── Subscription card (collapsed by default) ── */}
+                        {isSubExp && rsub && (
                           <div className="mx-6 mb-2 rounded-xl border overflow-hidden" style={{borderColor: rsub.status==="active"?"#d1fae5":rsub.status==="expired"?"#fecaca":"#fde68a"}}>
                             <div className={`px-4 py-2.5 flex items-center gap-3 ${rsub.status==="active"?"bg-emerald-50":rsub.status==="expired"?"bg-red-50":"bg-amber-50"}`}>
-                              <span className="text-lg">{planIcon[rsub.plan]}</span>
+                              <span className="text-base">{planIcon[rsub.plan]}</span>
                               <div className="flex-1">
                                 <p className={`font-bold text-xs ${rsub.status==="active"?"text-emerald-800":rsub.status==="expired"?"text-red-800":"text-amber-800"}`}>
                                   باقة {rsub.plan} — {subLblRest[rsub.status]}
@@ -6700,43 +6707,43 @@ function AdminRestaurants({}: PageProps) {
                                 </p>
                               </div>
                               <div className="flex gap-2">
-                                {rsub.status!=="active" && <button onClick={()=>renewSub(rest.id)} className="px-3 py-1 rounded-lg text-xs font-semibold bg-white border border-current text-current hover:opacity-80">{rsub.status==="expired"?"تفعيل مجدداً":"تجديد الاشتراك"}</button>}
-                                <button className="px-3 py-1 rounded-lg text-xs font-semibold bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">تغيير الباقة ↗</button>
+                                {rsub.status!=="active" && <button onClick={()=>renewSub(rest.id)} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-white border border-current text-current hover:opacity-80">{rsub.status==="expired"?"تفعيل مجدداً":"تجديد"}</button>}
+                                <button className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">تغيير الباقة</button>
                               </div>
                             </div>
                           </div>
                         )}
 
-                        {/* Branches table */}
-                        {isRExp && (
-                          <div className="mx-6 mb-3 bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
-                            <div className="flex items-center justify-between px-4 py-2.5 bg-gray-100 border-b border-gray-200">
-                              <p className="text-xs font-bold text-gray-600">الفروع ({rest.branches.length})</p>
-                              <button className="text-xs text-purple-600 hover:underline flex items-center gap-1"><Plus size={11}/> إضافة فرع</button>
+                        {/* ── Branches — always visible ── */}
+                        <div className="mr-14 ml-6 mb-3">
+                          <div className="rounded-xl border border-gray-200 overflow-hidden">
+                            <div className="flex items-center justify-between px-3 py-2 bg-gray-100/80 border-b border-gray-200">
+                              <div className="flex items-center gap-1.5">
+                                <div className="w-1 h-3 rounded-full" style={{background:brand.color}}/>
+                                <p className="text-[11px] font-bold text-gray-600">الفروع — {rest.branches.length} فرع</p>
+                              </div>
+                              <button className="text-[10px] text-purple-600 hover:underline flex items-center gap-1"><Plus size={10}/> إضافة فرع</button>
                             </div>
-                            <table className="w-full text-xs" dir="rtl">
-                              <thead><tr className="text-gray-400 font-semibold border-b border-gray-200">
-                                <th className="px-4 py-2 text-right">اسم الفرع</th>
-                                <th className="px-4 py-2 text-right">مدير الفرع</th>
-                                <th className="px-4 py-2 text-center">إجراء</th>
-                              </tr></thead>
-                              <tbody className="divide-y divide-gray-100">
-                                {rest.branches.map((br,bi)=>(
-                                  <tr key={bi} className="hover:bg-white/80">
-                                    <td className="px-4 py-2.5 font-medium text-gray-700">{br.name}</td>
-                                    <td className="px-4 py-2.5 text-gray-500">{br.manager}</td>
-                                    <td className="px-4 py-2.5 text-center">
-                                      <div className="flex items-center justify-center gap-1">
-                                        <button className="p-1 rounded hover:bg-gray-200"><Edit2 size={11} className="text-gray-400"/></button>
-                                        <button className="p-1 rounded hover:bg-gray-200"><Users size={11} className="text-gray-400"/></button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                            <div className="divide-y divide-gray-100 bg-white">
+                              {rest.branches.map((br,bi)=>(
+                                <div key={bi} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50/60 transition-colors">
+                                  <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0" style={{background:brand.color+"22"}}>
+                                    <Home size={10} style={{color:brand.color}}/>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-semibold text-gray-700">{br.name}</p>
+                                    <p className="text-[10px] text-gray-400">{br.manager}</p>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <button className="p-1 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-500"><Edit2 size={10}/></button>
+                                    <button className="p-1 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-500"><Users size={10}/></button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        )}
+                        </div>
+
                       </div>
                     );
                   })}
