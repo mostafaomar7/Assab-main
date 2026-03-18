@@ -6379,46 +6379,54 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
 }
 
 const BRANDS_DATA = [
-  { id:"reem",     name:"علامة الريم",         color:"#7C3AED", abbr:"ر", plan:"بلاتيني", planColor:"purple",
+  { id:"reem", name:"مطاعم الريم", color:"#7C3AED", abbr:"ر", plan:"بلاتيني", planColor:"purple",
     owner:"فيصل الريم", ownerEmail:"faisal@reem.sa",
     modules:["المبيعات","المصروفات","المشتريات","المخزون","الشفتات","كشف الحساب","العهد","الأصول"],
     subStatus:"active" as const, expires:"15 يناير 2027", daysLeft:307,
     restaurants:[
-      { id:"r1", name:"مطعم الريم — العليا",  city:"الرياض", accountants:2, status:"active"  as const, branches:[{name:"فرع العليا الرئيسي",manager:"أحمد الشمري"},{name:"فرع النزهة",manager:"سلطان الغامدي"},{name:"فرع الملقا",manager:"فيصل البريك"}] },
-      { id:"r2", name:"مطعم الريم — جدة",    city:"جدة",    accountants:1, status:"active"  as const, branches:[{name:"فرع الحمراء",manager:"محمد العتيبي"},{name:"فرع العزيزية",manager:"علي الزهراني"}] },
+      { id:"r1", name:"الريم — الصحافة",   city:"الرياض", accountants:2, status:"active"    as const, branches:[{name:"الصالة الرئيسية",manager:"أحمد الشمري"},{name:"قسم التوصيل",manager:"سلطان الغامدي"}] },
+      { id:"r2", name:"الريم — النسيم",    city:"الرياض", accountants:1, status:"active"    as const, branches:[{name:"الصالة الرئيسية",manager:"فيصل البريك"},{name:"قسم التوصيل",manager:"بندر العتيبي"}] },
+      { id:"r3", name:"الريم — العليا",    city:"الرياض", accountants:2, status:"active"    as const, branches:[{name:"الدور الأرضي",manager:"محمد الزهراني"},{name:"الدور الأول",manager:"علي الغامدي"}] },
+      { id:"r4", name:"الريم — جدة الكورنيش", city:"جدة", accountants:1, status:"active"   as const, branches:[{name:"الصالة الرئيسية",manager:"خالد المطيري"},{name:"قسم التوصيل",manager:"عمر العسيري"}] },
     ],
   },
-  { id:"herfy",    name:"علامة هرفي",           color:"#D97706", abbr:"هـ", plan:"ذهبي", planColor:"amber",
+  { id:"herfy", name:"مطاعم هرفي", color:"#D97706", abbr:"هـ", plan:"ذهبي", planColor:"amber",
     owner:"طلال الحسين", ownerEmail:"talal@herfy.sa",
     modules:["المبيعات","المصروفات","المشتريات","المخزون","الشفتات","كشف الحساب"],
     subStatus:"warning" as const, expires:"15 مارس 2026", daysLeft:1,
     restaurants:[
-      { id:"r3", name:"هرفي — الرياض",  city:"الرياض", accountants:3, status:"active"   as const, branches:[{name:"فرع العليا",manager:"طارق المنصور"},{name:"فرع الإزدهار",manager:"بندر القحطاني"},{name:"فرع السلي",manager:"وليد الشهري"},{name:"فرع الدوبي",manager:"نواف العمري"}] },
-      { id:"r4", name:"هرفي — جدة",    city:"جدة",    accountants:1, status:"active"   as const, branches:[{name:"فرع الكورنيش",manager:"عبدالرحمن الغامدي"},{name:"فرع بحرة",manager:"صالح الحربي"}] },
-      { id:"r5", name:"هرفي — مكة",    city:"مكة",    accountants:1, status:"active"   as const, branches:[{name:"فرع المعابدة",manager:"حمد الدوسري"},{name:"فرع العزيزية",manager:"جاسم القرني"}] },
+      { id:"r5", name:"هرفي الصحافة",   city:"الرياض", accountants:3, status:"active"    as const, branches:[{name:"الصالة الرئيسية",manager:"طارق المنصور"},{name:"قسم التوصيل",manager:"بندر القحطاني"}] },
+      { id:"r6", name:"هرفي النسيم",    city:"الرياض", accountants:2, status:"active"    as const, branches:[{name:"الصالة الرئيسية",manager:"وليد الشهري"},{name:"قسم التوصيل",manager:"نواف العمري"}] },
+      { id:"r7", name:"هرفي العليا",    city:"الرياض", accountants:1, status:"active"    as const, branches:[{name:"الصالة الرئيسية",manager:"عبدالرحمن الغامدي"},{name:"قسم التوصيل",manager:"صالح الحربي"}] },
+      { id:"r8", name:"هرفي جدة الرحاب", city:"جدة",  accountants:1, status:"active"    as const, branches:[{name:"الصالة الرئيسية",manager:"حمد الدوسري"},{name:"قسم التوصيل",manager:"جاسم القرني"}] },
+      { id:"r9", name:"هرفي مكة العزيزية", city:"مكة", accountants:1, status:"active"   as const, branches:[{name:"الصالة الرئيسية",manager:"أنس الطيار"},{name:"قسم التوصيل",manager:"ماجد الشريف"}] },
     ],
   },
-  { id:"mcd",      name:"ماكدونالدز السعودية",  color:"#DC2626", abbr:"م", plan:"بلاتيني", planColor:"purple",
+  { id:"mcd", name:"ماكدونالدز السعودية", color:"#DC2626", abbr:"م", plan:"بلاتيني", planColor:"purple",
     owner:"شركة المطعم العالمي", ownerEmail:"ops@mcd-sa.com",
     modules:["المبيعات","المصروفات","المشتريات","المخزون","الشفتات","كشف الحساب","العهد","الأصول"],
     subStatus:"danger" as const, expires:"21 أبريل 2026", daysLeft:38,
     restaurants:[
-      { id:"r6", name:"ماكدونالدز — الرياض", city:"الرياض", accountants:4, status:"active"   as const, branches:[{name:"فرع الدبلوماسي",manager:"أنس الطيار"},{name:"فرع النخيل مول",manager:"بدر الحوشان"},{name:"فرع هايبر بنده",manager:"منصور العنزي"}] },
-      { id:"r7", name:"ماكدونالدز — الدمام", city:"الدمام", accountants:2, status:"active"   as const, branches:[{name:"فرع الكورنيش",manager:"خالد المطيري"},{name:"فرع الدانة مول",manager:"عمر العسيري"}] },
+      { id:"r10", name:"ماكدونالدز الدبلوماسي", city:"الرياض", accountants:2, status:"active"  as const, branches:[{name:"الصالة الرئيسية",manager:"بدر الحوشان"},{name:"قسم التوصيل",manager:"منصور العنزي"}] },
+      { id:"r11", name:"ماكدونالدز النخيل مول", city:"الرياض", accountants:2, status:"active"  as const, branches:[{name:"الصالة الرئيسية",manager:"سعد المالكي"},{name:"قسم التوصيل",manager:"فهد الدوسري"}] },
+      { id:"r12", name:"ماكدونالدز هايبر بنده", city:"الرياض", accountants:1, status:"active"  as const, branches:[{name:"الصالة الرئيسية",manager:"وائل العتيبي"},{name:"قسم التوصيل",manager:"رائد الشمري"}] },
+      { id:"r13", name:"ماكدونالدز كورنيش الدمام", city:"الدمام", accountants:2, status:"active" as const, branches:[{name:"الصالة الرئيسية",manager:"خالد المطيري"},{name:"قسم التوصيل",manager:"عمر العسيري"}] },
     ],
   },
-  { id:"broasted", name:"بروستد الوطني",         color:"#059669", abbr:"ب", plan:"فضي", planColor:"emerald",
+  { id:"broasted", name:"بروستد الوطني", color:"#059669", abbr:"ب", plan:"فضي", planColor:"emerald",
     owner:"محمد السعيد", ownerEmail:"msaeed@broasted.sa",
     modules:["المبيعات","المصروفات","المشتريات","المخزون"],
     subStatus:"expired" as const, expires:"9 أكتوبر 2025", daysLeft:-156,
     restaurants:[
-      { id:"r8", name:"بروستد الوطني — الطائف", city:"الطائف", accountants:1, status:"suspended" as const, branches:[{name:"فرع المحطة",manager:"نايف العتيبي"},{name:"فرع الشفا",manager:"عبدالله الشريف"}] },
+      { id:"r14", name:"بروستد الوطني الطائف",    city:"الطائف", accountants:1, status:"suspended" as const, branches:[{name:"الصالة الرئيسية",manager:"نايف العتيبي"},{name:"قسم التوصيل",manager:"عبدالله الشريف"}] },
+      { id:"r15", name:"بروستد الوطني الهدا",     city:"الطائف", accountants:1, status:"suspended" as const, branches:[{name:"الصالة الرئيسية",manager:"محمد الغامدي"},{name:"قسم التوصيل",manager:"سعد القحطاني"}] },
     ],
   },
 ];
 
 function AdminRestaurants({}: PageProps) {
   const [expandedBrand, setExpandedBrand]   = useState<string|null>("reem");
+  const [expandedRest,  setExpandedRest]    = useState<string|null>(null);
   const [expandedSub,   setExpandedSubR]    = useState<string|null>(null);
   const [showAddBrand,  setShowAddBrand]    = useState(false);
   const [showAddRest,   setShowAddRest]     = useState<string|null>(null);
@@ -6429,14 +6437,21 @@ function AdminRestaurants({}: PageProps) {
   // Per-restaurant subscription state
   type RestSub = { plan:"فضي"|"ذهبي"|"بلاتيني"; status:"active"|"warning"|"danger"|"expired"; expires:string; daysLeft:number; price:number };
   const [restSubs, setRestSubs] = useState<Record<string,RestSub>>({
-    r1:{ plan:"بلاتيني", status:"active",   expires:"15 يناير 2027",  daysLeft:307, price:2499 },
-    r2:{ plan:"ذهبي",    status:"warning",  expires:"20 أبريل 2026",  daysLeft:35,  price:1499 },
-    r3:{ plan:"ذهبي",    status:"warning",  expires:"15 مارس 2026",   daysLeft:1,   price:1499 },
-    r4:{ plan:"فضي",     status:"active",   expires:"1 ديسمبر 2026",  daysLeft:260, price:799  },
-    r5:{ plan:"فضي",     status:"danger",   expires:"25 مارس 2026",   daysLeft:10,  price:799  },
-    r6:{ plan:"بلاتيني", status:"active",   expires:"10 فبراير 2027", daysLeft:333, price:2499 },
-    r7:{ plan:"بلاتيني", status:"danger",   expires:"21 أبريل 2026",  daysLeft:38,  price:2499 },
-    r8:{ plan:"فضي",     status:"expired",  expires:"9 أكتوبر 2025",  daysLeft:-156,price:799  },
+    r1: { plan:"بلاتيني", status:"active",   expires:"15 يناير 2027",  daysLeft:307, price:2499 },
+    r2: { plan:"بلاتيني", status:"active",   expires:"15 يناير 2027",  daysLeft:307, price:2499 },
+    r3: { plan:"بلاتيني", status:"warning",  expires:"20 أبريل 2026",  daysLeft:35,  price:2499 },
+    r4: { plan:"ذهبي",    status:"active",   expires:"1 ديسمبر 2026",  daysLeft:260, price:1499 },
+    r5: { plan:"ذهبي",    status:"warning",  expires:"15 مارس 2026",   daysLeft:1,   price:1499 },
+    r6: { plan:"ذهبي",    status:"active",   expires:"20 سبتمبر 2026", daysLeft:190, price:1499 },
+    r7: { plan:"فضي",     status:"danger",   expires:"25 مارس 2026",   daysLeft:10,  price:799  },
+    r8: { plan:"فضي",     status:"active",   expires:"1 نوفمبر 2026",  daysLeft:230, price:799  },
+    r9: { plan:"فضي",     status:"active",   expires:"1 نوفمبر 2026",  daysLeft:230, price:799  },
+    r10:{ plan:"بلاتيني", status:"active",   expires:"10 فبراير 2027", daysLeft:333, price:2499 },
+    r11:{ plan:"بلاتيني", status:"active",   expires:"10 فبراير 2027", daysLeft:333, price:2499 },
+    r12:{ plan:"بلاتيني", status:"danger",   expires:"21 أبريل 2026",  daysLeft:38,  price:2499 },
+    r13:{ plan:"ذهبي",    status:"danger",   expires:"21 أبريل 2026",  daysLeft:38,  price:1499 },
+    r14:{ plan:"فضي",     status:"expired",  expires:"9 أكتوبر 2025",  daysLeft:-156,price:799  },
+    r15:{ plan:"فضي",     status:"expired",  expires:"9 أكتوبر 2025",  daysLeft:-156,price:799  },
   });
   const renewSub = (id:string) => setRestSubs(p=>({...p,[id]:{...p[id],status:"active",daysLeft:365,expires:"مارس 2027"}}));
 
@@ -6657,92 +6672,80 @@ function AdminRestaurants({}: PageProps) {
                   </div>
 
                   {brand.restaurants.map(rest=>{
-                    const isSubExp = expandedSub===rest.id;
-                    const rsub = restSubs[rest.id];
+                    const isRExp = expandedRest===rest.id;
+                    const rsub   = restSubs[rest.id];
                     return (
                       <div key={rest.id} className="border-b border-gray-100 last:border-0">
 
-                        {/* ── Restaurant row ── */}
-                        <div className="flex items-center gap-3 px-6 py-3 bg-white hover:bg-gray-50/40 transition-colors">
-                          {/* Icon */}
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-sm" style={{background:brand.color+"cc"}}>{rest.name[0]}</div>
+                        {/* ── Restaurant row — click to expand branches ── */}
+                        <div className="flex items-center gap-3 px-6 py-3 cursor-pointer hover:bg-gray-50/50 transition-colors"
+                          onClick={()=>setExpandedRest(isRExp?null:rest.id)}>
+                          {/* Dot indicator */}
+                          <div className="w-2 h-2 rounded-full flex-shrink-0 mt-0.5" style={{background:brand.color}}/>
 
                           {/* Info */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-bold text-sm text-gray-800">{rest.name}</p>
+                              <p className="font-semibold text-sm text-gray-800">{rest.name}</p>
                               <Badge className={rest.status==="active"?"bg-emerald-50 text-emerald-600 text-[10px]":"bg-red-50 text-red-600 text-[10px]"}>{rest.status==="active"?"نشط":"موقوف"}</Badge>
                               {rsub && <Badge className={`text-[10px] border ${subClsRest[rsub.status]}`}>{planIcon[rsub.plan]} {rsub.plan}</Badge>}
+                              {rsub && rsub.status!=="active" && <Badge className="bg-gray-50 text-gray-400 text-[10px]">{rsub.daysLeft<0?`منتهي منذ ${Math.abs(rsub.daysLeft)} يوم`:`${rsub.daysLeft} يوم`}</Badge>}
                             </div>
                             <p className="text-[11px] text-gray-400 mt-0.5">{rest.city} · {rest.branches.length} فروع · {rest.accountants} محاسب</p>
                           </div>
 
                           {/* Actions */}
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e=>e.stopPropagation()}>
                             {rsub && (rsub.status==="expired"||rsub.status==="danger") && (
                               <button onClick={()=>renewSub(rest.id)}
                                 className={`px-2 py-1 rounded-lg text-[10px] font-bold ${rsub.status==="expired"?"bg-red-600 text-white":"bg-amber-500 text-white"} transition-colors`}>
                                 {rsub.status==="expired"?"تفعيل":"تجديد"}
                               </button>
                             )}
-                            <button onClick={()=>setExpandedSubR(isSubExp?null:rest.id)}
-                              className={`px-2 py-1 rounded-lg text-[10px] font-semibold border transition-colors flex items-center gap-1 ${isSubExp?"bg-purple-50 border-purple-200 text-purple-700":"bg-gray-50 border-gray-200 text-gray-500 hover:border-purple-200 hover:text-purple-600"}`}>
-                              الاشتراك <ChevronDown size={10} className={`transition-transform ${isSubExp?"rotate-180":""}`}/>
-                            </button>
                             <Btn size="sm" variant="ghost"><Edit2 size={11}/></Btn>
                           </div>
+                          <ChevronDown size={13} className={`text-gray-300 transition-transform flex-shrink-0 ${isRExp?"rotate-180":""}`}/>
                         </div>
 
-                        {/* ── Subscription card (collapsed by default) ── */}
-                        {isSubExp && rsub && (
-                          <div className="mx-6 mb-2 rounded-xl border overflow-hidden" style={{borderColor: rsub.status==="active"?"#d1fae5":rsub.status==="expired"?"#fecaca":"#fde68a"}}>
-                            <div className={`px-4 py-2.5 flex items-center gap-3 ${rsub.status==="active"?"bg-emerald-50":rsub.status==="expired"?"bg-red-50":"bg-amber-50"}`}>
-                              <span className="text-base">{planIcon[rsub.plan]}</span>
-                              <div className="flex-1">
-                                <p className={`font-bold text-xs ${rsub.status==="active"?"text-emerald-800":rsub.status==="expired"?"text-red-800":"text-amber-800"}`}>
-                                  باقة {rsub.plan} — {subLblRest[rsub.status]}
-                                </p>
-                                <p className={`text-[10px] ${rsub.status==="active"?"text-emerald-600":rsub.status==="expired"?"text-red-600":"text-amber-600"}`}>
-                                  {rsub.status==="expired"?`انتهى: ${rsub.expires}`:`ينتهي: ${rsub.expires}`} · {rsub.price} ر.س/شهر
-                                </p>
+                        {/* ── Branches + subscription — visible on click ── */}
+                        {isRExp && (
+                          <div className="mx-6 mb-3 space-y-2">
+                            {/* Subscription strip */}
+                            {rsub && (
+                              <div className={`rounded-lg border px-4 py-2.5 flex items-center gap-3 ${rsub.status==="active"?"bg-emerald-50 border-emerald-200":rsub.status==="expired"?"bg-red-50 border-red-200":"bg-amber-50 border-amber-200"}`}>
+                                <span className="text-sm">{planIcon[rsub.plan]}</span>
+                                <div className="flex-1">
+                                  <p className={`font-bold text-xs ${rsub.status==="active"?"text-emerald-800":rsub.status==="expired"?"text-red-800":"text-amber-800"}`}>باقة {rsub.plan} — {subLblRest[rsub.status]}</p>
+                                  <p className={`text-[10px] ${rsub.status==="active"?"text-emerald-600":rsub.status==="expired"?"text-red-600":"text-amber-600"}`}>{rsub.status==="expired"?`انتهى: ${rsub.expires}`:`ينتهي: ${rsub.expires}`} · {rsub.price} ر.س/شهر</p>
+                                </div>
+                                {rsub.status!=="active" && <button onClick={()=>renewSub(rest.id)} className="px-3 py-1 rounded-lg text-[10px] font-semibold bg-white border border-current hover:opacity-80">{rsub.status==="expired"?"تفعيل مجدداً":"تجديد"}</button>}
+                                <button className="px-3 py-1 rounded-lg text-[10px] font-semibold bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">تغيير الباقة</button>
                               </div>
-                              <div className="flex gap-2">
-                                {rsub.status!=="active" && <button onClick={()=>renewSub(rest.id)} className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-white border border-current text-current hover:opacity-80">{rsub.status==="expired"?"تفعيل مجدداً":"تجديد"}</button>}
-                                <button className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-white border border-gray-200 text-gray-600 hover:bg-gray-50">تغيير الباقة</button>
+                            )}
+                            {/* Branches table */}
+                            <div className="rounded-xl border border-gray-200 overflow-hidden bg-white">
+                              <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
+                                <p className="text-[11px] font-bold text-gray-600">الفروع ({rest.branches.length})</p>
+                                <button className="text-[10px] text-purple-600 hover:underline flex items-center gap-1"><Plus size={10}/> إضافة فرع</button>
+                              </div>
+                              <div className="divide-y divide-gray-100">
+                                {rest.branches.map((br,bi)=>(
+                                  <div key={bi} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50/60 transition-colors">
+                                    <Home size={12} className="text-gray-300 flex-shrink-0"/>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-semibold text-gray-700">{br.name}</p>
+                                      <p className="text-[10px] text-gray-400">{br.manager}</p>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <button className="p-1 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-500"><Edit2 size={10}/></button>
+                                      <button className="p-1 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-500"><Users size={10}/></button>
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
                             </div>
                           </div>
                         )}
-
-                        {/* ── Branches — always visible ── */}
-                        <div className="mr-14 ml-6 mb-3">
-                          <div className="rounded-xl border border-gray-200 overflow-hidden">
-                            <div className="flex items-center justify-between px-3 py-2 bg-gray-100/80 border-b border-gray-200">
-                              <div className="flex items-center gap-1.5">
-                                <div className="w-1 h-3 rounded-full" style={{background:brand.color}}/>
-                                <p className="text-[11px] font-bold text-gray-600">الفروع — {rest.branches.length} فرع</p>
-                              </div>
-                              <button className="text-[10px] text-purple-600 hover:underline flex items-center gap-1"><Plus size={10}/> إضافة فرع</button>
-                            </div>
-                            <div className="divide-y divide-gray-100 bg-white">
-                              {rest.branches.map((br,bi)=>(
-                                <div key={bi} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50/60 transition-colors">
-                                  <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0" style={{background:brand.color+"22"}}>
-                                    <Home size={10} style={{color:brand.color}}/>
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-semibold text-gray-700">{br.name}</p>
-                                    <p className="text-[10px] text-gray-400">{br.manager}</p>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <button className="p-1 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-500"><Edit2 size={10}/></button>
-                                    <button className="p-1 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-500"><Users size={10}/></button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
 
                       </div>
                     );
