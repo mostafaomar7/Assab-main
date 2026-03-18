@@ -1,0 +1,3183 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>وثيقة لوحات التحكم - نظام عصب</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.9;
+            color: #1a1a1a;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 70px 50px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 15s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto 25px;
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        .logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        h1 {
+            font-size: 3.5em;
+            font-weight: 900;
+            margin-bottom: 20px;
+            text-shadow: 0 3px 10px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.6em;
+            font-weight: 300;
+            margin-bottom: 35px;
+            opacity: 0.95;
+            line-height: 1.6;
+        }
+
+        .header-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 12px 30px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.3);
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-top: 20px;
+        }
+
+        /* Navigation */
+        .nav {
+            background: #2d3748;
+            padding: 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .nav-list {
+            display: flex;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .nav-list li {
+            margin: 0;
+        }
+
+        .nav-list a {
+            display: block;
+            color: #e2e8f0;
+            text-decoration: none;
+            padding: 20px 30px;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            border-bottom: 3px solid transparent;
+        }
+
+        .nav-list a:hover {
+            background: #4a5568;
+            color: white;
+            border-bottom-color: #667eea;
+        }
+
+        /* Content */
+        .content {
+            padding: 70px 50px;
+        }
+
+        .section {
+            margin-bottom: 100px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            margin-bottom: 50px;
+            padding-bottom: 25px;
+            border-bottom: 4px solid #667eea;
+        }
+
+        .section-number {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            font-weight: bold;
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+            flex-shrink: 0;
+        }
+
+        .section-title {
+            font-size: 2.5em;
+            color: #2d3748;
+            font-weight: 800;
+        }
+
+        h3 {
+            font-size: 2em;
+            color: #4a5568;
+            margin: 50px 0 25px 0;
+            padding: 20px;
+            background: linear-gradient(90deg, #f7fafc 0%, transparent 100%);
+            border-right: 5px solid #667eea;
+        }
+
+        h4 {
+            font-size: 1.6em;
+            color: #667eea;
+            margin: 40px 0 20px 0;
+            font-weight: 700;
+        }
+
+        p {
+            margin-bottom: 25px;
+            font-size: 1.15em;
+            color: #4a5568;
+            text-align: justify;
+            line-height: 1.9;
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 18px;
+            padding: 40px;
+            margin: 40px 0;
+            box-shadow: 0 6px 25px rgba(0,0,0,0.1);
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+            border-color: #667eea;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #e2e8f0;
+        }
+
+        .card-icon {
+            font-size: 2.5em;
+        }
+
+        .card-title {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin: 25px 0 25px 50px;
+            color: #4a5568;
+        }
+
+        li {
+            margin: 15px 0;
+            line-height: 1.9;
+            font-size: 1.1em;
+        }
+
+        /* Highlight Boxes */
+        .highlight-box {
+            background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%);
+            border-right: 6px solid #667eea;
+            padding: 35px;
+            margin: 40px 0;
+            border-radius: 12px;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, #3b82f610 0%, #2563eb10 100%);
+            border-right: 6px solid #3b82f6;
+            padding: 35px;
+            margin: 40px 0;
+            border-radius: 12px;
+        }
+
+        .warning-box {
+            background: linear-gradient(135deg, #fbbf2410 0%, #f59e0b10 100%);
+            border-right: 6px solid #f59e0b;
+            padding: 35px;
+            margin: 40px 0;
+            border-radius: 12px;
+        }
+
+        .success-box {
+            background: linear-gradient(135deg, #10b98110 0%, #059669 10 100%);
+            border-right: 6px solid #10b981;
+            padding: 35px;
+            margin: 40px 0;
+            border-radius: 12px;
+        }
+
+        /* Wireframes */
+        .wireframe {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 40px;
+            border-radius: 15px;
+            margin: 40px 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            white-space: pre;
+            line-height: 1.7;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.4);
+            border: 3px solid #4a5568;
+        }
+
+        /* Tables */
+        .table-container {
+            overflow-x: auto;
+            margin: 40px 0;
+            border-radius: 15px;
+            box-shadow: 0 6px 25px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 22px;
+            text-align: right;
+            font-weight: 700;
+            font-size: 1.15em;
+        }
+
+        td {
+            padding: 22px;
+            border-bottom: 2px solid #e2e8f0;
+            color: #4a5568;
+            font-size: 1.05em;
+        }
+
+        tr:hover {
+            background: #f7fafc;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 0.95em;
+            font-weight: 700;
+            margin: 0 8px;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-primary {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        /* Footer */
+        .footer {
+            background: #2d3748;
+            color: white;
+            padding: 60px 50px;
+            text-align: center;
+        }
+
+        .footer h2 {
+            font-size: 2.2em;
+            margin-bottom: 30px;
+            color: #e2e8f0;
+        }
+
+        .contact-info {
+            display: flex;
+            justify-content: center;
+            gap: 50px;
+            margin: 40px 0;
+            flex-wrap: wrap;
+        }
+
+        .contact-item {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            body {
+                padding: 20px 10px;
+            }
+
+            .header {
+                padding: 50px 25px;
+            }
+
+            h1 {
+                font-size: 2.2em;
+            }
+
+            .subtitle {
+                font-size: 1.2em;
+            }
+
+            .content {
+                padding: 50px 25px;
+            }
+
+            .section-title {
+                font-size: 1.8em;
+            }
+
+            .nav-list {
+                flex-direction: column;
+            }
+
+            .nav-list a {
+                padding: 15px 20px;
+                border-bottom: 1px solid #4a5568;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 416 416'%3E%3Crect fill='%237C3AED' width='416' height='416'/%3E%3Cpath fill='white' d='M60 120 L220 120 L320 240 L60 240 Z'/%3E%3Cpath fill='%2300D9FF' d='M40 240 L320 240 L320 270 L40 270 Z'/%3E%3Cpath fill='white' d='M220 120 L320 240 L220 240 Z'/%3E%3C/svg%3E" alt="شعار عصب">
+                </div>
+                <h1>وثيقة لوحات التحكم</h1>
+                <p class="subtitle">دليل شامل للداشبورد الرئيسي والفرعي<br>نظام إدارة مالية متكامل للمطاعم والمتاجر متعددة الفروع</p>
+                <div class="header-badge">📊 الداشبورد الرئيسي | 🔧 الداشبورد الفرعي</div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav">
+            <ul class="nav-list">
+                <li><a href="#intro">المقدمة</a></li>
+                <li><a href="#main-dashboard">الداشبورد الرئيسي</a></li>
+                <li><a href="#accountants">المحاسبون</a></li>
+                <li><a href="#head-accountant">رئيس الحسابات</a></li>
+                <li><a href="#admin">الأدمن</a></li>
+                <li><a href="#reports-manager">مدير التقارير</a></li>
+                <li><a href="#inventory-additions">إضافات الجرد</a></li>
+                <li><a href="#export-operations">عمليات التصدير</a></li>
+                <li><a href="#secondary-dashboard">الداشبورد الفرعي</a></li>
+                <li><a href="#permissions">الصلاحيات</a></li>
+            </ul>
+        </nav>
+
+        <!-- Content -->
+        <div class="content">
+            
+            <!-- Introduction Section -->
+            <section id="intro" class="section">
+                <div class="section-header">
+                    <div class="section-number">📋</div>
+                    <h2 class="section-title">مقدمة عامة</h2>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🎯</span>
+                        <h3 class="card-title">ما هي لوحات التحكم؟</h3>
+                    </div>
+                    <p>
+                        لوحات التحكم (الداشبوردات) هي الأنظمة المركزية لإدارة البيانات المالية والتشغيلية في المنشآت ذات الفروع المتعددة مثل المطاعم والمتاجر. تستقبل هذه اللوحات البيانات من التطبيق المحمول (مع التحقق من الموقع الجغرافي)، ثم تقوم بمعالجتها ومراجعتها واعتمادها قبل ترحيلها إلى نظام ERP.
+                    </p>
+
+                    <div class="highlight-box">
+                        <h4>🎯 الهدف الأساسي:</h4>
+                        <ul>
+                            <li>✅ <strong>استقبال البيانات:</strong> من التطبيق المحمول مع التحقق من الموقع الجغرافي</li>
+                            <li>✅ <strong>المراجعة والتدقيق:</strong> فحص دقة البيانات بواسطة فريق محاسبي متخصص</li>
+                            <li>✅ <strong>الاعتماد النهائي:</strong> من رئيس الحسابات قبل الترحيل</li>
+                            <li>✅ <strong>التكامل مع ERP:</strong> تصدير البيانات المعتمدة مباشرة إلى نظام ERP</li>
+                            <li>✅ <strong>إدارة العمليات:</strong> متابعة جميع العمليات المالية والتشغيلية</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🏗️</span>
+                        <h3 class="card-title">أنواع لوحات التحكم</h3>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>النوع</th>
+                                    <th>المستخدمون</th>
+                                    <th>الوظيفة الأساسية</th>
+                                    <th>الأهمية</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>🖥️ الداشبورد الرئيسي</strong></td>
+                                    <td>المحاسبون، رئيس الحسابات، الأدمن</td>
+                                    <td>مراجعة واعتماد البيانات المالية</td>
+                                    <td><span class="badge badge-danger">حرجة</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>🔧 الداشبورد الفرعي</strong></td>
+                                    <td>مدراء الفروع، مديرو المشتريات، الموردون</td>
+                                    <td>إدارة العمليات اليومية والتشغيلية</td>
+                                    <td><span class="badge badge-warning">عالية</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🔄</span>
+                        <h3 class="card-title">تدفق البيانات في النظام</h3>
+                    </div>
+                    <div class="wireframe">
+╔══════════════════════════════════════════════════════════════════╗
+║                    تدفق البيانات في النظام                      ║
+╠══════════════════════════════════════════════════════════════════╣
+║                                                                  ║
+║  📱 التطبيق المحمول (الفروع)                                   ║
+║     │                                                            ║
+║     ├─ إدخال البيانات المالية                                  ║
+║     ├─ إرفاق المستندات (فواتير، صور)                          ║
+║     ├─ التحقق من الموقع الجغرافي ✓                            ║
+║     └─ إرسال إلى السيرفر                                       ║
+║                    │                                             ║
+║                    ⬇️                                            ║
+║                                                                  ║
+║  🖥️ الداشبورد الرئيسي - المحاسب                               ║
+║     │                                                            ║
+║     ├─ استقبال البيانات من جميع الفروع                        ║
+║     ├─ مراجعة دقة البيانات                                     ║
+║     ├─ التحقق من المطابقات                                     ║
+║     ├─ فحص المرفقات                                            ║
+║     └─ القرار:                                                  ║
+║        ├─ ✅ موافقة → إرسال لرئيس الحسابات                    ║
+║        └─ ❌ رفض → إعادة للفرع                                 ║
+║                    │                                             ║
+║                    ⬇️                                            ║
+║                                                                  ║
+║  👔 الداشبورد الرئيسي - رئيس الحسابات                         ║
+║     │                                                            ║
+║     ├─ استقبال البيانات المعتمدة من المحاسبين                 ║
+║     ├─ المراجعة النهائية                                       ║
+║     ├─ التدقيق على عمل المحاسبين                              ║
+║     └─ القرار:                                                  ║
+║        ├─ ✅ اعتماد نهائي → ترحيل إلى ERP                      ║
+║        └─ ❌ رفض → إعادة للمحاسب                               ║
+║                    │                                             ║
+║                    ⬇️                                            ║
+║                                                                  ║
+║  🏢 نظام ERP                                                    ║
+║     │                                                            ║
+║     ├─ استقبال البيانات المعتمدة                               ║
+║     ├─ المعالجة المحاسبية                                      ║
+║     ├─ إنشاء القيود                                            ║
+║     ├─ إقفال الحسابات                                          ║
+║     └─ إعداد التقارير المالية النهائية                        ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+                    </div>
+                </div>
+            </section>
+
+            <!-- Main Dashboard Section -->
+            <section id="main-dashboard" class="section">
+                <div class="section-header">
+                    <div class="section-number">1</div>
+                    <h2 class="section-title">الداشبورد الرئيسي</h2>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🖥️</span>
+                        <h3 class="card-title">نظرة عامة على الداشبورد الرئيسي</h3>
+                    </div>
+                    <p>
+                        الداشبورد الرئيسي هو القلب النابض للنظام المحاسبي، حيث يجمع جميع البيانات الواردة من التطبيق المحمول (مع التحقق من الموقع الجغرافي) في قاعدة بيانات مركزية. يتم التحقق من البيانات بواسطة المحاسبين، ثم مراجعتها من رئيس الحسابات، وأخيراً اعتمادها وترحيلها إلى نظام ERP.
+                    </p>
+
+                    <div class="info-box">
+                        <h4>🎯 الوظائف الرئيسية:</h4>
+                        <ul>
+                            <li>📥 <strong>استقبال البيانات:</strong> من جميع الفروع عبر التطبيق المحمول</li>
+                            <li>🔍 <strong>المراجعة والتدقيق:</strong> فحص دقة وصحة جميع البيانات</li>
+                            <li>✅ <strong>الاعتماد:</strong> على مستويين (محاسب + رئيس حسابات)</li>
+                            <li>📊 <strong>إدارة الموديولات:</strong> 9 موديولات مالية وتشغيلية</li>
+                            <li>🔗 <strong>التكامل مع ERP:</strong> تصدير البيانات المعتمدة</li>
+                            <li>📈 <strong>التقارير:</strong> إحصائيات وتحليلات شاملة</li>
+                            <li>📤 <strong>التصدير الجماعي:</strong> تصدير العمليات بضغطة زر</li>
+                            <li>📧 <strong>إدارة التقارير:</strong> إرسال التقارير النهائية للملاك</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">👥</span>
+                        <h3 class="card-title">أدوار المستخدمين</h3>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>الدور</th>
+                                    <th>الوصف</th>
+                                    <th>المسؤوليات الرئيسية</th>
+                                    <th>مستوى الصلاحيات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>💼 المحاسب</strong></td>
+                                    <td>المستوى الأول للمراجعة</td>
+                                    <td>مراجعة وتدقيق العمليات</td>
+                                    <td><span class="badge badge-info">محدودة</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>👔 رئيس الحسابات</strong></td>
+                                    <td>المستوى الثاني للمراجعة</td>
+                                    <td>الاعتماد النهائي والترحيل</td>
+                                    <td><span class="badge badge-warning">عالية</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>🎯 الأدمن</strong></td>
+                                    <td>إدارة النظام</td>
+                                    <td>الصلاحيات والإعدادات</td>
+                                    <td><span class="badge badge-danger">كاملة</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">📦</span>
+                        <h3 class="card-title">الموديولات الثمانية</h3>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>اسم الموديول</th>
+                                    <th>الوصف المختصر</th>
+                                    <th>نوع المراجعة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>1</td>
+                                    <td><strong>💰 المبيعات</strong></td>
+                                    <td>مطابقة المبيعات مع التحصيلات</td>
+                                    <td><span class="badge badge-danger">مطابقة حرجة</span></td>
+                                </tr>
+                                <tr>
+                                    <td>2</td>
+                                    <td><strong>💸 المصروفات</strong></td>
+                                    <td>مراجعة واعتماد المصروفات</td>
+                                    <td><span class="badge badge-warning">مراجعة كاملة</span></td>
+                                </tr>
+                                <tr>
+                                    <td>3</td>
+                                    <td><strong>🛒 المشتريات</strong></td>
+                                    <td>التحقق من المشتريات والفواتير</td>
+                                    <td><span class="badge badge-warning">مطابقة ومراجعة</span></td>
+                                </tr>
+                                <tr>
+                                    <td>4</td>
+                                    <td><strong>📦 المخزون</strong></td>
+                                    <td>جرد يومي وشهري + إدارة الهدر</td>
+                                    <td><span class="badge badge-info">مراجعة وترحيل</span></td>
+                                </tr>
+                                <tr>
+                                    <td>5</td>
+                                    <td><strong>🏢 الأصول الثابتة</strong></td>
+                                    <td>تقارير الأصول فقط</td>
+                                    <td><span class="badge badge-success">اطلاع</span></td>
+                                </tr>
+                                <tr>
+                                    <td>6</td>
+                                    <td><strong>⏰ إدارة الشفتات</strong></td>
+                                    <td>متابعة الشفتات الحالية</td>
+                                    <td><span class="badge badge-info">اطلاع ومتابعة</span></td>
+                                </tr>
+                                <tr>
+                                    <td>7</td>
+                                    <td><strong>👥 كشف حساب الموظفين</strong></td>
+                                    <td>حركات حسابات الموظفين</td>
+                                    <td><span class="badge badge-info">اطلاع وتتبع</span></td>
+                                </tr>
+                                <tr>
+                                    <td>8</td>
+                                    <td><strong>💼 إدارة العهد النقدية</strong></td>
+                                    <td>عهد نقدية لكل فرع</td>
+                                    <td><span class="badge badge-warning">مراجعة وتتبع</span></td>
+                                </tr>
+                                <tr>
+                                    <td>9</td>
+                                    <td><strong>📊 مدير التقارير</strong></td>
+                                    <td>إدارة وإرسال التقارير النهائية</td>
+                                    <td><span class="badge badge-danger">أدمن فقط</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Accountants Section -->
+            <section id="accountants" class="section">
+                <div class="section-header">
+                    <div class="section-number">2</div>
+                    <h2 class="section-title">المحاسبون</h2>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">💼</span>
+                        <h3 class="card-title">دور المحاسب في النظام</h3>
+                    </div>
+                    <p>
+                        المحاسب هو المستوى الأول للمراجعة في الداشبورد الرئيسي. يستقبل جميع البيانات المرسلة من التطبيق المحمول ويقوم بمراجعتها بدقة قبل إرسالها لرئيس الحسابات. لكل محاسب صلاحيات محددة يمكن تخصيصها <strong>أفقياً</strong> (بالموديولات) أو <strong>رأسياً</strong> (بالفروع). يتعامل المحاسب مع 9 موديولات أساسية بما فيها الموديولات الجديدة لإدارة الهدر والتالف وتحديد أصناف الجرد اليومي.
+                    </p>
+
+                    <div class="highlight-box">
+                        <h4>🎯 المهام الرئيسية:</h4>
+                        <ul>
+                            <li>📥 استقبال البيانات من الفروع المخصصة له</li>
+                            <li>🔍 مراجعة دقة البيانات والتحقق منها</li>
+                            <li>📊 التحقق من المطابقات (مبيعات، مشتريات، إلخ)</li>
+                            <li>📷 فحص المرفقات والفواتير</li>
+                            <li>✅ الموافقة على العمليات الصحيحة</li>
+                            <li>❌ رفض العمليات الخاطئة مع توضيح السبب</li>
+                            <li>💬 طلب توضيحات من مديري الفروع عند الحاجة</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🔧</span>
+                        <h3 class="card-title">أنواع تخصيص المحاسبين</h3>
+                    </div>
+
+                    <h4>📊 التخصيص الأفقي (Horizontal Specialization):</h4>
+                    <div class="info-box">
+                        <p><strong>المفهوم:</strong> كل محاسب متخصص في موديول واحد أو أكثر لجميع الفروع</p>
+                        <p><strong>مثال:</strong></p>
+                        <ul>
+                            <li>محاسب أحمد → مسؤول عن موديول <strong>المصروفات</strong> لجميع الـ 100 فرع</li>
+                            <li>محاسب محمد → مسؤول عن موديول <strong>المبيعات</strong> لجميع الـ 100 فرع</li>
+                            <li>محاسبة فاطمة → مسؤولة عن موديول <strong>المشتريات</strong> لجميع الـ 100 فرع</li>
+                        </ul>
+                        <p><strong>الفائدة:</strong> تخصص عالٍ وخبرة مركزة في موديول معين</p>
+                    </div>
+
+                    <h4>🏢 التخصيص الرأسي (Vertical Specialization):</h4>
+                    <div class="info-box">
+                        <p><strong>المفهوم:</strong> كل محاسب مسؤول عن فرع أو مجموعة فروع لجميع الموديولات</p>
+                        <p><strong>مثال:</strong></p>
+                        <ul>
+                            <li>محاسب خالد → مسؤول عن الفروع 1-20 لجميع الموديولات</li>
+                            <li>محاسب سعيد → مسؤول عن الفروع 21-40 لجميع الموديولات</li>
+                            <li>محاسبة نورة → مسؤولة عن الفروع 41-60 لجميع الموديولات</li>
+                        </ul>
+                        <p><strong>الفائدة:</strong> معرفة شاملة بكل فرع وسهولة التواصل مع مديري الفروع</p>
+                    </div>
+
+                    <h4>🔀 التخصيص المختلط:</h4>
+                    <div class="info-box">
+                        <p><strong>المفهوم:</strong> دمج النوعين السابقين حسب الحاجة</p>
+                        <p><strong>مثال:</strong></p>
+                        <ul>
+                            <li>محاسب علي → مسؤول عن موديول <strong>المبيعات والمصروفات</strong> للفروع 1-30</li>
+                            <li>محاسبة مريم → مسؤولة عن موديول <strong>المشتريات والمخزون</strong> للفروع 31-60</li>
+                        </ul>
+                        <p><strong>الفائدة:</strong> مرونة كاملة وتوزيع متوازن للأحمال</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🖥️</span>
+                        <h3 class="card-title">واجهة المحاسب - الشاشة الرئيسية</h3>
+                    </div>
+                    <div class="wireframe">
+┌───────────────────────────────────────────────────────────────────┐
+│  🧠 عصب | الداشبورد الرئيسي          🔔 (12)    👤 أحمد محمد ▼  │
+├───────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  📊 لوحة التحكم    📋 العمليات    📈 التقارير    ⚙️ الإعدادات  │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │  📈 ملخص اليوم - الإثنين 14 أكتوبر 2025                    │ │
+│  │  ═══════════════════════════════════════                    │ │
+│  │                                                             │ │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │ │
+│  │  │    45    │  │    32    │  │    13    │  │   71%    │   │ │
+│  │  │  عمليات  │  │  موافق   │  │  معلقة   │  │  معدل    │   │ │
+│  │  │  جديدة   │  │  عليها   │  │          │  │  الموافقة│   │ │
+│  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │ │
+│  │                                                             │ │
+│  │  الفروع المخصصة: 1-50 | الموديولات: المبيعات، المصروفات    │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │  🔍 فلاتر البحث                                             │ │
+│  │  ═══════════                                                │ │
+│  │                                                             │ │
+│  │  🏪 الفرع: [الكل ▼]   📦 الموديول: [الكل ▼]               │ │
+│  │  📅 التاريخ: [اليوم ▼]   🔄 الحالة: [الكل ▼]              │ │
+│  │  🔍 [بحث...]                                   [تطبيق]     │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │  📋 قائمة العمليات المعلقة                                  │ │
+│  │  ═════════════════════                                      │ │
+│  │                                                             │ │
+│  │  ┌───────────────────────────────────────────────────────┐ │ │
+│  │  │ 💰 مبيعات | فرع الرياض - العليا | 18,340 ر.س        │ │ │
+│  │  │ ⏰ قبل ساعة | 🟢 متطابق | 📷 (3 مرفقات)              │ │ │
+│  │  │ [👁️ عرض التفاصيل]  [✅ موافقة]  [❌ رفض]            │ │ │
+│  │  └───────────────────────────────────────────────────────┘ │ │
+│  │                                                             │ │
+│  │  ┌───────────────────────────────────────────────────────┐ │ │
+│  │  │ 💸 مصروف | فرع جدة - الحمراء | 12,500 ر.س (إيجار)  │ │ │
+│  │  │ ⏰ قبل 3 ساعات | 🟡 يحتاج مراجعة | 📷 (2 مرفقات)  │ │ │
+│  │  │ [👁️ عرض التفاصيل]  [✅ موافقة]  [❌ رفض]            │ │ │
+│  │  └───────────────────────────────────────────────────────┘ │ │
+│  │                                                             │ │
+│  │  ┌───────────────────────────────────────────────────────┐ │ │
+│  │  │ 🛒 مشتريات | فرع مكة | 8,200 ر.س                    │ │ │
+│  │  │ ⏰ قبل 5 ساعات | 🔴 فرق في الكمية | 📷 (4 مرفقات) │ │ │
+│  │  │ [👁️ عرض التفاصيل]  [✅ موافقة]  [❌ رفض]            │ │ │
+│  │  └───────────────────────────────────────────────────────┘ │ │
+│  │                                                             │ │
+│  │  [1] [2] [3] ... [8] التالي →                              │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
+                    </div>
+                </div>
+
+                <!-- Module Details for Accountants -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">📦</span>
+                        <h3 class="card-title">الموديولات التسعة - تفصيل دور المحاسب</h3>
+                    </div>
+
+                    <h3>1️⃣ موديول المبيعات 💰</h3>
+                    <div class="info-box">
+                        <h4>📋 الوصف:</h4>
+                        <p>أهم موديول في النظام. يستقبل المحاسب بيانات المبيعات من جميع الفروع المخصصة له، ويقوم بمطابقة المبيعات الإجمالية مع التحصيلات التفصيلية.</p>
+                        
+                        <h4>🔍 آلية العمل:</h4>
+                        <ul>
+                            <li>📥 استقبال المبيعات الإجمالية من كل فرع</li>
+                            <li>📊 مراجعة التحصيلات التفصيلية:
+                                <ul>
+                                    <li>💵 نقدي</li>
+                                    <li>💳 بنكي (مدى، فيزا، ماستر)</li>
+                                    <li>📱 هنقرستيشن</li>
+                                    <li>📱 جاهز</li>
+                                    <li>📱 تو يو (To You)</li>
+                                    <li>📱 نينجا</li>
+                                </ul>
+                            </li>
+                            <li>🔢 حساب الفرق بين الإجمالي والتحصيلات</li>
+                            <li>⚠️ إذا وجد فرق → تحميله على شخص معين</li>
+                            <li>✅ الموافقة أو ❌ الرفض</li>
+                        </ul>
+
+                        <h4>⚙️ الإجراءات المتاحة:</h4>
+                        <ul>
+                            <li>✅ <strong>موافقة:</strong> إذا كانت المطابقة صحيحة → تُرسل لرئيس الحسابات</li>
+                            <li>❌ <strong>رفض:</strong> إذا كان هناك خطأ → تُعاد إلى مدير الفرع مع ملاحظات</li>
+                            <li>🔄 <strong>طلب توضيح:</strong> إذا كان هناك استفسار</li>
+                        </ul>
+                    </div>
+
+                    <div class="wireframe">
+┌─────────────────────────────────────────────────────────────┐
+│  ← رجوع         تفاصيل عملية المبيعات - فرع الرياض        │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  📊 معلومات العملية                                        │
+│  ═══════════════                                            │
+│  📅 التاريخ: 14 أكتوبر 2025  |  ⏰ الوقت: 9:30 صباحاً    │
+│  🏪 الفرع: فرع الرياض - العليا                            │
+│  👤 المُدخل: أحمد محمد (مدير الفرع)                       │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  💰 مطابقة المبيعات                                        │
+│  ═══════════════                                            │
+│                                                             │
+│  ┌──────────────────┬──────────────┬──────────────┐        │
+│  │    قناة التحصيل  │   المُدخل    │   المتوقع   │        │
+│  ├──────────────────┼──────────────┼──────────────┤        │
+│  │ 💵 نقدي          │  6,340 ر.س  │  6,340 ر.س  │ ✅     │
+│  │ 💳 بنكي          │  8,000 ر.س  │  8,000 ر.س  │ ✅     │
+│  │ 📱 هنقرستيشن     │  2,500 ر.س  │  2,500 ر.س  │ ✅     │
+│  │ 📱 جاهز          │  1,200 ر.س  │  1,200 ر.س  │ ✅     │
+│  │ 📱 تو يو         │    300 ر.س  │    300 ر.س  │ ✅     │
+│  ├──────────────────┼──────────────┼──────────────┤        │
+│  │ 📊 الإجمالي      │ 18,340 ر.س  │ 18,340 ر.س  │ ✅     │
+│  │ 🔸 الفرق         │      0 ر.س  │              │        │
+│  └──────────────────┴──────────────┴──────────────┘        │
+│                                                             │
+│  🟢 الحالة: متطابق 100% - لا يوجد فروقات                  │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  📷 المرفقات (3)                                            │
+│  ═══════════                                                │
+│  📄 تقرير_POS_اليومي.jpg       [🔍 عرض] [⬇️ تحميل]       │
+│  📄 تقرير_هنقرستيشن.pdf        [🔍 عرض] [⬇️ تحميل]       │
+│  📄 كشف_البنك.jpg               [🔍 عرض] [⬇️ تحميل]       │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  💬 ملاحظات وتعليقات                                       │
+│  ═══════════════                                            │
+│  [اكتب ملاحظاتك هنا...]                                    │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+│  │ ✅ موافقة    │  │ ❌ رفض       │  │ 🔄 طلب توضيح│     │
+│  └──────────────┘  └──────────────┘  └──────────────┘     │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                    </div>
+
+                    <h3>2️⃣ موديول المصروفات 💸</h3>
+                    <div class="info-box">
+                        <h4>📋 الوصف:</h4>
+                        <p>مراجعة واعتماد جميع مصروفات الفروع المخصصة للمحاسب.</p>
+                        
+                        <h4>🔍 آلية العمل:</h4>
+                        <ul>
+                            <li>📥 استقبال المصروفات من الفروع</li>
+                            <li>📄 التحقق من وجود فاتورة لكل مصروف</li>
+                            <li>🔢 مطابقة المبلغ المُدخل مع الفاتورة</li>
+                            <li>📅 التحقق من التاريخ والمورد</li>
+                            <li>💡 التأكد من معقولية المصروف</li>
+                            <li>✅ الموافقة أو ❌ الرفض</li>
+                        </ul>
+
+                        <h4>⚙️ الإجراءات المتاحة:</h4>
+                        <ul>
+                            <li>✅ <strong>موافقة:</strong> إذا كانت جميع المستندات صحيحة</li>
+                            <li>❌ <strong>رفض:</strong> إذا كان هناك نقص في المستندات أو خطأ في البيانات</li>
+                            <li>💬 <strong>إضافة ملاحظات:</strong> لأي استفسار أو توضيح</li>
+                        </ul>
+                    </div>
+
+                    <h3>3️⃣ موديول المشتريات 🛒</h3>
+                    <div class="info-box">
+                        <h4>📋 الوصف:</h4>
+                        <p>التحقق من مطابقة الأصناف المستلمة (نوعاً وكمية) مع الفواتير.</p>
+                        
+                        <h4>🔍 آلية العمل:</h4>
+                        <ul>
+                            <li>📥 استقبال بيانات المشتريات من الفروع</li>
+                            <li>📦 مراجعة قائمة الأصناف المستلمة</li>
+                            <li>🔢 التحقق من الكميات</li>
+                            <li>📄 مطابقة الفاتورة مع المستلم</li>
+                            <li>💰 التحقق من الأسعار</li>
+                            <li>✅ الموافقة أو ❌ الرفض</li>
+                        </ul>
+
+                        <h4>⚙️ الإجراءات المتاحة:</h4>
+                        <ul>
+                            <li>✅ <strong>موافقة:</strong> إذا كانت المطابقة صحيحة → ترسل لرئيس الحسابات</li>
+                            <li>❌ <strong>رفض:</strong> إذا كان هناك فرق في الكمية أو النوع → تعود للفرع</li>
+                        </ul>
+                    </div>
+
+                    <h3>4️⃣ موديول المخزون 📦</h3>
+                    <div class="info-box">
+                        <h4>📋 الوصف:</h4>
+                        <p>إدارة الجرد اليومي والشهري للمخزون في جميع الفروع.</p>
+                        
+                        <h4>أ) الجرد اليومي:</h4>
+                        <ul>
+                            <li>📥 يتم إرساله كاملاً (100%) من التطبيق المحمول</li>
+                            <li>📊 يدخل المحاسب <strong>المبيعات المستهلكة</strong> من المواد الخام</li>
+                            <li>🧮 يتم الحساب بناءً على الوصفات المرتبطة بالمبيعات</li>
+                            <li>📉 بعد الإدخال، تظهر الفروقات تلقائياً</li>
+                            <li>🔄 يتم إعادة المطابقة مع مدير الفرع في التطبيق</li>
+                        </ul>
+
+                        <h4>ب) الجرد الشهري:</h4>
+                        <ul>
+                            <li>📥 يتم إرساله من التطبيق المحمول</li>
+                            <li>👁️ دور المحاسب: الاطلاع على الجرد لكل فرع</li>
+                            <li>📝 مراجعة الأصناف والكميات</li>
+                            <li>✏️ تعديل الكميات إن لزم الأمر</li>
+                            <li>✅ الترحيل مباشرة أو ❌ الرفض</li>
+                        </ul>
+                    </div>
+
+                    <h3>5️⃣ موديول الأصول الثابتة 🏢</h3>
+                    <div class="info-box">
+                        <h4>📋 الوصف:</h4>
+                        <p>موديول تقارير فقط، مشابه للجرد الشهري للمخزون.</p>
+                        
+                        <h4>🔍 آلية العمل:</h4>
+                        <ul>
+                            <li>📊 الاطلاع على تقارير الأصول الثابتة</li>
+                            <li>👁️ مراجعة البيانات كتقرير فقط</li>
+                            <li>✓ التحقق من صحة البيانات</li>
+                            <li>📝 لا يوجد اعتماد أو رفض، فقط مراجعة</li>
+                        </ul>
+                    </div>
+
+                    <h3>6️⃣ موديول إدارة الشفتات ⏰ (جديد)</h3>
+                    <div class="info-box">
+                        <h4>📋 الوصف:</h4>
+                        <p>الاطلاع على الشفتات الحالية والنشطة في جميع الفروع.</p>
+                        
+                        <h4>🔍 آلية العمل:</h4>
+                        <ul>
+                            <li>👁️ الاطلاع على الشفت الحالي في أي فرع</li>
+                            <li>👤 معرفة اسم الموظف المستلم للشفت الآن</li>
+                            <li>📞 رقم التواصل معه (هاتف أو بريد إلكتروني)</li>
+                            <li>🔍 فلاتر متقدمة:
+                                <ul>
+                                    <li>بالفرع</li>
+                                    <li>بالوقت (الحالي، أمس، الأسبوع)</li>
+                                    <li>بالموظف</li>
+                                </ul>
+                            </li>
+                            <li>📊 عرض الشفتات النشطة فقط</li>
+                        </ul>
+                    </div>
+
+                    <div class="wireframe">
+┌─────────────────────────────────────────────────────────────┐
+│  إدارة الشفتات - الشفتات النشطة                           │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  🔍 فلاتر البحث:                                           │
+│  🏪 الفرع: [الكل ▼]  |  📅 التاريخ: [اليوم ▼]            │
+│  👤 الموظف: [الكل ▼] |  [تطبيق الفلاتر]                  │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  📋 الشفتات النشطة الآن (5 شفتات)                         │
+│  ══════════════════════════                                 │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │ 🏪 فرع الرياض - العليا                               │ │
+│  │ 👤 الموظف: أحمد محمد السالم                          │ │
+│  │ ⏰ بدء الشفت: 8:00 صباحاً                            │ │
+│  │ 📞 الهاتف: +966 50 123 4567                          │ │
+│  │ 📧 البريد: ahmad@example.com                          │ │
+│  │ 🟢 نشط الآن                                           │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │ 🏪 فرع جدة - الحمراء                                 │ │
+│  │ 👤 الموظف: محمد عبدالله                             │ │
+│  │ ⏰ بدء الشفت: 7:30 صباحاً                            │ │
+│  │ 📞 الهاتف: +966 55 234 5678                          │ │
+│  │ 📧 البريد: mohammed@example.com                       │ │
+│  │ 🟢 نشط الآن                                           │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  [المزيد...]                                               │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                    </div>
+
+                    <h3>7️⃣ موديول كشف حساب الموظفين 👥 (جديد)</h3>
+                    <div class="info-box">
+                        <h4>📋 الوصف:</h4>
+                        <p>الاطلاع على كشف حساب أي موظف مع جميع الحركات المالية.</p>
+                        
+                        <h4>🔍 آلية العمل:</h4>
+                        <ul>
+                            <li>👁️ الاطلاع على كشف حساب أي موظف</li>
+                            <li>💰 عرض الحركات داخل الحساب:
+                                <ul>
+                                    <li>المبالغ المستلمة (رواتب، حوافز)</li>
+                                    <li>المبالغ المصروفة (سلف، خصومات)</li>
+                                    <li>الرصيد الحالي</li>
+                                </ul>
+                            </li>
+                            <li>🏪 عرض الفرع أو المطعم الذي يعمل فيه</li>
+                            <li>🔍 فلاتر متقدمة:
+                                <ul>
+                                    <li>بالموظف</li>
+                                    <li>بالتاريخ (يومي، شهري، سنوي)</li>
+                                    <li>بالفرع</li>
+                                    <li>بنوع الحركة</li>
+                                </ul>
+                            </li>
+                            <li>📊 تقارير تفصيلية</li>
+                        </ul>
+                    </div>
+
+                    <div class="wireframe">
+┌─────────────────────────────────────────────────────────────┐
+│  كشف حساب الموظفين                                         │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  🔍 فلاتر البحث:                                           │
+│  👤 الموظف: [أحمد محمد ▼]  |  📅 الفترة: [هذا الشهر ▼]   │
+│  🏪 الفرع: [الكل ▼]  |  [تطبيق الفلاتر]                   │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  📊 ملخص الحساب - أحمد محمد السالم                         │
+│  ═══════════════════════════════                            │
+│  🏪 الفرع: فرع الرياض - العليا                            │
+│  📅 تاريخ التعيين: 1 يناير 2024                           │
+│  💼 الوظيفة: كاشير                                        │
+│                                                             │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌────────────┐ │
+│  │   المستلم       │  │   المصروف      │  │  الرصيد    │ │
+│  │  5,000 ر.س     │  │  1,200 ر.س     │  │ 3,800 ر.س │ │
+│  └─────────────────┘  └─────────────────┘  └────────────┘ │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  📋 تفاصيل الحركات - أكتوبر 2025                          │
+│  ═══════════════════════════                                │
+│                                                             │
+│  التاريخ      |  البيان           |  مدين    |  دائن      │
+│  ────────────────────────────────────────────────────────  │
+│  2025/10/01  │  راتب أكتوبر      │ 5,000    │  -         │
+│  2025/10/05  │  سلفة              │    -     │  500       │
+│  2025/10/10  │  خصم تأخير         │    -     │  200       │
+│  2025/10/12  │  حافز حضور         │  500     │  -         │
+│  2025/10/14  │  سلفة              │    -     │  500       │
+│  ────────────────────────────────────────────────────────  │
+│  الإجمالي                         │ 5,500    │ 1,200      │
+│  الرصيد النهائي                                │ 3,800    │
+│                                                             │
+│  [⬇️ تصدير Excel] [🖨️ طباعة] [📧 إرسال بالبريد]          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                    </div>
+
+                    <h3>8️⃣ موديول إدارة العهد النقدية 💼 (جديد)</h3>
+                    <div class="info-box">
+                        <h4>📋 الوصف:</h4>
+                        <p>موديول منفصل لإدارة العهد النقدية لكل فرع (كل فرع له عهدة خاصة).</p>
+                        
+                        <h4>🔍 آلية العمل:</h4>
+                        <ul>
+                            <li>🏪 كل فرع يمتلك عهدة نقدية خاصة به</li>
+                            <li>🔍 فلترة بالفرع المعين للحصول على تفاصيل العهدة</li>
+                            <li>💰 عرض تفاصيل العهدة:
+                                <ul>
+                                    <li>المبالغ المستلمة</li>
+                                    <li>المبالغ المصروفة</li>
+                                    <li>الرصيد الحالي</li>
+                                </ul>
+                            </li>
+                            <li>📊 تقارير تفصيلية عن العهدة</li>
+                            <li>📈 تتبع حركات العهدة</li>
+                            <li>⚠️ تنبيهات عند انخفاض الرصيد</li>
+                        </ul>
+                    </div>
+
+                    <div class="wireframe">
+┌─────────────────────────────────────────────────────────────┐
+│  إدارة العهد النقدية                                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  🔍 فلاتر البحث:                                           │
+│  🏪 الفرع: [فرع الرياض - العليا ▼]                        │
+│  📅 الفترة: [هذا الشهر ▼]  |  [تطبيق الفلاتر]             │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  📊 ملخص العهدة - فرع الرياض العليا                        │
+│  ══════════════════════════════════                         │
+│                                                             │
+│  ┌───────────────┐  ┌───────────────┐  ┌──────────────┐   │
+│  │  رصيد افتتاحي │  │   مستلم      │  │   مصروف     │   │
+│  │  10,000 ر.س  │  │  25,000 ر.س │  │  22,000 ر.س │   │
+│  └───────────────┘  └───────────────┘  └──────────────┘   │
+│                                                             │
+│  ┌──────────────────────────┐                              │
+│  │  الرصيد الحالي           │                              │
+│  │  13,000 ر.س              │                              │
+│  │  🟢 طبيعي                │                              │
+│  └──────────────────────────┘                              │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  📋 حركات العهدة - أكتوبر 2025                            │
+│  ═══════════════════════════                                │
+│                                                             │
+│  التاريخ      |  البيان                  |  مدين  | دائن  │
+│  ──────────────────────────────────────────────────────────│
+│  2025/10/01  │  رصيد افتتاحي            │ 10,000 │   -   │
+│  2025/10/02  │  تعزيز عهدة              │  5,000 │   -   │
+│  2025/10/03  │  سداد مورد - لحوم        │    -   │ 3,000 │
+│  2025/10/05  │  سداد فاتورة كهرباء      │    -   │ 2,500 │
+│  2025/10/08  │  استلام من الخزينة       │ 10,000 │   -   │
+│  2025/10/10  │  سداد رواتب عمال يومية  │    -   │ 4,000 │
+│  2025/10/12  │  مصروفات متنوعة          │    -   │ 1,500 │
+│  ──────────────────────────────────────────────────────────│
+│  الإجمالي                                │ 25,000 │22,000 │
+│  الرصيد الحالي                                  │ 13,000 │
+│                                                             │
+│  [⬇️ تصدير Excel] [🖨️ طباعة] [📧 إرسال] [➕ تعزيز عهدة]  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🔐</span>
+                        <h3 class="card-title">صلاحيات المحاسب</h3>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>الوظيفة</th>
+                                    <th>الصلاحية</th>
+                                    <th>ملاحظات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>📥 عرض العمليات</td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td>للفروع المخصصة فقط</td>
+                                </tr>
+                                <tr>
+                                    <td>✅ الموافقة على العمليات</td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td>للموديولات المخصصة فقط</td>
+                                </tr>
+                                <tr>
+                                    <td>❌ رفض العمليات</td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td>مع إضافة ملاحظات إلزامية</td>
+                                </tr>
+                                <tr>
+                                    <td>✏️ تعديل البيانات</td>
+                                    <td><span class="badge badge-warning">محدودة</span></td>
+                                    <td>في بعض الموديولات فقط</td>
+                                </tr>
+                                <tr>
+                                    <td>🔗 الترحيل إلى ERP</td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td>صلاحية رئيس الحسابات فقط</td>
+                                </tr>
+                                <tr>
+                                    <td>👥 إدارة المستخدمين</td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td>صلاحية الأدمن فقط</td>
+                                </tr>
+                                <tr>
+                                    <td>📊 عرض التقارير</td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td>للفروع المخصصة فقط</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Head Accountant Section -->
+            <section id="head-accountant" class="section">
+                <div class="section-header">
+                    <div class="section-number">3</div>
+                    <h2 class="section-title">رئيس الحسابات</h2>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">👔</span>
+                        <h3 class="card-title">دور رئيس الحسابات</h3>
+                    </div>
+                    <p>
+                        رئيس الحسابات هو المستوى الثاني والأخير للمراجعة قبل ترحيل البيانات إلى نظام ERP. يستقبل البيانات المعتمدة من المحاسبين المسؤولين عنهم، يراجعها بدقة، ثم يعتمدها نهائياً أو يرفضها. كما يملك صلاحيات الوصول إلى جميع الموديولات بما فيها الموديولات الجديدة.
+                    </p>
+
+                    <div class="highlight-box">
+                        <h4>🎯 المهام الرئيسية:</h4>
+                        <ul>
+                            <li>📥 استقبال البيانات المعتمدة من المحاسبين</li>
+                            <li>🔍 المراجعة النهائية لجميع العمليات</li>
+                            <li>✅ الاعتماد النهائي للعمليات الصحيحة</li>
+                            <li>❌ رفض العمليات الخاطئة وإعادتها للمحاسب</li>
+                            <li>📊 مراجعة أداء المحاسبين</li>
+                            <li>🔗 ترحيل البيانات المعتمدة إلى نظام ERP</li>
+                            <li>👁️ الوصول الكامل لجميع الموديولات (بما فيها الشفتات، كشف حساب الموظفين، والعهد النقدية)</li>
+                            <li>📈 إعداد التقارير الإدارية</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🖥️</span>
+                        <h3 class="card-title">واجهة رئيس الحسابات - الشاشة الرئيسية</h3>
+                    </div>
+                    <div class="wireframe">
+┌───────────────────────────────────────────────────────────────────┐
+│  🧠 عصب | لوحة رئيس الحسابات        🔔 (8)    👤 خالد أحمد ▼   │
+├───────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  📊 الرئيسية    👥 المحاسبون    📋 العمليات    📈 التقارير     │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │  📈 ملخص الأداء - أكتوبر 2025                              │ │
+│  │  ═══════════════════════════                                │ │
+│  │                                                             │ │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │ │
+│  │  │   1,245  │  │   1,120  │  │    125   │  │   90%    │   │ │
+│  │  │  إجمالي  │  │  معتمدة  │  │  معلقة   │  │  معدل    │   │ │
+│  │  │ العمليات │  │          │  │          │  │ الاعتماد │   │ │
+│  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │ │
+│  │                                                             │ │
+│  │  👥 المحاسبون التابعون: 5 | 🏪 الفروع المغطاة: 100         │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │  👥 أداء المحاسبين                                          │ │
+│  │  ═════════════                                              │ │
+│  │                                                             │ │
+│  │  ┌─────────────────────────────────────────────────────┐   │ │
+│  │  │ 💼 أحمد محمد                                        │   │ │
+│  │  │ 📊 العمليات المراجعة: 250 | المعتمدة: 230 (92%)    │   │ │
+│  │  │ ⏱️ متوسط وقت المراجعة: 4.5 دقيقة                  │   │ │
+│  │  │ 🟢 الأداء: ممتاز                                    │   │ │
+│  │  │ [👁️ عرض التفاصيل]                                  │   │ │
+│  │  └─────────────────────────────────────────────────────┘   │ │
+│  │                                                             │ │
+│  │  ┌─────────────────────────────────────────────────────┐   │ │
+│  │  │ 💼 محمد عبدالله                                    │   │ │
+│  │  │ 📊 العمليات المراجعة: 230 | المعتمدة: 200 (87%)    │   │ │
+│  │  │ ⏱️ متوسط وقت المراجعة: 5.2 دقيقة                  │   │ │
+│  │  │ 🟡 الأداء: جيد جداً                                │   │ │
+│  │  │ [👁️ عرض التفاصيل]                                  │   │ │
+│  │  └─────────────────────────────────────────────────────┘   │ │
+│  │                                                             │ │
+│  │  [المزيد...]                                               │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │  📋 العمليات في انتظار الاعتماد النهائي (125)             │ │
+│  │  ══════════════════════════════════════                     │ │
+│  │                                                             │ │
+│  │  🔍 [بحث...]  📁 الموديول: [الكل ▼]  👤 المحاسب: [الكل ▼] │ │
+│  │                                                             │ │
+│  │  ┌───────────────────────────────────────────────────────┐ │ │
+│  │  │ 💰 مبيعات | 15 عملية من المحاسب أحمد | 285,430 ر.س │ │ │
+│  │  │ [👁️ عرض المجموعة]  [✅ اعتماد الكل]  [🔍 مراجعة]  │ │ │
+│  │  └───────────────────────────────────────────────────────┘ │ │
+│  │                                                             │ │
+│  │  ┌───────────────────────────────────────────────────────┐ │ │
+│  │  │ 💸 مصروفات | 22 عملية من المحاسب محمد | 145,200 ر.س │ │ │
+│  │  │ [👁️ عرض المجموعة]  [✅ اعتماد الكل]  [🔍 مراجعة]  │ │ │
+│  │  └───────────────────────────────────────────────────────┘ │ │
+│  │                                                             │ │
+│  │  [المزيد...]                                               │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">📊</span>
+                        <h3 class="card-title">لوحة التحكم - الإحصائيات والفلاتر</h3>
+                    </div>
+
+                    <h4>📈 الإحصائيات المتوفرة:</h4>
+                    <div class="info-box">
+                        <ul>
+                            <li>📊 <strong>عدد المعتمد:</strong> إجمالي العمليات المعتمدة نهائياً</li>
+                            <li>❌ <strong>عدد المرفوض:</strong> العمليات المرفوضة وأسباب الرفض</li>
+                            <li>📥 <strong>عدد المرسل من الفروع:</strong> إجمالي العمليات المستلمة</li>
+                            <li>⏱️ <strong>متوسط وقت المراجعة:</strong> لكل محاسب</li>
+                            <li>📊 <strong>معدل الاعتماد:</strong> نسبة العمليات المعتمدة</li>
+                            <li>👥 <strong>أداء المحاسبين:</strong> تفاصيل عمل كل محاسب</li>
+                            <li>📈 <strong>اتجاهات الأداء:</strong> مخططات بيانية للأداء</li>
+                        </ul>
+                    </div>
+
+                    <h4>🔍 الفلاتر المتقدمة:</h4>
+                    <div class="info-box">
+                        <p>رئيس الحسابات لديه فلاتر <strong>غير محدودة</strong> للوصول السريع للبيانات:</p>
+                        <ul>
+                            <li>🏪 <strong>بالفرع:</strong> اختيار فرع معين أو مجموعة فروع</li>
+                            <li>🏢 <strong>بالبراند:</strong> فلترة حسب المطعم/البراند</li>
+                            <li>👤 <strong>بالمحاسب:</strong> عرض عمليات محاسب معين</li>
+                            <li>📅 <strong>بالتاريخ:</strong> يومي، أسبوعي، شهري، أو فترة مخصصة</li>
+                            <li>📦 <strong>بالموديول:</strong> مبيعات، مصروفات، مشتريات، إلخ</li>
+                            <li>🔄 <strong>بالحالة:</strong> معلق، معتمد، مرفوض</li>
+                            <li>💰 <strong>بالمبلغ:</strong> نطاق معين من المبالغ</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">⚙️</span>
+                        <h3 class="card-title">العمليات والإجراءات</h3>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>الإجراء</th>
+                                    <th>الوصف</th>
+                                    <th>النتيجة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>✅ اعتماد نهائي</strong></td>
+                                    <td>اعتماد العملية والترحيل إلى ERP</td>
+                                    <td>يتم ترحيل البيانات مباشرة إلى نظام ERP</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>❌ رفض</strong></td>
+                                    <td>رفض العملية وإعادتها للمحاسب</td>
+                                    <td>تعود العملية للمحاسب المسؤول مع ملاحظات</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>🔍 طلب مراجعة إضافية</strong></td>
+                                    <td>طلب مراجعة أو توضيح من المحاسب</td>
+                                    <td>تظل العملية معلقة حتى الحصول على التوضيح</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>📊 عرض التقارير</strong></td>
+                                    <td>إنشاء تقارير مفصلة</td>
+                                    <td>تقارير شاملة بصيغ متعددة (PDF, Excel)</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>🔗 الترحيل الجماعي</strong></td>
+                                    <td>اعتماد مجموعة عمليات دفعة واحدة</td>
+                                    <td>ترحيل سريع لعدة عمليات معاً</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">👥</span>
+                        <h3 class="card-title">إدارة المحاسبين</h3>
+                    </div>
+                    <p>
+                        يمكن تعيين رئيس حسابات واحد لإدارة عدة محاسبين، بحيث يكون مسؤولاً عن مراجعة عملهم ومتابعة أدائهم.
+                    </p>
+
+                    <div class="info-box">
+                        <h4>📊 التوزيع المثالي:</h4>
+                        <ul>
+                            <li>👔 <strong>رئيس حسابات واحد</strong> → 4-5 محاسبين</li>
+                            <li>💡 <strong>مثال:</strong> في منشأة بها 20 محاسب، يتم تعيين 4 رؤساء حسابات (كل واحد يدير 5 محاسبين)</li>
+                            <li>📈 يمكن زيادة أو تقليل العدد حسب حجم العمل</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🔐</span>
+                        <h3 class="card-title">صلاحيات رئيس الحسابات</h3>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>الوظيفة</th>
+                                    <th>الصلاحية</th>
+                                    <th>ملاحظات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>📥 عرض جميع العمليات</td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td>لجميع الفروع والمحاسبين</td>
+                                </tr>
+                                <tr>
+                                    <td>✅ الاعتماد النهائي</td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td>صلاحية حصرية</td>
+                                </tr>
+                                <tr>
+                                    <td>🔗 الترحيل إلى ERP</td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td>بعد الاعتماد النهائي</td>
+                                </tr>
+                                <tr>
+                                    <td>👁️ مراجعة أداء المحاسبين</td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td>تقارير تفصيلية</td>
+                                </tr>
+                                <tr>
+                                    <td>📊 جميع التقارير</td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td>وصول كامل</td>
+                                </tr>
+                                <tr>
+                                    <td>👥 إدارة المستخدمين</td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td>صلاحية الأدمن فقط</td>
+                                </tr>
+                                <tr>
+                                    <td>⚙️ تعديل الصلاحيات</td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td>صلاحية الأدمن فقط</td>
+                                </tr>
+                                <tr>
+                                    <td>👁️ الشفتات النشطة</td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td>لجميع الفروع</td>
+                                </tr>
+                                <tr>
+                                    <td>💼 كشف حساب الموظفين</td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td>لجميع الموظفين</td>
+                                </tr>
+                                <tr>
+                                    <td>💰 إدارة العهد النقدية</td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td>لجميع الفروع</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Admin Section -->
+            <section id="admin" class="section">
+                <div class="section-header">
+                    <div class="section-number">4</div>
+                    <h2 class="section-title">الإداري الرئيسي (الأدمن)</h2>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🎯</span>
+                        <h3 class="card-title">دور الأدمن في النظام</h3>
+                    </div>
+                    <p>
+                        الأدمن هو المسؤول الأول عن النظام بالكامل. يملك صلاحيات شاملة ومرنة لإدارة جميع جوانب النظام، من إدارة المستخدمين والصلاحيات إلى توزيع الفروع والمحاسبين وإدارة الاشتراكات.
+                    </p>
+
+                    <div class="highlight-box">
+                        <h4>🎯 المسؤوليات الرئيسية:</h4>
+                        <ul>
+                            <li>👥 <strong>إدارة المستخدمين:</strong> إضافة، تعديل، حذف جميع المستخدمين</li>
+                            <li>🔐 <strong>إدارة الصلاحيات:</strong> تحديد صلاحيات كل مستخدم بدقة</li>
+                            <li>🏪 <strong>إدارة المطاعم والفروع:</strong> إضافة وتعديل بيانات المطاعم</li>
+                            <li>📊 <strong>توزيع المحاسبين:</strong> تخصيص الفروع والموديولات للمحاسبين</li>
+                            <li>👔 <strong>توزيع رؤساء الحسابات:</strong> تعيين رئيس لكل مجموعة محاسبين</li>
+                            <li>💰 <strong>إدارة الاشتراكات:</strong> باقات الاشتراك والفواتير</li>
+                            <li>⚙️ <strong>إعدادات النظام:</strong> جميع الإعدادات العامة</li>
+                            <li>📈 <strong>المراقبة والتحليل:</strong> متابعة الأداء العام للنظام</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">👥</span>
+                        <h3 class="card-title">إدارة المستخدمين</h3>
+                    </div>
+
+                    <h4>➕ إضافة مستخدم جديد:</h4>
+                    <div class="info-box">
+                        <ul>
+                            <li>📝 إدخال البيانات الأساسية (الاسم، البريد، الهاتف)</li>
+                            <li>🎭 اختيار الدور (محاسب، رئيس حسابات، مدير فرع، إلخ)</li>
+                            <li>🔐 تحديد الصلاحيات التفصيلية</li>
+                            <li>🏪 تخصيص الفروع (للمحاسبين)</li>
+                            <li>📦 تخصيص الموديولات (للمحاسبين)</li>
+                            <li>📧 إرسال بيانات الدخول بالبريد الإلكتروني</li>
+                        </ul>
+                    </div>
+
+                    <h4>✏️ تعديل صلاحيات المستخدمين:</h4>
+                    <div class="info-box">
+                        <p>يمكن للأدمن تعديل الصلاحيات بمرونة تامة:</p>
+                        <ul>
+                            <li>🔄 <strong>التخصيص الأفقي:</strong> إضافة/إزالة موديولات للمحاسب</li>
+                            <li>🔄 <strong>التخصيص الرأسي:</strong> إضافة/إزالة فروع للمحاسب</li>
+                            <li>👔 <strong>ترقية الدور:</strong> تحويل محاسب إلى رئيس حسابات</li>
+                            <li>🔒 <strong>تعطيل/تفعيل:</strong> إيقاف مؤقت للحساب</li>
+                            <li>🗑️ <strong>حذف:</strong> حذف نهائي للحساب</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🏢</span>
+                        <h3 class="card-title">توزيع المحاسبين على الفروع</h3>
+                    </div>
+
+                    <p>
+                        من أهم مهام الأدمن هو توزيع المحاسبين على الفروع بطريقة متوازنة وفعالة.
+                    </p>
+
+                    <div class="info-box">
+                        <h4>💡 مثال عملي:</h4>
+                        <p><strong>السيناريو:</strong> لديك 100 فرع، وتريد توزيعهم على المحاسبين</p>
+                        
+                        <h4>📊 الطريقة الأولى - التوزيع المتساوي:</h4>
+                        <ul>
+                            <li>👤 <strong>محاسب 1:</strong> الفروع 1-20 (20 فرع)</li>
+                            <li>👤 <strong>محاسب 2:</strong> الفروع 21-40 (20 فرع)</li>
+                            <li>👤 <strong>محاسب 3:</strong> الفروع 41-60 (20 فرع)</li>
+                            <li>👤 <strong>محاسب 4:</strong> الفروع 61-80 (20 فرع)</li>
+                            <li>👤 <strong>محاسب 5:</strong> الفروع 81-100 (20 فرع)</li>
+                        </ul>
+
+                        <h4>📊 الطريقة الثانية - التوزيع حسب الموديول:</h4>
+                        <ul>
+                            <li>👤 <strong>محاسب 1:</strong> موديول المبيعات لجميع الـ 100 فرع</li>
+                            <li>👤 <strong>محاسب 2:</strong> موديول المصروفات لجميع الـ 100 فرع</li>
+                            <li>👤 <strong>محاسب 3:</strong> موديول المشتريات لجميع الـ 100 فرع</li>
+                            <li>👤 <strong>محاسب 4:</strong> موديول المخزون لجميع الـ 100 فرع</li>
+                        </ul>
+
+                        <h4>📊 الطريقة الثالثة - التوزيع المختلط:</h4>
+                        <ul>
+                            <li>👤 <strong>محاسب 1:</strong> المبيعات والمصروفات للفروع 1-50</li>
+                            <li>👤 <strong>محاسب 2:</strong> المبيعات والمصروفات للفروع 51-100</li>
+                            <li>👤 <strong>محاسب 3:</strong> المشتريات والمخزون للفروع 1-50</li>
+                            <li>👤 <strong>محاسب 4:</strong> المشتريات والمخزون للفروع 51-100</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">👔</span>
+                        <h3 class="card-title">توزيع رؤساء الحسابات على المحاسبين</h3>
+                    </div>
+
+                    <div class="info-box">
+                        <h4>💡 مثال عملي:</h4>
+                        <p><strong>السيناريو:</strong> لديك 20 محاسب، وتريد تعيين رؤساء حسابات</p>
+                        
+                        <h4>📊 التوزيع الموصى به:</h4>
+                        <ul>
+                            <li>👔 <strong>رئيس حسابات 1:</strong> يدير المحاسبين 1-5 (5 محاسبين)</li>
+                            <li>👔 <strong>رئيس حسابات 2:</strong> يدير المحاسبين 6-10 (5 محاسبين)</li>
+                            <li>👔 <strong>رئيس حسابات 3:</strong> يدير المحاسبين 11-15 (5 محاسبين)</li>
+                            <li>👔 <strong>رئيس حسابات 4:</strong> يدير المحاسبين 16-20 (5 محاسبين)</li>
+                        </ul>
+
+                        <p>💡 <strong>ملاحظة:</strong> العدد المثالي هو 4-5 محاسبين لكل رئيس حسابات، ويمكن زيادته أو تقليله حسب حجم العمل.</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">💰</span>
+                        <h3 class="card-title">إدارة الاشتراكات</h3>
+                    </div>
+
+                    <p>
+                        الأدمن مسؤول عن إدارة اشتراكات جميع المطاعم في النظام.
+                    </p>
+
+                    <div class="info-box">
+                        <h4>🔧 المهام المتاحة:</h4>
+                        <ul>
+                            <li>➕ <strong>إضافة مطعم جديد:</strong> تسجيل مطعم جديد في النظام</li>
+                            <li>📦 <strong>اختيار الباقة:</strong> تحديد باقة الاشتراك (أساسية، متقدمة، مؤسسية)</li>
+                            <li>📅 <strong>تحديد المدة:</strong> شهري، ربع سنوي، سنوي</li>
+                            <li>💳 <strong>إدارة الفواتير:</strong> إصدار ومتابعة الفواتير</li>
+                            <li>🔔 <strong>التنبيهات:</strong> تنبيهات قبل انتهاء الاشتراك</li>
+                            <li>⏸️ <strong>تجميد الاشتراك:</strong> في حالة عدم الدفع</li>
+                            <li>🔄 <strong>تجديد الاشتراك:</strong> تجديد تلقائي أو يدوي</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🖥️</span>
+                        <h3 class="card-title">واجهة الأدمن - الشاشة الرئيسية</h3>
+                    </div>
+                    <div class="wireframe">
+┌───────────────────────────────────────────────────────────────────┐
+│  🧠 عصب | لوحة الأدمن                 🔔 (5)    👤 الأدمن ▼      │
+├───────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  📊 الرئيسية    👥 المستخدمون    🏪 المطاعم    💰 الاشتراكات   │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │  📈 نظرة عامة على النظام                                   │ │
+│  │  ════════════════════                                       │ │
+│  │                                                             │ │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │ │
+│  │  │    25    │  │   100    │  │   2,450  │  │  99.9%   │   │ │
+│  │  │  مطاعم   │  │  فرع     │  │  مستخدم  │  │  Uptime  │   │ │
+│  │  │  نشطة    │  │  نشط     │  │  نشط     │  │          │   │ │
+│  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │ │
+│  │                                                             │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │  👥 المستخدمون                                              │ │
+│  │  ══════════                                                 │ │
+│  │                                                             │ │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │ │
+│  │  │    20    │  │     4    │  │    75    │  │     1    │   │ │
+│  │  │ محاسبون  │  │  رؤساء   │  │  مدراء   │  │  أدمن    │   │ │
+│  │  │          │  │ حسابات   │  │  فروع    │  │          │   │ │
+│  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │ │
+│  │                                                             │ │
+│  │  [➕ إضافة مستخدم]  [⚙️ إدارة الصلاحيات]                  │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│                                                                   │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │  💰 الاشتراكات                                              │ │
+│  │  ══════════                                                 │ │
+│  │                                                             │ │
+│  │  ┌────────────────────────────────────────────────────┐    │ │
+│  │  │ 🏪 مطعم البيك - 50 فرع                            │    │ │
+│  │  │ 📦 الباقة: مؤسسية | 💰 10,000 ر.س/شهر            │    │ │
+│  │  │ 📅 ينتهي في: 30 ديسمبر 2025 (77 يوم)            │    │ │
+│  │  │ 🟢 نشط                                             │    │ │
+│  │  │ [⚙️ إعدادات] [💳 الفواتير] [📊 التقارير]        │    │ │
+│  │  └────────────────────────────────────────────────────┘    │ │
+│  │                                                             │ │
+│  │  ┌────────────────────────────────────────────────────┐    │ │
+│  │  │ 🏪 مطعم هرفي - 12 فرع                             │    │ │
+│  │  │ 📦 الباقة: متقدمة | 💰 5,000 ر.س/شهر              │    │ │
+│  │  │ 📅 ينتهي في: 15 نوفمبر 2025 (32 يوم)            │    │ │
+│  │  │ 🟡 تنبيه: سينتهي قريباً                           │    │ │
+│  │  │ [⚙️ إعدادات] [💳 الفواتير] [📊 التقارير]        │    │ │
+│  │  └────────────────────────────────────────────────────┘    │ │
+│  │                                                             │ │
+│  │  [المزيد...]  [➕ إضافة مطعم جديد]                         │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🔐</span>
+                        <h3 class="card-title">صلاحيات الأدمن الكاملة</h3>
+                    </div>
+
+                    <div class="success-box">
+                        <h4>✅ الأدمن لديه صلاحيات شاملة على كل شيء في النظام:</h4>
+                        <ul>
+                            <li>✅ إدارة جميع المستخدمين (إضافة، تعديل، حذف)</li>
+                            <li>✅ تحديد وتعديل جميع الصلاحيات</li>
+                            <li>✅ إدارة المطاعم والفروع</li>
+                            <li>✅ إدارة الاشتراكات والفواتير</li>
+                            <li>✅ توزيع المحاسبين على الفروع</li>
+                            <li>✅ توزيع رؤساء الحسابات على المحاسبين</li>
+                            <li>✅ الوصول لجميع التقارير والإحصائيات</li>
+                            <li>✅ إعدادات النظام العامة</li>
+                            <li>✅ إدارة الموردين والأصناف</li>
+                            <li>✅ النسخ الاحتياطي والاستعادة</li>
+                            <li>✅ سجلات النشاطات (Audit Logs)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">⚙️</span>
+                        <h3 class="card-title">مبدأ عمل الصلاحيات</h3>
+                    </div>
+
+                    <div class="highlight-box">
+                        <h4>🎯 القاعدة الذهبية:</h4>
+                        <p style="font-size: 1.2em; font-weight: 600; color: #667eea;">
+                            "كل مستخدم يرى ويعمل فقط على ما هو مسؤول عنه"
+                        </p>
+                        
+                        <h4>💡 أمثلة توضيحية:</h4>
+                        <ul>
+                            <li>💼 <strong>محاسب مسؤول عن الفروع 1-20:</strong> لا يرى أي بيانات من الفروع 21-100</li>
+                            <li>💼 <strong>محاسب متخصص في المبيعات:</strong> لا يرى موديول المصروفات أو المشتريات</li>
+                            <li>👔 <strong>رئيس حسابات لـ 5 محاسبين:</strong> يرى فقط عمليات هؤلاء المحاسبين</li>
+                            <li>🏪 <strong>مدير فرع الرياض:</strong> يرى فقط بيانات فرعه</li>
+                        </ul>
+
+                        <h4>✅ الفوائد:</h4>
+                        <ul>
+                            <li>🔒 <strong>أمان عالي:</strong> منع الوصول غير المصرح به</li>
+                            <li>⚡ <strong>أداء أفضل:</strong> تحميل البيانات الضرورية فقط</li>
+                            <li>🎯 <strong>تركيز أكبر:</strong> كل شخص يركز على مسؤولياته</li>
+                            <li>📊 <strong>قابلية التوسع:</strong> سهولة إضافة فروع ومستخدمين جدد</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Reports Manager Section -->
+            <section id="reports-manager" class="section">
+                <div class="section-header">
+                    <div class="section-number">5</div>
+                    <h2 class="section-title">موديول مدير التقارير</h2>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">📊</span>
+                        <h3 class="card-title">نظرة عامة على موديول مدير التقارير</h3>
+                    </div>
+                    <p>
+                        موديول مدير التقارير هو موديول خاص بالأدمن الرئيسي، مصمم خصيصاً لإدارة التقارير المالية والتشغيلية بعد إقفالها في نظام ERP. يركز هذا الموديول على استيراد التقارير من نظام ERP، التحقق منها داخل الداشبورد الرئيسي، ثم إرسالها إلى أصحاب المطاعم بطريقة احترافية وسريعة.
+                    </p>
+
+                    <div class="highlight-box">
+                        <h4>🎯 الهدف الأساسي:</h4>
+                        <ul>
+                            <li>📥 <strong>استيراد التقارير:</strong> من نظام ERP بعد الإقفال</li>
+                            <li>🔍 <strong>التحقق والمراجعة:</strong> داخل الداشبورد قبل الإرسال</li>
+                            <li>📧 <strong>الإرسال الاحترافي:</strong> إلى أصحاب المطاعم بضغطة زر</li>
+                            <li>📊 <strong>إدارة مركزية:</strong> لجميع تقارير جميع المطاعم</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">⚙️</span>
+                        <h3 class="card-title">العمليات الرئيسية</h3>
+                    </div>
+
+                    <h4>1️⃣ تصدير التقارير من نظام ERP</h4>
+                    <div class="info-box">
+                        <p>بعد إقفال الحسابات في نظام ERP، يتم تصدير التقارير المالية:</p>
+                        <ul>
+                            <li>📊 <strong>قائمة الدخل (P&L):</strong> تقرير الأرباح والخسائر</li>
+                            <li>💰 <strong>الميزانية العمومية:</strong> الأصول والخصوم</li>
+                            <li>💵 <strong>التدفقات النقدية:</strong> حركة السيولة</li>
+                            <li>📈 <strong>تحليل المبيعات:</strong> تفصيل المبيعات حسب القنوات</li>
+                            <li>💸 <strong>تحليل المصروفات:</strong> تفصيل المصروفات حسب الأنواع</li>
+                            <li>📉 <strong>مقارنات الأداء:</strong> مقارنة بالفترات السابقة</li>
+                        </ul>
+                    </div>
+
+                    <h4>2️⃣ رفع التقارير إلى الداشبورد</h4>
+                    <div class="info-box">
+                        <p>يقوم الأدمن أو مدير التقارير برفع التقارير إلى الداشبورد:</p>
+                        <ul>
+                            <li>📤 <strong>الرفع اليدوي:</strong> عبر ملف Excel في المرحلة الأولية</li>
+                            <li>📁 <strong>تنظيم التقارير:</strong> حسب المطعم والفترة الزمنية</li>
+                            <li>✅ <strong>التحقق التلقائي:</strong> من صحة البيانات والتنسيق</li>
+                            <li>📋 <strong>معاينة أولية:</strong> التأكد من اكتمال التقارير</li>
+                        </ul>
+                    </div>
+
+                    <div class="wireframe">
+┌─────────────────────────────────────────────────────────────┐
+│  📊 رفع التقارير من ERP                                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  🏢 المطعم: [اختر المطعم ▼]                                │
+│  📅 الفترة: [أكتوبر 2025 ▼]                                │
+│  📊 نوع التقرير: [قائمة الدخل P&L ▼]                       │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  📤 رفع ملف التقرير                                   │ │
+│  │  ══════════════                                        │ │
+│  │                                                        │ │
+│  │  📄 قم برفع ملف Excel المُصدر من ERP:                │ │
+│  │                                                        │ │
+│  │  [📎 اختر ملف Excel]                                  │ │
+│  │                                                        │ │
+│  │  أو اسحب الملف هنا                                    │ │
+│  │                                                        │ │
+│  │  ملاحظات:                                             │ │
+│  │  • تأكد من أن الملف مُصدر من ERP مباشرة              │ │
+│  │  • يجب أن يحتوي على جميع البيانات المطلوبة          │ │
+│  │  • الصيغة المدعومة: Excel (.xlsx, .xls)             │ │
+│  │                                                        │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌─────────────────┐  ┌─────────────────┐                  │
+│  │  ⬆️ رفع الآن    │  │  ❌ إلغاء       │                  │
+│  └─────────────────┘  └─────────────────┘                  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                    </div>
+
+                    <h4>3️⃣ عرض التقارير داخل الداشبورد (View Only)</h4>
+                    <div class="info-box">
+                        <p>بعد رفع التقارير، يتم عرضها داخل الداشبورد للتحقق النهائي:</p>
+                        <ul>
+                            <li>👁️ <strong>واجهة عرض فقط:</strong> لا يمكن التعديل على التقارير</li>
+                            <li>📊 <strong>عرض احترافي:</strong> بتنسيق واضح وسهل القراءة</li>
+                            <li>🔍 <strong>التحقق من الدقة:</strong> مراجعة جميع الأرقام والبيانات</li>
+                            <li>📋 <strong>ملاحظات:</strong> إمكانية إضافة ملاحظات داخلية</li>
+                            <li>✅ <strong>الموافقة:</strong> اعتماد التقرير للإرسال</li>
+                        </ul>
+                    </div>
+
+                    <div class="wireframe">
+┌─────────────────────────────────────────────────────────────┐
+│  📊 معاينة التقرير - قائمة الدخل P&L                       │
+│  🏢 مطعم البيك | 📅 أكتوبر 2025                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  📈 قائمة الدخل (P&L Statement)                      │ │
+│  │  ══════════════════════════                           │ │
+│  │                                                        │ │
+│  │  الإيرادات:                                           │ │
+│  │  ────────────                                          │ │
+│  │  💰 مبيعات نقدية:           850,000 ر.س             │ │
+│  │  💳 مبيعات بطاقة:            950,000 ر.س             │ │
+│  │  📱 مبيعات تطبيقات:          700,000 ر.س             │ │
+│  │  ═══════════════════════════════════                  │ │
+│  │  📊 إجمالي الإيرادات:      2,500,000 ر.س             │ │
+│  │                                                        │ │
+│  │  تكلفة المبيعات:                                      │ │
+│  │  ────────────────                                      │ │
+│  │  🛒 مواد خام:                 900,000 ر.س             │ │
+│  │  📦 مخزون:                    150,000 ر.س             │ │
+│  │  ═══════════════════════════════════                  │ │
+│  │  📊 إجمالي التكلفة:        1,050,000 ر.س             │ │
+│  │                                                        │ │
+│  │  مجمل الربح:               1,450,000 ر.س (58%)       │ │
+│  │                                                        │ │
+│  │  المصروفات التشغيلية:                                │ │
+│  │  ──────────────────                                    │ │
+│  │  👥 رواتب:                   450,000 ر.س             │ │
+│  │  🏢 إيجارات:                 200,000 ر.س             │ │
+│  │  ⚡ كهرباء وماء:             100,000 ر.س             │ │
+│  │  ═══════════════════════════════════                  │ │
+│  │  📊 إجمالي المصروفات:        750,000 ر.س             │ │
+│  │                                                        │ │
+│  │  صافي الربح:                 700,000 ر.س (28%)       │ │
+│  │                                                        │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  💬 ملاحظات داخلية:                                        │
+│  [اكتب ملاحظاتك هنا...]                                    │
+│                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+│  │ ✅ اعتماد    │  │ 📧 إرسال     │  │ 📥 تحميل PDF│     │
+│  └──────────────┘  └──────────────┘  └──────────────┘     │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                    </div>
+
+                    <h4>4️⃣ إرسال التقارير إلى أصحاب المطاعم</h4>
+                    <div class="info-box">
+                        <p>بعد التحقق والاعتماد، يتم إرسال التقارير بطريقتين:</p>
+                        
+                        <h4>أ) الإرسال الفردي:</h4>
+                        <ul>
+                            <li>📧 إرسال تقرير واحد لمطعم معين</li>
+                            <li>🎯 مناسب للتقارير الخاصة أو المستعجلة</li>
+                        </ul>
+
+                        <h4>ب) الإرسال الجماعي:</h4>
+                        <ul>
+                            <li>📧 إرسال جميع تقارير P&L لجميع المطاعم بضغطة زر واحدة</li>
+                            <li>📊 إرسال حزمة التقارير الشهرية الكاملة</li>
+                            <li>🎯 توفير الوقت والجهد</li>
+                        </ul>
+                    </div>
+
+                    <div class="wireframe">
+┌─────────────────────────────────────────────────────────────┐
+│  📧 إرسال التقارير إلى أصحاب المطاعم                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  📊 التقارير الجاهزة للإرسال                         │ │
+│  │  ═══════════════════════                               │ │
+│  │                                                        │ │
+│  │  🔍 فلاتر:                                            │ │
+│  │  📅 الفترة: [أكتوبر 2025 ▼]                          │ │
+│  │  📊 نوع التقرير: [قائمة الدخل P&L ▼]                 │ │
+│  │  🏢 المطعم: [الكل ▼]                                  │ │
+│  │                                                        │ │
+│  │  ☑️ تحديد الكل (25 تقرير)                            │ │
+│  │                                                        │ │
+│  │  ┌────────────────────────────────────────────────┐   │ │
+│  │  │ ☑️ مطعم البيك - قائمة الدخل - أكتوبر 2025    │   │ │
+│  │  │ ✅ معتمد | 📅 14 أكتوبر 2025                 │   │ │
+│  │  └────────────────────────────────────────────────┘   │ │
+│  │                                                        │ │
+│  │  ┌────────────────────────────────────────────────┐   │ │
+│  │  │ ☑️ مطعم هرفي - قائمة الدخل - أكتوبر 2025     │   │ │
+│  │  │ ✅ معتمد | 📅 14 أكتوبر 2025                 │   │ │
+│  │  └────────────────────────────────────────────────┘   │ │
+│  │                                                        │ │
+│  │  ┌────────────────────────────────────────────────┐   │ │
+│  │  │ ☑️ مطعم كودو - قائمة الدخل - أكتوبر 2025     │   │ │
+│  │  │ ✅ معتمد | 📅 14 أكتوبر 2025                 │   │ │
+│  │  └────────────────────────────────────────────────┘   │ │
+│  │                                                        │ │
+│  │  [المزيد...]                                          │ │
+│  │                                                        │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  📧 خيارات الإرسال                                    │ │
+│  │  ═════════════                                         │ │
+│  │                                                        │ │
+│  │  📨 طريقة الإرسال:                                    │ │
+│  │  ○ بريد إلكتروني                                     │ │
+│  │  ○ إشعار في التطبيق                                  │ │
+│  │  ● كلاهما معاً                                        │ │
+│  │                                                        │ │
+│  │  📄 الصيغة:                                           │ │
+│  │  ● PDF                                                 │ │
+│  │  ○ Excel                                               │ │
+│  │  ○ كلاهما                                             │ │
+│  │                                                        │ │
+│  │  💬 رسالة مرفقة (اختياري):                           │ │
+│  │  [السادة أصحاب المطاعم المحترمين،                    │ │
+│  │   نفيدكم باستلام التقارير المالية لشهر أكتوبر...]   │ │
+│  │                                                        │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌──────────────────┐  ┌──────────────────┐               │
+│  │ 📧 إرسال المحدد  │  │ 📧 إرسال الكل    │               │
+│  │   (3 تقارير)    │  │   (25 تقرير)    │               │
+│  └──────────────────┘  └──────────────────┘               │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🔄</span>
+                        <h3 class="card-title">المراحل الزمنية للتطوير</h3>
+                    </div>
+
+                    <h4>📅 المرحلة الأولية (الحالية):</h4>
+                    <div class="warning-box">
+                        <h4>🔧 العمل اليدوي:</h4>
+                        <ol>
+                            <li><strong>التصدير من ERP:</strong> تصدير التقارير يدوياً من نظام ERP بعد الإقفال</li>
+                            <li><strong>الرفع إلى عصب:</strong> رفع ملفات Excel إلى الداشبورد الرئيسي</li>
+                            <li><strong>التحقق:</strong> مراجعة التقارير داخل واجهة View Only</li>
+                            <li><strong>الإرسال:</strong> إرسال التقارير إلى أصحاب المطاعم بضغطة زر</li>
+                        </ol>
+                        <p><strong>💡 الميزة:</strong> سهولة التنفيذ، لا يحتاج لتكامل معقد في البداية</p>
+                    </div>
+
+                    <h4>📅 المرحلة المتقدمة (المستقبلية):</h4>
+                    <div class="success-box">
+                        <h4>🤖 التكامل التلقائي:</h4>
+                        <ol>
+                            <li><strong>ربط مباشر مع ERP:</strong> API للتواصل المباشر</li>
+                            <li><strong>تصدير تلقائي:</strong> التقارير تُصدر تلقائياً عند الإقفال</li>
+                            <li><strong>استيراد فوري:</strong> تظهر في الداشبورد مباشرة</li>
+                            <li><strong>إرسال تلقائي:</strong> إرسال مجدول حسب الإعدادات</li>
+                        </ol>
+                        <p><strong>💡 الميزة:</strong> توفير الوقت، تقليل الأخطاء، سرعة فائقة</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">✅</span>
+                        <h3 class="card-title">الفوائد والمميزات</h3>
+                    </div>
+
+                    <div class="highlight-box">
+                        <h4>🎯 الفوائد الرئيسية:</h4>
+                        <ul>
+                            <li>⚡ <strong>سرعة التوزيع:</strong> إرسال جميع التقارير بضغطة زر واحدة</li>
+                            <li>🎯 <strong>دقة عالية:</strong> التحقق من التقارير قبل الإرسال</li>
+                            <li>📊 <strong>إدارة مركزية:</strong> جميع التقارير في مكان واحد</li>
+                            <li>📧 <strong>إرسال احترافي:</strong> بريد منسق ومظهر احترافي</li>
+                            <li>📈 <strong>تتبع كامل:</strong> معرفة من استلم ومن لم يستلم</li>
+                            <li>🔄 <strong>قابل للتطوير:</strong> من يدوي إلى تلقائي</li>
+                            <li>💼 <strong>توفير الوقت:</strong> تقليل العمل اليدوي بنسبة 80%</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Inventory Additions Section -->
+            <section id="inventory-additions" class="section">
+                <div class="section-header">
+                    <div class="section-number">6</div>
+                    <h2 class="section-title">إضافات موديول الجرد</h2>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">📦</span>
+                        <h3 class="card-title">1. إدارة الهدر والتالف</h3>
+                    </div>
+                    <p>
+                        إدارة الهدر والتالف هي جزء مهم من موديول المخزون، حيث يتم تسجيل جميع المواد التالفة أو المهدرة يومياً وربطها بالجرد اليومي لضمان دقة المخزون.
+                    </p>
+
+                    <h4>⚙️ آلية العمل:</h4>
+                    <div class="info-box">
+                        <ol>
+                            <li><strong>📱 التسجيل:</strong> يتم تسجيل الهدر والتالف يومياً عبر تطبيق الموبايل من الفروع</li>
+                            <li><strong>📋 البيانات المطلوبة:</strong>
+                                <ul>
+                                    <li>اسم الصنف المهدر/التالف</li>
+                                    <li>الكمية</li>
+                                    <li>سبب الهدر (انتهاء صلاحية، تلف، كسر، إلخ)</li>
+                                    <li>صورة إن أمكن</li>
+                                    <li>اسم الموظف المسؤول</li>
+                                </ul>
+                            </li>
+                            <li><strong>💼 دور المحاسب:</strong>
+                                <ul>
+                                    <li>الاطلاع اليومي على بيانات الهدر والتالف</li>
+                                    <li>مراجعة الأسباب والمبررات</li>
+                                    <li>✅ الموافقة إذا كانت الأسباب معقولة</li>
+                                    <li>❌ الرفض إذا كانت غير مبررة أو مشكوك فيها</li>
+                                </ul>
+                            </li>
+                            <li><strong>🔄 في حالة الرفض:</strong> تعود البيانات إلى مدير الفرع للتصحيح أو تقديم توضيحات</li>
+                            <li><strong>🔗 التكامل:</strong> يرتبط مع الجرد اليومي لضمان مطابقة المخزون مع الفاقد</li>
+                        </ol>
+                    </div>
+
+                    <div class="wireframe">
+┌─────────────────────────────────────────────────────────────┐
+│  🗑️ إدارة الهدر والتالف - لوحة المحاسب                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  🔍 فلاتر:                                                  │
+│  🏪 الفرع: [فرع الرياض ▼]  📅 التاريخ: [اليوم ▼]          │
+│  [تطبيق الفلاتر]                                           │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  📋 حالات الهدر والتالف اليوم (12 حالة)              │ │
+│  │  ════════════════════════════                          │ │
+│  │                                                        │ │
+│  │  ┌────────────────────────────────────────────────┐   │ │
+│  │  │ 🍞 خبز برجر                                    │   │ │
+│  │  │ 📊 الكمية: 10 قطع                             │   │ │
+│  │  │ 🏪 الفرع: فرع الرياض - العليا                │   │ │
+│  │  │ 📅 التاريخ: 14 أكتوبر 2025 - 9:30 ص          │   │ │
+│  │  │ 👤 المسجل: أحمد محمد (مدير الفرع)            │   │ │
+│  │  │                                                │   │ │
+│  │  │ 📝 السبب: تالف بسبب انقطاع الكهرباء مساء أمس│   │ │
+│  │  │                                                │   │ │
+│  │  │ 📷 المرفقات:                                  │   │ │
+│  │  │ [🖼️ صورة_الخبز_التالف.jpg]                  │   │ │
+│  │  │                                                │   │ │
+│  │  │ 💡 التقييم: 🟡 يحتاج مراجعة                  │   │ │
+│  │  │                                                │   │ │
+│  │  │ [✅ موافقة] [❌ رفض] [💬 طلب توضيح]          │   │ │
+│  │  └────────────────────────────────────────────────┘   │ │
+│  │                                                        │ │
+│  │  ┌────────────────────────────────────────────────┐   │ │
+│  │  │ 🥬 خضار (خس)                                   │   │ │
+│  │  │ 📊 الكمية: 5 كجم                              │   │ │
+│  │  │ 🏪 الفرع: فرع الرياض - العليا                │   │ │
+│  │  │ 📅 التاريخ: 14 أكتوبر 2025 - 8:15 ص          │   │ │
+│  │  │ 👤 المسجل: أحمد محمد                          │   │ │
+│  │  │                                                │   │ │
+│  │  │ 📝 السبب: عفن وغير صالح للاستخدام            │   │ │
+│  │  │                                                │   │ │
+│  │  │ 📷 المرفقات:                                  │   │ │
+│  │  │ [🖼️ صورة_الخضار.jpg]                        │   │ │
+│  │  │                                                │   │ │
+│  │  │ 💡 التقييم: 🟢 مقبول                          │   │ │
+│  │  │                                                │   │ │
+│  │  │ [✅ موافقة] [❌ رفض] [💬 طلب توضيح]          │   │ │
+│  │  └────────────────────────────────────────────────┘   │ │
+│  │                                                        │ │
+│  │  [المزيد... 10 حالات أخرى]                           │ │
+│  │                                                        │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  📊 ملخص اليوم:                                             │
+│  ├─ إجمالي الحالات: 12                                     │
+│  ├─ تم الموافقة: 8                                         │
+│  ├─ مرفوض: 1                                               │
+│  └─ معلق: 3                                                │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">📋</span>
+                        <h3 class="card-title">2. تحديد المنتجات المراد جردها يومياً</h3>
+                    </div>
+                    <p>
+                        من أهم الإضافات الجديدة هي إمكانية تحديد الأصناف المراد جردها يومياً لكل فرع بشكل منفصل، مع تحديث تلقائي فوري في تطبيق الموبايل.
+                    </p>
+
+                    <h4>⚙️ كيفية العمل:</h4>
+                    <div class="info-box">
+                        <ol>
+                            <li><strong>📝 التحديد من المحاسب:</strong>
+                                <ul>
+                                    <li>يدخل المحاسب إلى موديول المخزون</li>
+                                    <li>يختار الفرع المعين</li>
+                                    <li>يحدد الأصناف المراد جردها يومياً (مثلاً: 10 أصناف)</li>
+                                    <li>يمكن أن تختلف القائمة من فرع لآخر حسب الاحتياجات</li>
+                                </ul>
+                            </li>
+                            <li><strong>🔄 التحديث التلقائي:</strong>
+                                <ul>
+                                    <li>عند حفظ القائمة في الداشبورد الرئيسي</li>
+                                    <li>تُحدث تلقائياً وفوراً في تطبيق الموبايل لمدير الفرع</li>
+                                    <li>يستلم مدير الفرع إشعار بالتحديث</li>
+                                    <li>القائمة الجديدة تظهر في شاشة الجرد اليومي</li>
+                                </ul>
+                            </li>
+                            <li><strong>📱 في التطبيق:</strong>
+                                <ul>
+                                    <li>يفتح مدير الفرع الجرد اليومي</li>
+                                    <li>تظهر له الأصناف المحددة فقط</li>
+                                    <li>يقوم بجرد هذه الأصناف فقط</li>
+                                    <li>الإرسال إلى المحاسب للمراجعة</li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </div>
+
+                    <div class="wireframe">
+┌─────────────────────────────────────────────────────────────┐
+│  📋 تحديد أصناف الجرد اليومي                               │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  🏪 الفرع: [فرع الرياض - العليا ▼]                        │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  🔍 البحث عن صنف:                                     │ │
+│  │  [بحث...]                                             │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  📦 الأصناف المتاحة (جميع الأصناف)                   │ │
+│  │  ════════════════════════                              │ │
+│  │                                                        │ │
+│  │  ☐ خبز برجر (Burger Buns)                            │ │
+│  │  ☑ دجاج طازج (Fresh Chicken)  [✓ محدد للجرد اليومي] │ │
+│  │  ☑ حليب طازج (Fresh Milk)     [✓ محدد للجرد اليومي] │ │
+│  │  ☐ جبنة شيدر (Cheddar Cheese)                        │ │
+│  │  ☑ خس (Lettuce)               [✓ محدد للجرد اليومي] │ │
+│  │  ☑ طماطم (Tomatoes)            [✓ محدد للجرد اليومي] │ │
+│  │  ☐ بصل (Onions)                                       │ │
+│  │  ☑ بطاطس (Potatoes)            [✓ محدد للجرد اليومي] │ │
+│  │  ☑ زيت قلي (Frying Oil)        [✓ محدد للجرد اليومي] │ │
+│  │  ☐ صوص خاص (Special Sauce)                           │ │
+│  │  ☑ كاتشب (Ketchup)             [✓ محدد للجرد اليومي] │ │
+│  │  ☑ مايونيز (Mayonnaise)        [✓ محدد للجرد اليومي] │ │
+│  │  ☐ مشروبات غازية (Soft Drinks)                      │ │
+│  │  ☑ ماء معدني (Mineral Water)   [✓ محدد للجرد اليومي] │ │
+│  │  ☑ عصائر (Juices)              [✓ محدد للجرد اليومي] │ │
+│  │                                                        │ │
+│  │  [المزيد...]                                          │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  📊 الأصناف المحددة للجرد اليومي (10 أصناف)         │ │
+│  │  ═══════════════════════════════════                  │ │
+│  │                                                        │ │
+│  │  1. دجاج طازج                                        │ │
+│  │  2. حليب طازج                                        │ │
+│  │  3. خس                                                │ │
+│  │  4. طماطم                                             │ │
+│  │  5. بطاطس                                             │ │
+│  │  6. زيت قلي                                           │ │
+│  │  7. كاتشب                                             │ │
+│  │  8. مايونيز                                           │ │
+│  │  9. ماء معدني                                         │ │
+│  │  10. عصائر                                            │ │
+│  │                                                        │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ⚠️ ملاحظة مهمة:                                           │
+│  عند حفظ التغييرات، سيتم تحديث قائمة الجرد اليومي فوراً   │
+│  في تطبيق الموبايل الخاص بمدير الفرع                      │
+│                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
+│  │ 💾 حفظ       │  │ 🔄 تحديث فوري│  │ ❌ إلغاء     │      │
+│  └──────────────┘  └──────────────┘  └──────────────┘      │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                    </div>
+
+                    <div class="success-box">
+                        <h4>✅ فوائد هذه الميزة:</h4>
+                        <ul>
+                            <li>🎯 <strong>مرونة كاملة:</strong> تحديد مختلف لكل فرع حسب احتياجاته</li>
+                            <li>⚡ <strong>تحديث فوري:</strong> التزامن التلقائي مع تطبيق الموبايل</li>
+                            <li>📊 <strong>تركيز أفضل:</strong> جرد الأصناف المهمة فقط</li>
+                            <li>⏰ <strong>توفير الوقت:</strong> تقليل عدد الأصناف المراد جردها</li>
+                            <li>🔄 <strong>سهولة التعديل:</strong> تحديث القائمة في أي وقت</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">📊</span>
+                        <h3 class="card-title">3. تفاصيل الجرد اليومي المحسّنة</h3>
+                    </div>
+
+                    <div class="info-box">
+                        <h4>⚙️ آلية العمل المحسّنة:</h4>
+                        <ol>
+                            <li><strong>📱 الإرسال من التطبيق:</strong>
+                                <ul>
+                                    <li>يتم إرسال بيانات الجرد اليومي (100%) عبر التطبيق المحمول</li>
+                                    <li>الأصناف المحددة مسبقاً من المحاسب فقط</li>
+                                    <li>مع الموقع الجغرافي والطابع الزمني</li>
+                                </ul>
+                            </li>
+                            <li><strong>💼 دور المحاسب:</strong>
+                                <ul>
+                                    <li>الاطلاع على بيانات الجرد اليومية</li>
+                                    <li>مراجعة الكميات المُدخلة</li>
+                                    <li>مقارنتها مع المبيعات والاستهلاك المتوقع</li>
+                                    <li>✅ الموافقة أو ❌ الرفض</li>
+                                </ul>
+                            </li>
+                            <li><strong>🔄 في حالة الرفض:</strong>
+                                <ul>
+                                    <li>تعود البيانات إلى مدير الفرع</li>
+                                    <li>مع توضيح سبب الرفض</li>
+                                    <li>إعادة الإدخال والمراجعة</li>
+                                </ul>
+                            </li>
+                            <li><strong>🔗 الربط مع الهدر:</strong>
+                                <ul>
+                                    <li>يتم ربط الجرد اليومي مع بيانات الهدر والتالف</li>
+                                    <li>حساب الاستهلاك الفعلي</li>
+                                    <li>ظهور الفروقات تلقائياً</li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Export Operations Section -->
+            <section id="export-operations" class="section">
+                <div class="section-header">
+                    <div class="section-number">7</div>
+                    <h2 class="section-title">عمليات التصدير والترحيل</h2>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🔗</span>
+                        <h3 class="card-title">دور رئيس الحسابات في التصدير</h3>
+                    </div>
+                    <p>
+                        بعد الانتهاء من مراجعة واعتماد جميع التقارير والعمليات المالية، يأتي دور رئيس الحسابات في تصدير وترحيل البيانات إلى نظام ERP بطريقة سهلة وسريعة.
+                    </p>
+
+                    <div class="highlight-box">
+                        <h4>🎯 العمليات المتاحة:</h4>
+                        <ul>
+                            <li>📤 <strong>تصدير جماعي حسب النوع:</strong> تصدير جميع المصروفات أو المبيعات أو المشتريات</li>
+                            <li>📅 <strong>تصدير حسب التاريخ:</strong> تصدير جميع عمليات يوم معين</li>
+                            <li>🏪 <strong>تصدير حسب الفرع:</strong> تصدير جميع عمليات فرع معين</li>
+                            <li>🏢 <strong>تصدير حسب المطعم:</strong> تصدير جميع عمليات مطعم بكل فروعه</li>
+                            <li>📊 <strong>تصدير مخصص:</strong> اختيار يدوي للعمليات المراد تصديرها</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">📤</span>
+                        <h3 class="card-title">أمثلة عملية للتصدير</h3>
+                    </div>
+
+                    <h4>1️⃣ تصدير جميع المصروفات:</h4>
+                    <div class="info-box">
+                        <p><strong>السيناريو:</strong> تصدير جميع مصروفات جميع المطاعم ليوم 14 أكتوبر 2025</p>
+                        <ul>
+                            <li>اختيار الموديول: المصروفات</li>
+                            <li>اختيار التاريخ: 14 أكتوبر 2025</li>
+                            <li>اختيار المطعم: الكل</li>
+                            <li>ضغط زر: <strong>تصدير الكل</strong></li>
+                            <li>النتيجة: ملف Excel يحتوي على جميع المصروفات المعتمدة</li>
+                        </ul>
+                    </div>
+
+                    <h4>2️⃣ تصدير جميع المبيعات:</h4>
+                    <div class="info-box">
+                        <p><strong>السيناريو:</strong> تصدير جميع مبيعات فرع الرياض ليوم معين</p>
+                        <ul>
+                            <li>اختيار الموديول: المبيعات</li>
+                            <li>اختيار الفرع: فرع الرياض</li>
+                            <li>اختيار التاريخ: 14 أكتوبر 2025</li>
+                            <li>ضغط زر: <strong>تصدير</strong></li>
+                            <li>النتيجة: ملف Excel بكل مبيعات هذا الفرع</li>
+                        </ul>
+                    </div>
+
+                    <div class="wireframe">
+┌─────────────────────────────────────────────────────────────┐
+│  📤 تصدير البيانات إلى ERP                                  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  🔍 فلاتر التصدير                                     │ │
+│  │  ════════════                                          │ │
+│  │                                                        │ │
+│  │  📦 الموديول:                                         │ │
+│  │  ○ المبيعات                                           │ │
+│  │  ● المصروفات                                          │ │
+│  │  ○ المشتريات                                          │ │
+│  │  ○ المخزون                                            │ │
+│  │  ○ الكل                                               │ │
+│  │                                                        │ │
+│  │  📅 الفترة الزمنية:                                   │ │
+│  │  ● يوم محدد: [14 أكتوبر 2025]                        │ │
+│  │  ○ نطاق: من [   ] إلى [   ]                         │ │
+│  │  ○ الأسبوع الحالي                                    │ │
+│  │  ○ الشهر الحالي                                      │ │
+│  │                                                        │ │
+│  │  🏢 المطعم:                                           │ │
+│  │  ● الكل (25 مطعم)                                     │ │
+│  │  ○ مطعم محدد: [اختر المطعم ▼]                        │ │
+│  │                                                        │ │
+│  │  🏪 الفرع:                                            │ │
+│  │  ● الكل (100 فرع)                                     │ │
+│  │  ○ فرع محدد: [اختر الفرع ▼]                          │ │
+│  │                                                        │ │
+│  │  🔄 الحالة:                                           │ │
+│  │  ● معتمدة فقط                                         │ │
+│  │  ○ الكل                                               │ │
+│  │                                                        │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  📊 نتائج البحث                                       │ │
+│  │  ═══════════                                           │ │
+│  │                                                        │ │
+│  │  تم العثور على: 145 عملية                            │
+│  │  ────────────────────────                              │ │
+│  │  • مطعم البيك: 45 عملية                               │ │
+│  │  • مطعم هرفي: 38 عملية                                │ │
+│  │  • مطعم كودو: 32 عملية                                │ │
+│  │  • مطاعم أخرى: 30 عملية                               │ │
+│  │                                                        │ │
+│  │  إجمالي المبلغ: 425,600 ر.س                          │ │
+│  │                                                        │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  📄 صيغة التصدير                                      │ │
+│  │  ═════════════                                         │ │
+│  │                                                        │ │
+│  │  ● Excel (.xlsx)                                       │ │
+│  │  ○ CSV                                                 │ │
+│  │  ○ JSON (للتكامل مع API)                             │ │
+│  │                                                        │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌──────────────────┐  ┌──────────────────┐               │
+│  │ 📥 تحميل Excel   │  │ 🔗 ترحيل لـ ERP  │               │
+│  │  (145 عملية)    │  │  (قريباً)       │               │
+│  └──────────────────┘  └──────────────────┘               │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🔄</span>
+                        <h3 class="card-title">المراحل الزمنية للتطوير</h3>
+                    </div>
+
+                    <h4>📅 المرحلة الأولية (الحالية):</h4>
+                    <div class="warning-box">
+                        <h4>🔧 التصدير اليدوي:</h4>
+                        <ol>
+                            <li><strong>اختيار البيانات:</strong> تحديد العمليات المراد تصديرها</li>
+                            <li><strong>التصدير كـ Excel:</strong> تحميل ملف Excel بجميع البيانات</li>
+                            <li><strong>المعالجة اليدوية:</strong> فتح الملف وتنسيقه إذا لزم الأمر</li>
+                            <li><strong>الرفع إلى ERP:</strong> استيراد الملف يدوياً في نظام ERP</li>
+                        </ol>
+                        <p><strong>💡 الميزة:</strong> سهل التنفيذ، يعمل بدون تكامل معقد</p>
+                        <p><strong>⚠️ العيب:</strong> يحتاج عمل يدوي، إمكانية وقوع أخطاء</p>
+                    </div>
+
+                    <h4>📅 المرحلة المتقدمة (المستقبلية):</h4>
+                    <div class="success-box">
+                        <h4>🤖 الترحيل التلقائي:</h4>
+                        <ol>
+                            <li><strong>ربط مباشر:</strong> API بين عصب ونظام ERP</li>
+                            <li><strong>ترحيل فوري:</strong> بضغطة زر واحدة</li>
+                            <li><strong>تحديث تلقائي:</strong> تحديث الحالة في كلا النظامين</li>
+                            <li><strong>تنبيهات:</strong> إشعارات فورية عند إتمام الترحيل</li>
+                        </ol>
+                        <p><strong>💡 الميزة:</strong> سرعة فائقة، دقة 100%، لا أخطاء بشرية</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">✅</span>
+                        <h3 class="card-title">الفوائد الرئيسية</h3>
+                    </div>
+
+                    <div class="highlight-box">
+                        <h4>🎯 فوائد نظام التصدير:</h4>
+                        <ul>
+                            <li>⚡ <strong>توفير الوقت:</strong> تصدير 100+ عملية بضغطة زر واحدة</li>
+                            <li>🎯 <strong>دقة عالية:</strong> تصدير العمليات المعتمدة فقط</li>
+                            <li>📊 <strong>مرونة كاملة:</strong> فلاتر متقدمة للتصدير حسب الحاجة</li>
+                            <li>🔄 <strong>قابل للتطوير:</strong> من يدوي إلى تلقائي</li>
+                            <li>📈 <strong>تتبع سهل:</strong> معرفة ما تم تصديره وما لم يُصدر</li>
+                            <li>💼 <strong>توفير التكاليف:</strong> تقليل العمل اليدوي بنسبة 70%</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Secondary Dashboard Section -->
+            <section id="secondary-dashboard" class="section">
+                <div class="section-header">
+                    <div class="section-number">8</div>
+                    <h2 class="section-title">الداشبورد الفرعي</h2>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🔧</span>
+                        <h3 class="card-title">نظرة عامة على الداشبورد الفرعي</h3>
+                    </div>
+                    <p>
+                        الداشبورد الفرعي مخصص للمهام التشغيلية اليومية التي لا يمكن إدارتها بكفاءة عبر التطبيق المحمول فقط. هذا الداشبورد يسهل العمليات الكبيرة مثل رفع ملفات Excel، إدارة المشتريات المركزية، وإدارة الموردين.
+                    </p>
+
+                    <div class="info-box">
+                        <h4>🎯 الأدوار الرئيسية:</h4>
+                        <ul>
+                            <li>🏪 <strong>مدير الفرع:</strong> إدارة البيانات الأساسية للفرع</li>
+                            <li>🛒 <strong>مدير المشتريات:</strong> إدارة مركزية للمشتريات</li>
+                            <li>📦 <strong>المورد:</strong> إدارة الأصناف والطلبات</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Branch Manager -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🏪</span>
+                        <h3 class="card-title">1. مدير الفرع</h3>
+                    </div>
+
+                    <h4>📋 المهام الرئيسية:</h4>
+                    <div class="highlight-box">
+                        <p>مدير الفرع يستخدم الداشبورد الفرعي لإدارة البيانات الكبيرة التي يصعب إدخالها عبر التطبيق المحمول:</p>
+                        
+                        <ul>
+                            <li>👥 <strong>رفع أسماء الموظفين:</strong> عبر ملف Excel</li>
+                            <li>📦 <strong>رفع أسماء الأصناف:</strong> أصناف المبيعات والمشتريات</li>
+                            <li>🏢 <strong>رفع أسماء الموردين:</strong> قائمة كاملة بالموردين</li>
+                            <li>📊 <strong>إعدادات الفرع:</strong> معلومات الفرع الأساسية</li>
+                            <li>📸 <strong>رفع الصور:</strong> صور المنتجات، شعار الفرع</li>
+                        </ul>
+                    </div>
+
+                    <h4>💡 لماذا الداشبورد وليس التطبيق؟</h4>
+                    <div class="info-box">
+                        <p>التطبيق المحمول مناسب للعمليات اليومية السريعة، بينما الداشبورد أفضل للمهام التالية:</p>
+                        <ul>
+                            <li>📄 رفع ملفات Excel كبيرة (مثلاً: 100 موظف مرة واحدة)</li>
+                            <li>⌨️ إدخال بيانات كثيرة تحتاج لوحة مفاتيح كاملة</li>
+                            <li>📊 تعديل جماعي للبيانات</li>
+                            <li>🖥️ شاشة أكبر لعرض جداول معقدة</li>
+                        </ul>
+                    </div>
+
+                    <div class="wireframe">
+┌─────────────────────────────────────────────────────────────┐
+│  🏪 لوحة مدير الفرع - فرع الرياض العليا    👤 أحمد محمد ▼ │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  📊 الرئيسية    👥 الموظفون    📦 الأصناف    🏢 الموردون  │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  📈 نظرة عامة - فرع الرياض العليا                    │ │
+│  │  ══════════════════════════                           │ │
+│  │                                                       │ │
+│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐     │ │
+│  │  │     25     │  │    150     │  │     12     │     │ │
+│  │  │  موظفون    │  │   صنف     │  │   مورد     │     │ │
+│  │  │   نشطون    │  │   نشط     │  │   نشط      │     │ │
+│  │  └────────────┘  └────────────┘  └────────────┘     │ │
+│  │                                                       │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  📤 رفع البيانات                                      │ │
+│  │  ══════════                                           │ │
+│  │                                                       │ │
+│  │  ┌─────────────────────────────────────────────────┐ │ │
+│  │  │ 👥 رفع أسماء الموظفين                          │ │ │
+│  │  │                                                 │ │ │
+│  │  │ 📄 قم برفع ملف Excel يحتوي على:               │ │ │
+│  │  │    - الاسم                                      │ │ │
+│  │  │    - رقم الهوية                                │ │ │
+│  │  │    - الوظيفة                                   │ │ │
+│  │  │    - الراتب                                    │ │ │
+│  │  │    - تاريخ التعيين                             │ │ │
+│  │  │                                                 │ │ │
+│  │  │ [📎 اختر ملف Excel] [⬆️ رفع الآن]             │ │ │
+│  │  │ [📥 تحميل نموذج Excel]                        │ │ │
+│  │  └─────────────────────────────────────────────────┘ │ │
+│  │                                                       │ │
+│  │  ┌─────────────────────────────────────────────────┐ │ │
+│  │  │ 📦 رفع أسماء الأصناف                           │ │ │
+│  │  │                                                 │ │ │
+│  │  │ 📄 قم برفع ملف Excel يحتوي على:               │ │ │
+│  │  │    - رمز الصنف                                 │ │ │
+│  │  │    - اسم الصنف                                 │ │ │
+│  │  │    - الفئة                                     │ │ │
+│  │  │    - الوحدة                                    │ │ │
+│  │  │    - السعر                                     │ │ │
+│  │  │                                                 │ │ │
+│  │  │ [📎 اختر ملف Excel] [⬆️ رفع الآن]             │ │ │
+│  │  │ [📥 تحميل نموذج Excel]                        │ │ │
+│  │  └─────────────────────────────────────────────────┘ │ │
+│  │                                                       │ │
+│  │  ┌─────────────────────────────────────────────────┐ │ │
+│  │  │ 🏢 رفع أسماء الموردين                          │ │ │
+│  │  │                                                 │ │ │
+│  │  │ 📄 قم برفع ملف Excel يحتوي على:               │ │ │
+│  │  │    - اسم المورد                                │ │ │
+│  │  │    - رقم السجل التجاري                        │ │ │
+│  │  │    - الهاتف                                    │ │ │
+│  │  │    - البريد الإلكتروني                        │ │ │
+│  │  │    - العنوان                                   │ │ │
+│  │  │                                                 │ │ │
+│  │  │ [📎 اختر ملف Excel] [⬆️ رفع الآن]             │ │ │
+│  │  │ [📥 تحميل نموذج Excel]                        │ │ │
+│  │  └─────────────────────────────────────────────────┘ │ │
+│  │                                                       │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                    </div>
+                </div>
+
+                <!-- Procurement Manager -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🛒</span>
+                        <h3 class="card-title">2. مدير المشتريات</h3>
+                    </div>
+
+                    <h4>📋 المهام الرئيسية:</h4>
+                    <div class="highlight-box">
+                        <p>مدير المشتريات مسؤول عن إدارة جميع المشتريات بشكل مركزي لجميع الفروع:</p>
+                        
+                        <ul>
+                            <li>📥 <strong>استلام الطلبات:</strong> من جميع الفروع</li>
+                            <li>🔍 <strong>فلترة الطلبات:</strong> حسب الصنف، التاريخ، الفرع</li>
+                            <li>📦 <strong>تجميع الطلبات:</strong> دمج طلبات متشابهة في طلب واحد</li>
+                            <li>🏢 <strong>إرسال للموردين:</strong> طلب موحد لكل مورد</li>
+                            <li>💰 <strong>توفير التكاليف:</strong> الشراء بالجملة</li>
+                            <li>📊 <strong>متابعة الطلبات:</strong> حالة كل طلب</li>
+                        </ul>
+                    </div>
+
+                    <h4>⚙️ كيفية العمل:</h4>
+                    <div class="info-box">
+                        <h4>المثال العملي:</h4>
+                        <ol>
+                            <li><strong>استلام الطلبات:</strong>
+                                <ul>
+                                    <li>فرع الرياض يطلب: 50 كجم دجاج</li>
+                                    <li>فرع جدة يطلب: 70 كجم دجاج</li>
+                                    <li>فرع مكة يطلب: 40 كجم دجاج</li>
+                                </ul>
+                            </li>
+                            <li><strong>التجميع:</strong>
+                                <ul>
+                                    <li>مدير المشتريات يجمع: 160 كجم دجاج في طلب واحد</li>
+                                </ul>
+                            </li>
+                            <li><strong>التفاوض والتوفير:</strong>
+                                <ul>
+                                    <li>سعر الجملة أقل من الشراء الفردي</li>
+                                    <li>توفير في تكاليف الشحن</li>
+                                </ul>
+                            </li>
+                            <li><strong>الإرسال:</strong>
+                                <ul>
+                                    <li>إرسال الطلب الموحد للمورد</li>
+                                    <li>تحديد نقاط التسليم لكل فرع</li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </div>
+
+                    <div class="wireframe">
+┌─────────────────────────────────────────────────────────────┐
+│  🛒 لوحة مدير المشتريات                  👤 سعيد أحمد ▼   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  📊 الرئيسية    📥 الطلبات    📦 الأصناف    🏢 الموردون   │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  📈 ملخص المشتريات - أكتوبر 2025                     │ │
+│  │  ════════════════════════                             │ │
+│  │                                                       │ │
+│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐     │ │
+│  │  │     45     │  │     28     │  │     17     │     │ │
+│  │  │  طلبات     │  │  طلبات     │  │  طلبات     │     │ │
+│  │  │  جديدة     │  │  مجمعة     │  │  مرسلة     │     │ │
+│  │  └────────────┘  └────────────┘  └────────────┘     │ │
+│  │                                                       │ │
+│  │  💰 التوفير الشهري: 15,400 ر.س (8.5%)              │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  🔍 فلاتر البحث                                       │ │
+│  │  ══════════                                           │ │
+│  │                                                       │ │
+│  │  🏪 الفرع: [الكل ▼]  |  📦 الصنف: [الكل ▼]          │ │
+│  │  📅 التاريخ: [اليوم ▼]  |  🏢 المورد: [الكل ▼]      │ │
+│  │  [تطبيق الفلاتر] [إعادة تعيين]                      │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  📋 الطلبات الجديدة (45 طلب)                         │ │
+│  │  ══════════════════                                   │ │
+│  │                                                       │ │
+│  │  ┌─────────────────────────────────────────────────┐ │ │
+│  │  │ 🍗 دجاج طازج                                   │ │ │
+│  │  │ 📊 3 طلبات من 3 فروع | الإجمالي: 160 كجم      │ │ │
+│  │  │                                                 │ │ │
+│  │  │ تفاصيل:                                        │ │ │
+│  │  │   🏪 فرع الرياض: 50 كجم                       │ │ │
+│  │  │   🏪 فرع جدة: 70 كجم                          │ │ │
+│  │  │   🏪 فرع مكة: 40 كجم                          │ │ │
+│  │  │                                                 │ │ │
+│  │  │ 🏢 المورد المقترح: شركة الدواجن الوطنية      │ │ │
+│  │  │ 💰 السعر المتوقع: 24 ر.س/كجم = 3,840 ر.س     │ │ │
+│  │  │ 💵 التوفير: 320 ر.س (8%)                      │ │ │
+│  │  │                                                 │ │ │
+│  │  │ [📦 تجميع وإرسال] [✏️ تعديل] [❌ رفض]        │ │ │
+│  │  └─────────────────────────────────────────────────┘ │ │
+│  │                                                       │ │
+│  │  ┌─────────────────────────────────────────────────┐ │ │
+│  │  │ 🥛 حليب طازج                                   │ │ │
+│  │  │ 📊 5 طلبات من 5 فروع | الإجمالي: 200 لتر      │ │ │
+│  │  │                                                 │ │ │
+│  │  │ تفاصيل:                                        │ │ │
+│  │  │   🏪 فرع الرياض: 45 لتر                       │ │ │
+│  │  │   🏪 فرع جدة: 50 لتر                          │ │ │
+│  │  │   🏪 فرع مكة: 35 لتر                          │ │ │
+│  │  │   🏪 فرع الدمام: 40 لتر                       │ │ │
+│  │  │   🏪 فرع الطائف: 30 لتر                       │ │ │
+│  │  │                                                 │ │ │
+│  │  │ 🏢 المورد المقترح: مصنع الألبان السعودي      │ │ │
+│  │  │ 💰 السعر المتوقع: 8 ر.س/لتر = 1,600 ر.س      │ │ │
+│  │  │ 💵 التوفير: 200 ر.س (11%)                     │ │ │
+│  │  │                                                 │ │ │
+│  │  │ [📦 تجميع وإرسال] [✏️ تعديل] [❌ رفض]        │ │ │
+│  │  └─────────────────────────────────────────────────┘ │ │
+│  │                                                       │ │
+│  │  [المزيد...] [📊 عرض التقرير الشامل]                │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                    </div>
+                </div>
+
+                <!-- Supplier -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">📦</span>
+                        <h3 class="card-title">3. المورد</h3>
+                    </div>
+
+                    <h4>📋 المهام الرئيسية:</h4>
+                    <div class="highlight-box">
+                        <p>المورد لديه لوحة تحكم خاصة لإدارة أصنافه وطلباته:</p>
+                        
+                        <ul>
+                            <li>📥 <strong>استلام الطلبات:</strong> من مدير المشتريات أو الفروع مباشرة</li>
+                            <li>✅ <strong>قبول الطلبات:</strong> تأكيد استلام وقبول الطلب</li>
+                            <li>❌ <strong>رفض الطلبات:</strong> في حالة عدم التوفر</li>
+                            <li>📦 <strong>تحديث الأصناف:</strong> إضافة أصناف جديدة</li>
+                            <li>💰 <strong>تحديث الأسعار:</strong> تعديل أسعار الأصناف</li>
+                            <li>🔴 <strong>إيقاف الأصناف:</strong> الأصناف غير المتوفرة مؤقتاً</li>
+                            <li>📊 <strong>التقارير:</strong> تقارير المبيعات والطلبات</li>
+                        </ul>
+                    </div>
+
+                    <div class="wireframe">
+┌─────────────────────────────────────────────────────────────┐
+│  📦 لوحة المورد - شركة الدواجن الوطنية  👤 محمد العلي ▼  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  📊 الرئيسية    📥 الطلبات    📦 الأصناف    💰 الأسعار    │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  📈 ملخص الشهر - أكتوبر 2025                          │ │
+│  │  ═══════════════════════                              │ │
+│  │                                                       │ │
+│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐     │ │
+│  │  │     28     │  │     25     │  │  125,400   │     │ │
+│  │  │  طلبات     │  │  طلبات     │  │   ر.س      │     │ │
+│  │  │  مستلمة    │  │  منفذة     │  │  المبيعات  │     │ │
+│  │  └────────────┘  └────────────┘  └────────────┘     │ │
+│  │                                                       │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  📥 الطلبات الجديدة (3)                               │ │
+│  │  ═══════════════                                      │ │
+│  │                                                       │ │
+│  │  ┌─────────────────────────────────────────────────┐ │ │
+│  │  │ 📦 طلب #1245                                    │ │ │
+│  │  │ 🏪 من: مدير مشتريات مطاعم البيك               │ │ │
+│  │  │ 📅 التاريخ: 14 أكتوبر 2025                     │ │ │
+│  │  │                                                 │ │ │
+│  │  │ الأصناف:                                        │ │ │
+│  │  │   🍗 دجاج طازج: 160 كجم                       │ │ │
+│  │  │   💰 السعر: 24 ر.س/كجم                        │ │ │
+│  │  │   💵 الإجمالي: 3,840 ر.س                      │ │ │
+│  │  │                                                 │ │ │
+│  │  │ 📍 نقاط التسليم:                               │ │ │
+│  │  │   - فرع الرياض: 50 كجم                        │ │ │
+│  │  │   - فرع جدة: 70 كجم                           │ │ │
+│  │  │   - فرع مكة: 40 كجم                           │ │ │
+│  │  │                                                 │ │ │
+│  │  │ [✅ قبول الطلب] [❌ رفض] [💬 تواصل]           │ │ │
+│  │  └─────────────────────────────────────────────────┘ │ │
+│  │                                                       │ │
+│  │  [المزيد...]                                          │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌───────────────────────────────────────────────────────┐ │
+│  │  📦 إدارة الأصناف                                     │ │
+│  │  ════════════                                         │ │
+│  │                                                       │ │
+│  │  🔍 [بحث عن صنف...]                                  │ │
+│  │  [➕ إضافة صنف جديد]                                  │ │
+│  │                                                       │ │
+│  │  ┌─────────────────────────────────────────────────┐ │ │
+│  │  │ 🍗 دجاج طازج                                   │ │ │
+│  │  │ 💰 السعر: 24 ر.س/كجم                          │ │ │
+│  │  │ 📦 متوفر | 🟢 نشط                              │ │ │
+│  │  │ [✏️ تعديل] [💰 تغيير السعر] [🔴 إيقاف]        │ │ │
+│  │  └─────────────────────────────────────────────────┘ │ │
+│  │                                                       │ │
+│  │  ┌─────────────────────────────────────────────────┐ │ │
+│  │  │ 🥩 لحم بقري                                    │ │ │
+│  │  │ 💰 السعر: 45 ر.س/كجم                          │ │ │
+│  │  │ 📦 غير متوفر مؤقتاً | 🔴 موقوف                │ │ │
+│  │  │ [✏️ تعديل] [💰 تغيير السعر] [🟢 تفعيل]        │ │ │
+│  │  └─────────────────────────────────────────────────┘ │ │
+│  │                                                       │ │
+│  │  [المزيد...]                                          │ │
+│  └───────────────────────────────────────────────────────┘ │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🔗</span>
+                        <h3 class="card-title">التكامل بين الداشبورد الرئيسي والفرعي</h3>
+                    </div>
+
+                    <div class="info-box">
+                        <h4>🔄 كيف يعمل التكامل:</h4>
+                        
+                        <p><strong>1️⃣ من الداشبورد الفرعي إلى الرئيسي:</strong></p>
+                        <ul>
+                            <li>مدير المشتريات يجمع ويرسل طلب → يظهر في موديول المشتريات لدى المحاسب</li>
+                            <li>المورد يقبل الطلب → تحديث تلقائي في نظام المحاسب</li>
+                        </ul>
+
+                        <p><strong>2️⃣ من الداشبورد الرئيسي إلى الفرعي:</strong></p>
+                        <ul>
+                            <li>المحاسب يرفض عملية → إشعار فوري لمدير الفرع</li>
+                            <li>رئيس الحسابات يعتمد المشتريات → تحديث حالة الطلب لدى مدير المشتريات</li>
+                        </ul>
+
+                        <p><strong>3️⃣ التكامل الثنائي:</strong></p>
+                        <ul>
+                            <li>أي تغيير في أي داشبورد ينعكس فوراً على الآخر</li>
+                            <li>إشعارات فورية لجميع الأطراف المعنية</li>
+                            <li>تتبع كامل لحالة كل عملية</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Permissions Matrix Section -->
+            <section id="permissions" class="section">
+                <div class="section-header">
+                    <div class="section-number">9</div>
+                    <h2 class="section-title">مصفوفة الصلاحيات الكاملة</h2>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🔐</span>
+                        <h3 class="card-title">جدول الصلاحيات الشامل</h3>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>الوظيفة / الصلاحية</th>
+                                    <th>الأدمن</th>
+                                    <th>رئيس الحسابات</th>
+                                    <th>المحاسب</th>
+                                    <th>مدير الفرع</th>
+                                    <th>مدير المشتريات</th>
+                                    <th>المورد</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>👥 إدارة المستخدمين</strong></td>
+                                    <td><span class="badge badge-success">كاملة</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>🔐 تعديل الصلاحيات</strong></td>
+                                    <td><span class="badge badge-success">كاملة</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>📥 عرض العمليات</strong></td>
+                                    <td><span class="badge badge-success">الكل</span></td>
+                                    <td><span class="badge badge-success">محاسبيه</span></td>
+                                    <td><span class="badge badge-warning">فروعه</span></td>
+                                    <td><span class="badge badge-info">فرعه فقط</span></td>
+                                    <td><span class="badge badge-warning">المشتريات</span></td>
+                                    <td><span class="badge badge-info">طلباته</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>✅ موافقة أولية</strong></td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-warning">محدودة</span></td>
+                                    <td><span class="badge badge-warning">محدودة</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>✅ اعتماد نهائي</strong></td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>🔗 ترحيل إلى ERP</strong></td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>⏰ عرض الشفتات</strong></td>
+                                    <td><span class="badge badge-success">الكل</span></td>
+                                    <td><span class="badge badge-success">الكل</span></td>
+                                    <td><span class="badge badge-warning">فروعه</span></td>
+                                    <td><span class="badge badge-info">فرعه</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>👥 كشف حساب الموظفين</strong></td>
+                                    <td><span class="badge badge-success">الكل</span></td>
+                                    <td><span class="badge badge-success">الكل</span></td>
+                                    <td><span class="badge badge-warning">فروعه</span></td>
+                                    <td><span class="badge badge-info">فرعه</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>💼 إدارة العهد النقدية</strong></td>
+                                    <td><span class="badge badge-success">الكل</span></td>
+                                    <td><span class="badge badge-success">الكل</span></td>
+                                    <td><span class="badge badge-warning">فروعه</span></td>
+                                    <td><span class="badge badge-info">فرعه</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>📤 رفع ملفات Excel</strong></td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>🛒 إدارة المشتريات</strong></td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-warning">مراجعة</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-success">نعم</span></td>
+                                    <td><span class="badge badge-warning">محدودة</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>📦 إدارة الأصناف</strong></td>
+                                    <td><span class="badge badge-success">الكل</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-info">فرعه</span></td>
+                                    <td><span class="badge badge-danger">لا</span></td>
+                                    <td><span class="badge badge-info">أصنافه</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>📊 التقارير الشاملة</strong></td>
+                                    <td><span class="badge badge-success">الكل</span></td>
+                                    <td><span class="badge badge-success">الكل</span></td>
+                                    <td><span class="badge badge-warning">فروعه</span></td>
+                                    <td><span class="badge badge-info">فرعه</span></td>
+                                    <td><span class="badge badge-warning">مشترياته</span></td>
+                                    <td><span class="badge badge-info">مبيعاته</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-icon">🎯</span>
+                        <h3 class="card-title">الخلاصة النهائية</h3>
+                    </div>
+
+                    <div class="success-box">
+                        <h4>✅ النقاط الرئيسية:</h4>
+                        <ul>
+                            <li>🖥️ <strong>داشبوردان منفصلان:</strong> رئيسي للمحاسبة، وفرعي للعمليات</li>
+                            <li>👥 <strong>6 أدوار رئيسية:</strong> أدمن، رئيس حسابات، محاسب، مدير فرع، مدير مشتريات، مورد</li>
+                            <li>📦 <strong>9 موديولات:</strong> مبيعات، مصروفات، مشتريات، مخزون، أصول، شفتات، موظفين، عهد نقدية، مدير التقارير</li>
+                            <li>🔐 <strong>صلاحيات مرنة:</strong> تخصيص أفقي ورأسي حسب الحاجة</li>
+                            <li>🔄 <strong>تكامل كامل:</strong> بين الداشبوردات ومع نظام ERP</li>
+                            <li>📊 <strong>فلاتر قوية:</strong> للوصول السريع للبيانات</li>
+                            <li>⚡ <strong>إشعارات فورية:</strong> لجميع التغييرات والموافقات</li>
+                            <li>🎯 <strong>قابل للتوسع:</strong> يدعم مئات الفروع وآلاف المستخدمين</li>
+                            <li>📤 <strong>تصدير جماعي:</strong> تصدير العمليات بضغطة زر</li>
+                            <li>📧 <strong>إرسال تلقائي:</strong> للتقارير المالية النهائية</li>
+                        </ul>
+                    </div>
+
+                    <div class="highlight-box">
+                        <h4>🚀 جاهز للتنفيذ:</h4>
+                        <p>
+                            هذه الوثيقة توفر كل التفاصيل اللازمة لتصميم وتطوير لوحات التحكم بشكل احترافي وكامل، مع تغطية شاملة لجميع الأدوار، الصلاحيات، والعمليات.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <h2>📞 تواصل معنا</h2>
+                
+                <div class="contact-info">
+                    <div class="contact-item">
+                        <strong>📧 البريد الإلكتروني</strong>
+                        <span>dashboards@asab.sa</span>
+                    </div>
+                    <div class="contact-item">
+                        <strong>📱 الهاتف</strong>
+                        <span>+966 50 000 0000</span>
+                    </div>
+                    <div class="contact-item">
+                        <strong>🌐 الموقع</strong>
+                        <span>www.asab.sa</span>
+                    </div>
+                </div>
+
+                <div style="margin-top: 50px; padding-top: 30px; border-top: 1px solid #4a5568;">
+                    <p style="font-size: 1.3em; margin-bottom: 20px; font-weight: 700;">
+                        <strong>© 2025 نظام عصب - وثيقة لوحات التحكم</strong>
+                    </p>
+                    <p style="margin: 15px 0; font-size: 1.1em;">
+                        <strong>الإصدار:</strong> 2.0 - نسخة الداشبوردات الكاملة
+                    </p>
+                    <p style="margin: 15px 0; font-size: 1.1em;">
+                        <strong>التاريخ:</strong> 14 أكتوبر 2025
+                    </p>
+                    <p style="margin: 15px 0; font-size: 1.1em;">
+                        <strong>الحالة:</strong> <span class="badge badge-success" style="font-size: 1em;">✅ جاهزة للتصميم والتطوير</span>
+                    </p>
+                    <p style="margin-top: 50px; font-size: 2em; font-weight: bold;">
+                        ✨ تم بحمد الله ✨
+                    </p>
+                </div>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>

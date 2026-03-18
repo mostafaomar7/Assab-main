@@ -5499,37 +5499,124 @@ function HeadModulePage({ moduleKey, navigate, setModal, setDetailId, ops, final
 }
 
 function HeadAccountants({}: PageProps) {
+  const [expandedAcc, setExpandedAcc] = useState<number|null>(null);
   const accountants = [
-    { name:"أحمد محمد الشهري", branches:20, approved:38, pending:5, rate:88, rating:4.8 },
-    { name:"سارة العمري",      branches:20, approved:31, pending:2, rate:94, rating:4.9 },
-    { name:"محمد الحربي",      branches:20, approved:18, pending:8, rate:69, rating:3.8 },
-    { name:"فاطمة السالم",     branches:20, approved:42, pending:1, rate:98, rating:5.0 },
+    { name:"أحمد محمد الشهري", branches:20, reviewed:250, approved:230, pending:5,  rate:92, rating:4.8, avgTime:4.5,  level:"ممتاز",   levelCls:"bg-emerald-100 text-emerald-700" },
+    { name:"سارة العمري",      branches:20, reviewed:210, approved:197, pending:2,  rate:94, rating:4.9, avgTime:3.8,  level:"ممتاز",   levelCls:"bg-emerald-100 text-emerald-700" },
+    { name:"محمد الحربي",      branches:20, reviewed:185, approved:128, pending:8,  rate:69, rating:3.8, avgTime:8.2,  level:"مقبول",   levelCls:"bg-amber-100 text-amber-700"   },
+    { name:"فاطمة السالم",     branches:20, reviewed:290, approved:284, pending:1,  rate:98, rating:5.0, avgTime:2.9,  level:"ممتاز",   levelCls:"bg-emerald-100 text-emerald-700" },
   ];
+
+  const recentMovements = [
+    ["اعتماد مبيعات فرع العليا","قبل 12 دقيقة","مبيعات"],
+    ["اعتماد مصروفات فرع الحمراء","قبل 28 دقيقة","مصروفات"],
+    ["رفض مشتريات — فرق في الكمية","قبل 45 دقيقة","مشتريات"],
+    ["اعتماد مخزون فرع المعابدة","قبل ساعة","مخزون"],
+    ["طلب توضيح — فرع الدمام","قبل ساعتين","مبيعات"],
+  ];
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-bold text-gray-800">أداء المحاسبين</h3>
         <Btn size="sm"><Download size={12}/> تصدير التقرير</Btn>
       </div>
+
+      {/* Summary KPIs */}
+      <div className="grid grid-cols-4 gap-3">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 text-center">
+          <p className="text-2xl font-extrabold font-mono text-gray-800">{accountants.reduce((s,a)=>s+a.reviewed,0)}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">إجمالي العمليات المراجعة</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 text-center">
+          <p className="text-2xl font-extrabold font-mono text-emerald-700">{accountants.reduce((s,a)=>s+a.approved,0)}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">معتمدة</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 text-center">
+          <p className="text-2xl font-extrabold font-mono text-amber-600">{accountants.reduce((s,a)=>s+a.pending,0)}</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">معلقة</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 text-center">
+          <p className="text-2xl font-extrabold font-mono text-purple-700">{(accountants.reduce((s,a)=>s+a.avgTime,0)/accountants.length).toFixed(1)} د</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">متوسط وقت المراجعة</p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         {accountants.map((acc,i)=>(
-          <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-400 to-cyan-400 flex items-center justify-center text-white font-bold">{acc.name[0]}</div>
-              <div className="flex-1"><p className="font-bold text-gray-800 text-sm">{acc.name}</p><p className="text-xs text-gray-400">{acc.branches} فرع مخصص</p></div>
-              <div className="flex items-center gap-0.5">
-                {[1,2,3,4,5].map(s=><Star key={s} size={12} fill={s<=Math.round(acc.rating)?"#F59E0B":"none"} className={s<=Math.round(acc.rating)?"text-amber-400":"text-gray-200"}/>)}
-                <span className="text-xs text-gray-500 mr-1">{acc.rating}</span>
+          <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-400 to-cyan-400 flex items-center justify-center text-white font-bold">{acc.name[0]}</div>
+                <div className="flex-1">
+                  <p className="font-bold text-gray-800 text-sm">{acc.name}</p>
+                  <p className="text-xs text-gray-400">{acc.branches} فرع مخصص</p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${acc.levelCls}`}>{acc.level}</span>
+                  <div className="flex items-center gap-0.5">
+                    {[1,2,3,4,5].map(s=><Star key={s} size={10} fill={s<=Math.round(acc.rating)?"#F59E0B":"none"} className={s<=Math.round(acc.rating)?"text-amber-400":"text-gray-200"}/>)}
+                    <span className="text-[10px] text-gray-500 mr-0.5">{acc.rating}</span>
+                  </div>
+                </div>
               </div>
+
+              {/* Core stats */}
+              <div className="grid grid-cols-4 gap-1.5 text-center mb-3">
+                <div className="bg-gray-50 rounded-lg p-2">
+                  <p className="text-[9px] text-gray-400">المراجَعة</p>
+                  <p className="font-bold text-gray-700 text-sm">{acc.reviewed}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-2">
+                  <p className="text-[9px] text-gray-400">معتمدة</p>
+                  <p className="font-bold text-emerald-700 text-sm">{acc.approved}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-2">
+                  <p className="text-[9px] text-gray-400">معلقة</p>
+                  <p className={`font-bold text-sm ${acc.pending>5?"text-red-600":"text-amber-600"}`}>{acc.pending}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-2">
+                  <p className="text-[9px] text-gray-400">معدل</p>
+                  <p className={`font-bold text-sm ${acc.rate>=90?"text-emerald-600":acc.rate>=70?"text-amber-600":"text-red-600"}`}>{acc.rate}%</p>
+                </div>
+              </div>
+
+              {/* Avg review time */}
+              <div className="flex items-center justify-between text-xs bg-blue-50 rounded-lg px-3 py-2 mb-3">
+                <span className="text-blue-600 font-medium">⏱ متوسط وقت المراجعة</span>
+                <span className="font-bold text-blue-700 font-mono">{acc.avgTime} دقيقة</span>
+              </div>
+
+              {/* Progress bar */}
+              <div className="w-full bg-gray-100 rounded-full h-1.5 mb-3">
+                <div className={`h-1.5 rounded-full ${acc.rate>=90?"bg-emerald-500":acc.rate>=70?"bg-amber-500":"bg-red-500"}`} style={{width:`${acc.rate}%`}}></div>
+              </div>
+
+              {/* Toggle detail */}
+              <button onClick={()=>setExpandedAcc(expandedAcc===i?null:i)}
+                className="w-full flex items-center justify-center gap-1.5 text-xs py-2 rounded-lg border border-gray-200 text-purple-600 hover:bg-purple-50 font-medium transition-colors">
+                <Eye size={12}/>
+                {expandedAcc===i?"إخفاء التفاصيل":"عرض التفاصيل"}
+                {expandedAcc===i?<ChevronUp size={12}/>:<ChevronDown size={12}/>}
+              </button>
             </div>
-            <div className="grid grid-cols-3 gap-2 text-center mb-3">
-              <div className="bg-gray-50 rounded-lg p-2"><p className="text-[10px] text-gray-400">معتمدة</p><p className="font-bold text-emerald-700 text-base">{acc.approved}</p></div>
-              <div className="bg-gray-50 rounded-lg p-2"><p className="text-[10px] text-gray-400">معلقة</p><p className={`font-bold text-base ${acc.pending>5?"text-red-600":"text-amber-600"}`}>{acc.pending}</p></div>
-              <div className="bg-gray-50 rounded-lg p-2"><p className="text-[10px] text-gray-400">معدل الإنجاز</p><p className={`font-bold text-base ${acc.rate>=90?"text-emerald-600":acc.rate>=70?"text-amber-600":"text-red-600"}`}>{acc.rate}%</p></div>
-            </div>
-            <div className="w-full bg-gray-100 rounded-full h-2">
-              <div className={`h-2 rounded-full ${acc.rate>=90?"bg-emerald-500":acc.rate>=70?"bg-amber-500":"bg-red-500"}`} style={{width:`${acc.rate}%`}}></div>
-            </div>
+
+            {/* Expanded detail — recent movements */}
+            {expandedAcc===i && (
+              <div className="border-t border-gray-100 bg-gray-50/50 p-3">
+                <p className="text-[10px] font-bold text-gray-500 mb-2">آخر النشاطات</p>
+                <div className="space-y-1.5">
+                  {recentMovements.map((mv,j)=>(
+                    <div key={j} className="flex items-center gap-2 text-xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0"></span>
+                      <span className="text-gray-700 flex-1">{mv[0]}</span>
+                      <span className="text-gray-400 text-[10px]">{mv[1]}</span>
+                      <span className="text-[10px] bg-white border border-gray-200 text-gray-500 px-1.5 py-0.5 rounded-full">{mv[2]}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -5694,12 +5781,77 @@ function HeadERP({ ops, markErpPosted }:PageProps) {
         </div>
         {step===0 && (
           <div className="space-y-4">
+            {/* ── Advanced export filters per document ── */}
             <div className="grid grid-cols-2 gap-4">
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1.5">نوع الترحيل</label>
-                <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option>ترحيل يومي</option><option>ترحيل أسبوعي</option><option>ترحيل شهري</option></select></div>
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1.5">الفترة</label>
-                <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option>14 أكتوبر 2025</option><option>13 أكتوبر 2025</option></select></div>
+
+              {/* Module filter */}
+              <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
+                <p className="text-xs font-bold text-gray-600 mb-3">📦 الموديول</p>
+                <div className="space-y-2">
+                  {[{k:"all",l:"الكل"},{k:"sales",l:"المبيعات"},{k:"expenses",l:"المصروفات"},{k:"purchases",l:"المشتريات"},{k:"inventory",l:"المخزون"}].map(m=>(
+                    <label key={m.k} className="flex items-center gap-2 cursor-pointer">
+                      <input type="radio" name="erp-module" defaultChecked={m.k==="all"} className="accent-purple-600"/>
+                      <span className="text-sm text-gray-700">{m.l}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {/* Date period filter */}
+                <div className="bg-gray-50 rounded-xl border border-gray-200 p-3">
+                  <p className="text-xs font-bold text-gray-600 mb-2">📅 الفترة الزمنية</p>
+                  <div className="space-y-1.5">
+                    {[{k:"day",l:"يوم محدد"},{k:"range",l:"نطاق: من — إلى"},{k:"week",l:"الأسبوع الحالي"},{k:"month",l:"الشهر الحالي"}].map((p,pi)=>(
+                      <label key={p.k} className="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="erp-period" defaultChecked={pi===0} className="accent-purple-600"/>
+                        <span className="text-xs text-gray-700">{p.l}</span>
+                      </label>
+                    ))}
+                    <input type="text" defaultValue="14 أكتوبر 2025" className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 mt-1"/>
+                  </div>
+                </div>
+
+                {/* Restaurant + Branch + Status */}
+                <div className="bg-gray-50 rounded-xl border border-gray-200 p-3 space-y-2">
+                  <div>
+                    <p className="text-xs font-bold text-gray-600 mb-1.5">🏢 المطعم</p>
+                    <div className="flex gap-3">
+                      {["الكل (25 مطعم)","مطعم محدد"].map((o,oi)=>(
+                        <label key={o} className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="radio" name="erp-rest" defaultChecked={oi===0} className="accent-purple-600"/>
+                          <span className="text-xs text-gray-700">{o}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-600 mb-1.5">🏪 الفرع</p>
+                    <div className="flex gap-3">
+                      {["الكل (100 فرع)","فرع محدد"].map((o,oi)=>(
+                        <label key={o} className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="radio" name="erp-branch" defaultChecked={oi===0} className="accent-purple-600"/>
+                          <span className="text-xs text-gray-700">{o}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-600 mb-1.5">🔄 الحالة</p>
+                    <div className="flex gap-3">
+                      {["معتمدة فقط","الكل"].map((o,oi)=>(
+                        <label key={o} className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="radio" name="erp-status" defaultChecked={oi===0} className="accent-purple-600"/>
+                          <span className="text-xs text-gray-700">{o}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
+
+            {/* Summary */}
             <div className="bg-blue-50 rounded-xl p-4 grid grid-cols-3 gap-3 text-center border border-blue-100">
               <div><p className="text-2xl font-bold text-blue-700 font-mono">{toPost.length}</p><p className="text-xs text-blue-600">تنتظر الترحيل</p></div>
               <div><p className="text-2xl font-bold text-blue-700 font-mono">{(totalAmt/1000).toFixed(1)}K</p><p className="text-xs text-blue-600">ر.س إجمالي</p></div>
@@ -6061,6 +6213,9 @@ function AdminRestaurants({}: PageProps) {
   const [expandedRest,  setExpandedRest]    = useState<string|null>(null);
   const [showAddBrand,  setShowAddBrand]    = useState(false);
   const [showAddRest,   setShowAddRest]     = useState<string|null>(null);
+  const [restTab, setRestTab]               = useState<"structure"|"upload">("structure");
+  const [empUploaded, setEmpUploaded]       = useState(false);
+  const [itemsUploaded, setItemsUploaded]   = useState(false);
 
   const totalRests   = BRANDS_DATA.reduce((s,b)=>s+b.restaurants.length,0);
   const totalBranches = BRANDS_DATA.reduce((s,b)=>s+b.restaurants.reduce((ss,r)=>ss+r.branches.length,0),0);
@@ -6077,6 +6232,145 @@ function AdminRestaurants({}: PageProps) {
           <Btn variant="primary" onClick={()=>setShowAddBrand(true)}><Plus size={14}/> علامة تجارية</Btn>
         </div>
       </div>
+
+      {/* Tabs */}
+      <div className="flex gap-0 border-b border-gray-200">
+        {[{id:"structure" as const,label:"🏗 الهيكل التشغيلي"},{id:"upload" as const,label:"📤 رفع البيانات"}].map(t=>(
+          <button key={t.id} onClick={()=>setRestTab(t.id)}
+            className={`px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${restTab===t.id?"border-purple-600 text-purple-700":"border-transparent text-gray-500 hover:text-gray-700"}`}>{t.label}</button>
+        ))}
+      </div>
+
+      {/* ── Excel Upload Tab ── */}
+      {restTab==="upload" && (
+        <div className="space-y-5">
+          {/* Stats bar */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center">
+              <p className="text-2xl font-extrabold font-mono text-purple-700">25</p>
+              <p className="text-xs text-gray-400 mt-0.5">موظف نشط</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center">
+              <p className="text-2xl font-extrabold font-mono text-blue-700">150</p>
+              <p className="text-xs text-gray-400 mt-0.5">صنف نشط</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 text-center">
+              <p className="text-2xl font-extrabold font-mono text-emerald-700">12</p>
+              <p className="text-xs text-gray-400 mt-0.5">مورد مسجل</p>
+            </div>
+          </div>
+
+          {/* Upload cards */}
+          <div className="grid grid-cols-2 gap-5">
+
+            {/* Employees upload */}
+            <div className={`bg-white rounded-xl border shadow-sm p-5 ${empUploaded?"border-emerald-200":"border-gray-100"}`}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                  <Users size={18} className="text-blue-600"/>
+                </div>
+                <div>
+                  <p className="font-bold text-gray-800 text-sm">رفع أسماء الموظفين</p>
+                  <p className="text-xs text-gray-400">ملف Excel بيانات الموظفين</p>
+                </div>
+              </div>
+              {/* Column guide */}
+              <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                <p className="text-[10px] font-bold text-gray-500 mb-2">الأعمدة المطلوبة في الملف:</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {["الاسم","رقم الهوية","الوظيفة","الراتب","تاريخ التعيين"].map(col=>(
+                    <div key={col} className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0"/>
+                      <span className="text-xs text-gray-600">{col}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {empUploaded
+                ? <div className="flex items-center gap-2 text-emerald-700 text-sm mb-3"><CheckCircle2 size={16}/><span className="font-medium">تم الرفع بنجاح — 25 موظف</span></div>
+                : <div onClick={()=>setEmpUploaded(true)} className="border-2 border-dashed border-gray-300 rounded-xl p-5 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/20 transition-all mb-3">
+                    <FileText size={24} className="text-gray-300 mx-auto mb-2"/>
+                    <p className="text-sm font-medium text-gray-500">اضغط لرفع ملف Excel</p>
+                    <p className="text-xs text-gray-400 mt-0.5">xlsx, xls — حتى 10 MB</p>
+                  </div>
+              }
+              <div className="flex gap-2">
+                <Btn variant="primary" size="sm" className="flex-1 justify-center" onClick={()=>setEmpUploaded(true)}>
+                  <Upload size={12}/> رفع الآن
+                </Btn>
+                <Btn size="sm"><Download size={12}/> نموذج Excel</Btn>
+              </div>
+            </div>
+
+            {/* Items upload */}
+            <div className={`bg-white rounded-xl border shadow-sm p-5 ${itemsUploaded?"border-emerald-200":"border-gray-100"}`}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                  <Package size={18} className="text-purple-600"/>
+                </div>
+                <div>
+                  <p className="font-bold text-gray-800 text-sm">رفع أسماء الأصناف</p>
+                  <p className="text-xs text-gray-400">ملف Excel بيانات الأصناف</p>
+                </div>
+              </div>
+              {/* Column guide */}
+              <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                <p className="text-[10px] font-bold text-gray-500 mb-2">الأعمدة المطلوبة في الملف:</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {["رمز الصنف","اسم الصنف","الفئة","الوحدة"].map(col=>(
+                    <div key={col} className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0"/>
+                      <span className="text-xs text-gray-600">{col}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {itemsUploaded
+                ? <div className="flex items-center gap-2 text-emerald-700 text-sm mb-3"><CheckCircle2 size={16}/><span className="font-medium">تم الرفع بنجاح — 150 صنف</span></div>
+                : <div onClick={()=>setItemsUploaded(true)} className="border-2 border-dashed border-gray-300 rounded-xl p-5 text-center cursor-pointer hover:border-purple-400 hover:bg-purple-50/20 transition-all mb-3">
+                    <Package size={24} className="text-gray-300 mx-auto mb-2"/>
+                    <p className="text-sm font-medium text-gray-500">اضغط لرفع ملف Excel</p>
+                    <p className="text-xs text-gray-400 mt-0.5">xlsx, xls — حتى 10 MB</p>
+                  </div>
+              }
+              <div className="flex gap-2">
+                <Btn variant="primary" size="sm" className="flex-1 justify-center" onClick={()=>setItemsUploaded(true)}>
+                  <Upload size={12}/> رفع الآن
+                </Btn>
+                <Btn size="sm"><Download size={12}/> نموذج Excel</Btn>
+              </div>
+            </div>
+          </div>
+
+          {/* Upload history */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+              <p className="font-semibold text-sm text-gray-700">سجل الرفع السابق</p>
+              <Badge className="bg-gray-50 text-gray-500">آخر 5 رفعات</Badge>
+            </div>
+            {[
+              {file:"employees_oct2025.xlsx",type:"موظفون",count:"25 موظف",date:"14 أكتوبر 2025",user:"أحمد الإداري"},
+              {file:"items_oct2025.xlsx",type:"أصناف",count:"148 صنف",date:"14 أكتوبر 2025",user:"أحمد الإداري"},
+              {file:"employees_sep2025.xlsx",type:"موظفون",count:"23 موظف",date:"1 سبتمبر 2025",user:"مريم المديرة"},
+              {file:"items_sep2025.xlsx",type:"أصناف",count:"140 صنف",date:"1 سبتمبر 2025",user:"مريم المديرة"},
+            ].map((r,i)=>(
+              <div key={i} className="px-5 py-3 flex items-center gap-4 border-b border-gray-50 last:border-0 hover:bg-gray-50">
+                <FileText size={14} className="text-gray-400 flex-shrink-0"/>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-700 truncate">{r.file}</p>
+                  <p className="text-xs text-gray-400">{r.user} · {r.date}</p>
+                </div>
+                <Badge className="bg-blue-50 text-blue-700">{r.type}</Badge>
+                <span className="text-xs text-emerald-700 font-semibold">{r.count}</span>
+                <button className="text-gray-300 hover:text-blue-500"><Download size={14}/></button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {restTab==="structure" && (
+      <div className="space-y-3">
 
       {/* Add brand quick form */}
       {showAddBrand && (
@@ -6200,6 +6494,8 @@ function AdminRestaurants({}: PageProps) {
           );
         })}
       </div>
+      </div>
+      )}
     </div>
   );
 }
@@ -6326,10 +6622,80 @@ function AdminSubscriptions({}: PageProps) {
 function AdminReports({}: PageProps) {
   const [step, setStep] = useState(0);
   const [uploaded, setUploaded] = useState(false);
+  const [reportType, setReportType] = useState<string>("pl");
+
+  const reportTypes = [
+    { id:"pl",      label:"قائمة الدخل",       sub:"P&L",               icon:"📈", color:"bg-purple-100 text-purple-700", border:"border-purple-300 bg-purple-50/40" },
+    { id:"balance", label:"الميزانية العمومية", sub:"Balance Sheet",     icon:"⚖️", color:"bg-blue-100 text-blue-700",    border:"border-blue-300 bg-blue-50/40"   },
+    { id:"cashflow",label:"التدفقات النقدية",  sub:"Cash Flow",         icon:"💧", color:"bg-cyan-100 text-cyan-700",    border:"border-cyan-300 bg-cyan-50/40"   },
+    { id:"sales",   label:"تحليل المبيعات",    sub:"Sales Analysis",    icon:"🛒", color:"bg-emerald-100 text-emerald-700",border:"border-emerald-300 bg-emerald-50/40" },
+    { id:"expenses",label:"تحليل المصروفات",   sub:"Expense Analysis",  icon:"💸", color:"bg-amber-100 text-amber-700",  border:"border-amber-300 bg-amber-50/40" },
+    { id:"compare", label:"مقارنات الأداء",    sub:"Performance Comp.", icon:"📊", color:"bg-indigo-100 text-indigo-700",border:"border-indigo-300 bg-indigo-50/40"},
+  ];
+  const selectedType = reportTypes.find(r=>r.id===reportType)!;
+
+  const previewRows: Record<string, {label:string;value:string;type:string;header?:boolean}[]> = {
+    pl:[
+      {label:"إجمالي الإيرادات",value:"842,500",type:"income",header:true},{label:"   مبيعات المطعم",value:"820,000",type:"income"},{label:"   إيرادات أخرى",value:"22,500",type:"income"},
+      {label:"إجمالي المصروفات",value:"(612,000)",type:"expense",header:true},{label:"   تكلفة المواد الخام",value:"(320,000)",type:"expense"},{label:"   رواتب الموظفين",value:"(180,000)",type:"expense"},
+      {label:"صافي الربح",value:"230,500",type:"profit",header:true},{label:"هامش الربح",value:"27.4%",type:"profit",header:true}
+    ],
+    balance:[
+      {label:"الأصول المتداولة",value:"950,000",type:"income",header:true},{label:"   النقدية وما يعادلها",value:"420,000",type:"income"},{label:"   حسابات القبض",value:"310,000",type:"income"},{label:"   المخزون",value:"220,000",type:"income"},
+      {label:"الأصول الثابتة",value:"1,200,000",type:"income",header:true},
+      {label:"إجمالي الأصول",value:"2,150,000",type:"profit",header:true},
+      {label:"الخصوم",value:"(890,000)",type:"expense",header:true},{label:"حقوق الملكية",value:"1,260,000",type:"profit",header:true},
+    ],
+    cashflow:[
+      {label:"التدفقات التشغيلية",value:"315,000",type:"income",header:true},{label:"   صافي الدخل",value:"230,500",type:"income"},{label:"   الإهلاك",value:"85,000",type:"income"},
+      {label:"التدفقات الاستثمارية",value:"(120,000)",type:"expense",header:true},{label:"   شراء أصول",value:"(120,000)",type:"expense"},
+      {label:"التدفقات التمويلية",value:"(60,000)",type:"expense",header:true},
+      {label:"صافي التدفق النقدي",value:"135,000",type:"profit",header:true},
+    ],
+    sales:[
+      {label:"فرع الرياض - العليا",value:"320,000",type:"income",header:false},{label:"فرع جدة - الحمراء",value:"280,000",type:"income",header:false},{label:"فرع مكة - المعابدة",value:"242,500",type:"income",header:false},
+      {label:"إجمالي المبيعات",value:"842,500",type:"profit",header:true},{label:"متوسط المبيعات / فرع",value:"280,833",type:"income",header:true},{label:"أعلى مبيعات",value:"فرع العليا",type:"profit",header:false},
+    ],
+    expenses:[
+      {label:"تكلفة المواد الخام",value:"(320,000)",type:"expense",header:true},{label:"رواتب الموظفين",value:"(180,000)",type:"expense",header:false},{label:"إيجارات",value:"(65,000)",type:"expense",header:false},
+      {label:"مصاريف إدارية",value:"(35,000)",type:"expense",header:false},{label:"مصاريف أخرى",value:"(12,000)",type:"expense",header:false},
+      {label:"إجمالي المصروفات",value:"(612,000)",type:"expense",header:true},{label:"نسبة من الإيرادات",value:"72.6%",type:"profit",header:true},
+    ],
+    compare:[
+      {label:"المبيعات — أكتوبر",value:"842,500",type:"income",header:false},{label:"المبيعات — سبتمبر",value:"791,000",type:"income",header:false},{label:"التغيير",value:"+6.5% ↑",type:"profit",header:false},
+      {label:"المصروفات — أكتوبر",value:"612,000",type:"expense",header:false},{label:"المصروفات — سبتمبر",value:"589,000",type:"expense",header:false},{label:"التغيير",value:"+3.9% ↑",type:"expense",header:false},
+      {label:"صافي الربح — أكتوبر",value:"230,500",type:"profit",header:true},{label:"صافي الربح — سبتمبر",value:"202,000",type:"profit",header:false},{label:"التحسن",value:"+14.1% ↑",type:"profit",header:false},
+    ],
+  };
+
   return (
     <div className="space-y-5">
       <div><h2 className="text-xl font-bold text-gray-800">مدير التقارير</h2><p className="text-gray-400 text-sm mt-0.5">استيراد تقارير ERP ومراجعتها وإرسالها لأصحاب المطاعم</p></div>
+
+      {/* ── Report Type Selector ── */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <p className="text-sm font-bold text-gray-700 mb-3">اختر نوع التقرير</p>
+        <div className="grid grid-cols-3 gap-2.5">
+          {reportTypes.map(rt=>(
+            <button key={rt.id} onClick={()=>{ setReportType(rt.id); setStep(0); setUploaded(false); }}
+              className={`flex items-center gap-2.5 p-3 rounded-xl border-2 transition-all text-right ${reportType===rt.id?rt.border:"border-gray-100 bg-white hover:border-gray-200"}`}>
+              <span className="text-xl">{rt.icon}</span>
+              <div className="flex-1 min-w-0">
+                <p className={`text-xs font-bold ${reportType===rt.id?rt.color.split(" ")[1]:"text-gray-700"}`}>{rt.label}</p>
+                <p className="text-[10px] text-gray-400">{rt.sub}</p>
+              </div>
+              {reportType===rt.id && <div className="w-4 h-4 rounded-full bg-purple-600 flex items-center justify-center flex-shrink-0"><span className="text-white text-[8px]">✓</span></div>}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-base">{selectedType.icon}</span>
+          <span className="font-bold text-gray-800">{selectedType.label}</span>
+          <Badge className={selectedType.color}>{selectedType.sub}</Badge>
+        </div>
         <div className="flex items-center gap-0 mb-6">
           {[{n:1,label:"1. تصدير من ERP",icon:"🔗"},{n:2,label:"2. رفع Excel",icon:"📊"},{n:3,label:"3. مراجعة",icon:"👁"},{n:4,label:"4. الإرسال",icon:"📤"}].map((s,i)=>(
             <div key={i} className="flex items-center flex-1">
@@ -6341,11 +6707,11 @@ function AdminReports({}: PageProps) {
           ))}
         </div>
         {step===0 && <div className="text-center py-6 space-y-4">
-          <div className="text-5xl">🔗</div>
-          <h3 className="font-bold text-gray-800">تصدير من نظام ERP</h3>
+          <div className="text-5xl">{selectedType.icon}</div>
+          <h3 className="font-bold text-gray-800">تصدير {selectedType.label} من نظام ERP</h3>
           <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-700 text-right max-w-sm mx-auto">
             <p className="font-semibold mb-1">الخطوات في نظام ERP:</p>
-            <ol className="list-decimal list-inside space-y-1 text-xs"><li>افتح نظام ERP → التقارير</li><li>اختر تقرير الأرباح والخسائر</li><li>حدد الفترة الزمنية</li><li>اضغط تصدير Excel</li></ol>
+            <ol className="list-decimal list-inside space-y-1 text-xs"><li>افتح نظام ERP → التقارير</li><li>اختر {selectedType.label}</li><li>حدد الفترة الزمنية</li><li>اضغط تصدير Excel</li></ol>
           </div>
           <Btn variant="primary" onClick={()=>setStep(1)} className="mx-auto">انتقل لرفع الملف →</Btn>
         </div>}
@@ -6369,16 +6735,16 @@ function AdminReports({}: PageProps) {
         </div>}
         {step===2 && <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-gray-800">معاينة تقرير الأرباح والخسائر</h3>
+            <h3 className="font-bold text-gray-800">معاينة: {selectedType.label}</h3>
             <Badge className="bg-blue-50 text-blue-700">للعرض فقط</Badge>
           </div>
           <div className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
-            <div className="bg-purple-700 text-white px-5 py-3 text-center"><p className="font-bold">تقرير الأرباح والخسائر — أكتوبر 2025</p><p className="text-purple-200 text-xs mt-0.5">مطعم هرفي · جميع الفروع</p></div>
+            <div className="bg-purple-700 text-white px-5 py-3 text-center">
+              <p className="font-bold">{selectedType.icon} {selectedType.label} — أكتوبر 2025</p>
+              <p className="text-purple-200 text-xs mt-0.5">مطعم هرفي · جميع الفروع</p>
+            </div>
             <table className="w-full" dir="rtl"><tbody className="divide-y divide-gray-200">
-              {[{label:"إجمالي الإيرادات",value:"842,500",type:"income",header:true},{label:"   مبيعات المطعم",value:"820,000",type:"income"},{label:"   إيرادات أخرى",value:"22,500",type:"income"},
-                {label:"إجمالي المصروفات",value:"(612,000)",type:"expense",header:true},{label:"   تكلفة المواد الخام",value:"(320,000)",type:"expense"},{label:"   رواتب الموظفين",value:"(180,000)",type:"expense"},
-                {label:"صافي الربح",value:"230,500",type:"profit",header:true},{label:"هامش الربح",value:"27.4%",type:"profit",header:true}
-              ].map((row,i)=>(
+              {(previewRows[reportType] || previewRows["pl"]).map((row,i)=>(
                 <tr key={i} className={row.header?"bg-gray-100":"bg-white"}>
                   <td className={`px-5 py-2.5 text-sm ${row.header?"font-bold text-gray-800":"text-gray-600"}`}>{row.label}</td>
                   <td className={`px-5 py-2.5 text-left font-mono text-sm ${row.type==="profit"?"text-emerald-700 font-bold":row.type==="expense"?"text-red-600":"text-gray-800"}`} dir="ltr">{row.value}</td>
