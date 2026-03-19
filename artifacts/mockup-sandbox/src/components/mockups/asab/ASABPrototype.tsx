@@ -3838,30 +3838,51 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
 
       {/* Attachment viewer modal for purchases */}
       {purAttachModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={()=>setPurAttachModal(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={e=>e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6" onClick={()=>setPurAttachModal(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={e=>e.stopPropagation()} dir="rtl">
+            <div className="px-5 py-4 bg-gradient-to-l from-blue-600 to-blue-700 text-white flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-gray-900">مرفقات الفاتورة</h3>
-                <p className="text-xs text-gray-400 mt-0.5">الفاتورة: <span className="font-mono text-purple-600">{purAttachModal.invNum}</span></p>
+                <h3 className="font-bold text-base">مرفقات الفاتورة — {purAttachModal.invNum}</h3>
+                <p className="text-blue-200 text-xs mt-0.5">مرفق {purAttachModal.idx+1} من {purAttachModal.total}</p>
               </div>
-              <button onClick={()=>setPurAttachModal(null)} className="text-gray-400 hover:text-gray-600 p-1"><X size={18}/></button>
+              <button onClick={()=>setPurAttachModal(null)} className="text-blue-200 hover:text-white"><X size={18}/></button>
             </div>
-            <div className="p-5 space-y-3">
-              {Array.from({length: purAttachModal.total}).map((_,idx)=>(
-                <div key={idx} className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer group">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0"><FileText size={16} className="text-blue-600"/></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">مرفق_فاتورة_{purAttachModal.invNum}_{idx+1}.pdf</p>
-                    <p className="text-xs text-gray-400 mt-0.5">PDF · {(120+idx*80)}KB</p>
-                  </div>
-                  <Btn size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">عرض</Btn>
+            <div className="p-5">
+              <div className="bg-gray-100 rounded-xl h-52 flex flex-col items-center justify-center border-2 border-dashed border-gray-300">
+                <Paperclip size={36} className="text-gray-300 mb-3"/>
+                <p className="text-sm font-semibold text-gray-600">
+                  {["فاتورة المورد الأصلية","صورة إيصال الاستلام","توقيع المستلم","كشف التسليم","شهادة الجودة"][purAttachModal.idx % 5]}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">purchase_{purAttachModal.invNum}_p{purAttachModal.idx+1}.pdf</p>
+                <button className="mt-4 flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-all">
+                  <Eye size={14}/> عرض الملف الكامل
+                </button>
+              </div>
+              <div className="flex items-center justify-between mt-4">
+                <button disabled={purAttachModal.idx===0}
+                  onClick={()=>setPurAttachModal(p=>p?{...p,idx:p.idx-1}:p)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                  <ChevronRight size={14}/> السابق
+                </button>
+                <div className="flex gap-1.5">
+                  {Array.from({length:purAttachModal.total},(_,i)=>(
+                    <button key={i} onClick={()=>setPurAttachModal(p=>p?{...p,idx:i}:p)}
+                      className={`w-2.5 h-2.5 rounded-full transition-all ${i===purAttachModal.idx?"bg-blue-600":"bg-gray-300"}`}/>
+                  ))}
                 </div>
-              ))}
+                <button disabled={purAttachModal.idx===purAttachModal.total-1}
+                  onClick={()=>setPurAttachModal(p=>p?{...p,idx:p.idx+1}:p)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                  التالي <ChevronLeft size={14}/>
+                </button>
+              </div>
             </div>
-            <div className="px-5 pb-4 flex gap-2">
-              <Btn size="sm"><Plus size={11}/> إرفاق مستند</Btn>
-              <Btn size="sm" onClick={()=>setPurAttachModal(null)}>إغلاق</Btn>
+            <div className="px-5 pb-4 flex gap-2 justify-end border-t border-gray-100 pt-3">
+              <Btn size="sm"><Download size={12}/> تحميل</Btn>
+              <Btn size="sm" variant="success" onClick={()=>{
+                toggleVerify(purAttachModal.recId, `attach-${purAttachModal.idx}`);
+                setPurAttachModal(null);
+              }}><CheckSquare size={12}/> تم التحقق من المرفق</Btn>
             </div>
           </div>
         </div>
@@ -3905,10 +3926,30 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
   const toggleConfirm = (b:string) => setBranchConfirmed(p=>{ const s=new Set(p); s.has(b)?s.delete(b):s.add(b); return s; });
   const sendConfirm   = (b:string) => setSentToConfirm(p=>new Set([...p,b]));
 
+  /* ── Per-item flagging (monthly: accountant doubts specific items) ── */
+  const [flaggedItems, setFlaggedItems] = useState<Record<string,number[]>>({});
+  const [sentItemsBranch, setSentItemsBranch] = useState<Set<string>>(new Set());
+  const toggleFlagItem = (branch:string, idx:number) =>
+    setFlaggedItems(p=>{ const cur=p[branch]||[]; return {...p,[branch]:cur.includes(idx)?cur.filter(i=>i!==idx):[...cur,idx]}; });
+  const sendFlaggedItems = (branch:string) => setSentItemsBranch(p=>new Set([...p,branch]));
+
+  /* ── Daily inventory — multi-employee variance assignment (per branch) ── */
+  type DVEmp = { empId:string; empName:string; amount:string };
+  const INV_EMP: Record<string,string> = {
+    "1001":"أحمد الشمري","1002":"محمد العبدلي","1003":"خالد النجار",
+    "1004":"سعد الغامدي","1005":"عبدالرحمن السيف","1006":"فيصل الحربي",
+  };
+  const [dailyVarEmps, setDailyVarEmps] = useState<Record<string,DVEmp[]>>({});
+  const getDailyEmps = (b:string): DVEmp[] => dailyVarEmps[b] || [{empId:"",empName:"",amount:""}];
+  const setDailyEmps = (b:string, fn:(p:DVEmp[])=>DVEmp[]) =>
+    setDailyVarEmps(p=>({...p,[b]:fn(getDailyEmps(b))}));
+  const setDailyEmpField = (b:string, i:number, field:keyof DVEmp, val:string) =>
+    setDailyEmps(b, p=>p.map((e,j)=>j===i?{...e,[field]:val,...(field==="empId"?{empName:INV_EMP[val]||""}:{})}:e));
+
   const invOps = ops.filter(o=>o.moduleKey==="inventory");
   const pendingInv = invOps.filter(o=>o.status==="pending");
 
-  const exportExcel = () => { /* Simulated Excel export */ alert("تصدير Excel: جاري تنزيل ملف جرد الفروع..."); };
+  const exportExcel = (branch?:string) => { alert(branch?`تحميل Excel: جاري تنزيل جرد ${branch}...`:"تحميل Excel: جاري تنزيل جرد كل المطاعم..."); };
 
   // Count anomalies across all branches (change > 200% or < -50%)
   const anomalyCount = Object.values(INV_BRANCH_DATA).flat().filter(it=>{
@@ -3928,9 +3969,9 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
           <p className="text-gray-400 text-sm mt-0.5">مراجعة الجرد اليومي والشهري لكل فرع — مقارنة ومعادلة مخزون</p>
         </div>
         <div className="flex gap-2 items-center">
-          <button onClick={exportExcel}
+          <button onClick={()=>exportExcel()}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100 transition-all">
-            <FileText size={12}/> تصدير Excel
+            <FileText size={12}/> Excel — كل المطاعم
           </button>
           <Btn variant="primary" size="sm" onClick={()=>navigate("acc-inventory-items")}><Package size={13}/> تحديد أصناف الجرد</Btn>
         </div>
@@ -4013,6 +4054,11 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
                   <p className="text-xs text-gray-400 mt-0.5">{items.length} صنف · أُرسل {branchOp?.timeAgo||"—"}</p>
                 </div>
                 <div className="flex gap-2 flex-wrap justify-end">
+                  <button onClick={()=>exportExcel(branch)}
+                    title={`تحميل Excel لـ ${branch}`}
+                    className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100 transition-all flex items-center gap-1">
+                    <FileText size={10}/> Excel
+                  </button>
                   <Btn size="sm" onClick={()=>setExpandedBranch(isExpanded?null:branch)}>
                     {isExpanded?<ChevronUp size={12}/>:<ChevronDown size={12}/>} الأصناف
                   </Btn>
@@ -4021,20 +4067,33 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
                       <RefreshCw size={12}/> معادلة الجرد
                     </Btn>
                   )}
-                  {invType==="monthly" && (
-                    <>
-                      <button onClick={()=>toggleFlagged(branch)}
-                        title={isFlagged?"إلغاء التعليم":"تعليم بواسطة المحاسب"}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1 ${isFlagged?"bg-purple-100 text-purple-700 border-purple-300":"bg-gray-50 text-gray-500 border-gray-200 hover:bg-purple-50"}`}>
-                        🚩 {isFlagged?"مُعلَّم":"تعليم"}
-                      </button>
-                      {!isSent && <Btn size="sm" onClick={()=>sendConfirm(branch)}><Send size={11}/> إرسال للتأكيد</Btn>}
-                      <button onClick={()=>toggleConfirm(branch)}
-                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1 ${isConfirmed?"bg-emerald-100 text-emerald-700 border-emerald-300":"bg-gray-50 text-gray-500 border-gray-200 hover:bg-emerald-50"}`}>
-                        <CheckCircle2 size={11}/> {isConfirmed?"أكّده الفرع":"تسجيل تأكيد"}
-                      </button>
-                    </>
-                  )}
+                  {invType==="monthly" && (() => {
+                    const bFlagged = flaggedItems[branch]||[];
+                    const bSent    = sentItemsBranch.has(branch);
+                    return (
+                      <>
+                        <button onClick={()=>toggleFlagged(branch)}
+                          title={isFlagged?"إلغاء التعليم":"تعليم بواسطة المحاسب"}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1 ${isFlagged?"bg-purple-100 text-purple-700 border-purple-300":"bg-gray-50 text-gray-500 border-gray-200 hover:bg-purple-50"}`}>
+                          🚩 {isFlagged?"مُعلَّم":"تعليم"}
+                        </button>
+                        {bFlagged.length>0 && !bSent && (
+                          <Btn size="sm" onClick={()=>sendFlaggedItems(branch)}>
+                            <Send size={11}/> إرسال تأكيد ({bFlagged.length} أصناف)
+                          </Btn>
+                        )}
+                        {bSent && (
+                          <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-1 rounded-lg border border-amber-200 font-semibold">
+                            📤 أُرسل ({sentItemsBranch.has(branch) ? (flaggedItems[branch]||[]).length : 0} أصناف)
+                          </span>
+                        )}
+                        <button onClick={()=>toggleConfirm(branch)}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all flex items-center gap-1 ${isConfirmed?"bg-emerald-100 text-emerald-700 border-emerald-300":"bg-gray-50 text-gray-500 border-gray-200 hover:bg-emerald-50"}`}>
+                          <CheckCircle2 size={11}/> {isConfirmed?"أكّده الفرع":"تسجيل تأكيد"}
+                        </button>
+                      </>
+                    );
+                  })()}
                   {branchOp?.status==="pending" && <>
                     <Btn size="sm" variant="success" onClick={()=>approveOp(branchOp.id)}><ThumbsUp size={12}/></Btn>
                     <Btn size="sm" variant="danger" onClick={()=>{ setDetailId(branchOp.id); setModal("reject"); }}><ThumbsDown size={12}/></Btn>
@@ -4054,6 +4113,7 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
                         <th className="px-3 py-2 text-center">الشهر الحالي</th>
                         <th className="px-3 py-2 text-center">الفرق</th>
                         <th className="px-3 py-2 text-center">الحالة</th>
+                        {invType==="monthly" && <th className="px-3 py-2 text-center bg-amber-50/60 text-amber-700">🚩 شك</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 bg-white">
@@ -4061,8 +4121,9 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
                         const diff   = it.curr - it.prev;
                         const pct    = it.prev>0 ? Math.round((diff/it.prev)*100) : 0;
                         const isAnomaly = Math.abs(pct) > 100;
+                        const isFlaggedItem = (flaggedItems[branch]||[]).includes(j);
                         return (
-                          <tr key={j} className={isAnomaly?"bg-red-50/40":""}>
+                          <tr key={j} className={`${isAnomaly?"bg-red-50/40":""} ${isFlaggedItem?"bg-amber-50/30":""}`}>
                             <td className="px-3 py-2 font-semibold text-gray-800">{it.item}</td>
                             <td className="px-3 py-2 text-center text-gray-500">{it.cat}</td>
                             <td className="px-3 py-2 text-center font-mono text-gray-500">{it.prev} {it.unit}</td>
@@ -4075,6 +4136,19 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
                                 ? <span className="inline-flex items-center gap-1 text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold border border-red-200">⚠ شذوذ محتمل</span>
                                 : <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">طبيعي</span>}
                             </td>
+                            {invType==="monthly" && (
+                              <td className="px-3 py-2 text-center bg-amber-50/20">
+                                <button onClick={()=>toggleFlagItem(branch, j)}
+                                  title={isFlaggedItem?"إلغاء التعليم":"علّم هذا الصنف للتأكيد"}
+                                  className={`w-7 h-7 rounded-full flex items-center justify-center mx-auto transition-all text-sm ${
+                                    isFlaggedItem
+                                      ? "bg-amber-500 text-white shadow-sm"
+                                      : "border-2 border-dashed border-gray-300 text-gray-300 hover:border-amber-400 hover:text-amber-400"
+                                  }`}>
+                                  🚩
+                                </button>
+                              </td>
+                            )}
                           </tr>
                         );
                       })}
@@ -4089,48 +4163,107 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
               )}
 
               {/* Daily inventory formula — only in daily mode */}
-              {isDailyOpen && invType==="daily" && (
-                <div className="px-5 pb-4 bg-indigo-50/30">
-                  <p className="text-[11px] font-bold text-indigo-700 mb-2 pt-2">معادلة الجرد اليومي — {branch}</p>
-                  <div className="bg-white rounded-xl border border-indigo-100 p-4" dir="rtl">
-                    <div className="space-y-2 text-sm">
-                      {[
-                        {label:"رصيد الفتح (أمس)",         val:12400, sign:"",  cls:"text-gray-800" },
-                        {label:"+ مشتريات اليوم",           val:3200,  sign:"+", cls:"text-emerald-700"},
-                        {label:"− مبيعات اليوم",            val:8700,  sign:"−", cls:"text-red-600"  },
-                        {label:"+ تحويلات واردة",           val:500,   sign:"+", cls:"text-blue-700"  },
-                        {label:"− تحويلات صادرة",           val:700,   sign:"−", cls:"text-orange-600"},
-                        {label:"− الهدر والتالف",           val:360,   sign:"−", cls:"text-rose-600"  },
-                      ].map((row,k)=>(
-                        <div key={k} className="flex items-center justify-between py-1 border-b border-gray-50 last:border-0">
-                          <span className={`font-medium ${row.cls}`}>{row.label}</span>
-                          <span className={`font-mono font-bold ${row.cls}`}>{row.sign}{fmtAmt(Math.abs(row.val))} ر.س</span>
+              {isDailyOpen && invType==="daily" && (() => {
+                const DEFICIT = 360;
+                const ACTUAL  = 6340;
+                const empList = getDailyEmps(branch);
+                const assignedTotal = empList.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+                const remaining = DEFICIT - assignedTotal;
+                return (
+                  <div className="px-5 pb-4 bg-indigo-50/30">
+                    <p className="text-[11px] font-bold text-indigo-700 mb-2 pt-2">معادلة الجرد اليومي — {branch}</p>
+                    <div className="bg-white rounded-xl border border-indigo-100 p-4" dir="rtl">
+                      <div className="space-y-2 text-sm">
+                        {[
+                          {label:"رصيد الفتح (أمس)",         val:12400, sign:"",  cls:"text-gray-800" },
+                          {label:"+ مشتريات اليوم",           val:3200,  sign:"+", cls:"text-emerald-700"},
+                          {label:"− مبيعات اليوم",            val:8700,  sign:"−", cls:"text-red-600"  },
+                          {label:"+ تحويلات واردة",           val:500,   sign:"+", cls:"text-blue-700"  },
+                          {label:"− تحويلات صادرة",           val:700,   sign:"−", cls:"text-orange-600"},
+                          {label:"− الهدر والتالف",           val:360,   sign:"−", cls:"text-rose-600"  },
+                        ].map((row,k)=>(
+                          <div key={k} className="flex items-center justify-between py-1 border-b border-gray-50 last:border-0">
+                            <span className={`font-medium ${row.cls}`}>{row.label}</span>
+                            <span className={`font-mono font-bold ${row.cls}`}>{row.sign}{fmtAmt(Math.abs(row.val))} ر.س</span>
+                          </div>
+                        ))}
+                        <div className="flex items-center justify-between pt-2 border-t-2 border-indigo-200 mt-1">
+                          <span className="font-bold text-gray-900">= رصيد الإغلاق المحاسبي</span>
+                          <span className="font-black text-indigo-700 font-mono">{fmtAmt(12400+3200-8700+500-700-360)} ر.س</span>
                         </div>
-                      ))}
-                      <div className="flex items-center justify-between pt-2 border-t-2 border-indigo-200 mt-1">
-                        <span className="font-bold text-gray-900">= رصيد الإغلاق المحاسبي</span>
-                        <span className="font-black text-indigo-700 font-mono">{fmtAmt(12400+3200-8700+500-700-360)} ر.س</span>
+                        <div className="flex items-center justify-between py-1">
+                          <span className="font-medium text-gray-700">رصيد الجرد الفعلي</span>
+                          <span className="font-mono font-bold text-gray-800">{fmtAmt(ACTUAL)} ر.س</span>
+                        </div>
+                        <div className="flex items-center justify-between py-1 bg-red-50/60 -mx-2 px-2 rounded-lg">
+                          <span className="font-bold text-red-700">عجز مُكتشف</span>
+                          <span className="font-black text-red-700 font-mono">−{fmtAmt(DEFICIT)} ر.س</span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between py-1">
-                        <span className="font-medium text-gray-700">رصيد الجرد الفعلي</span>
-                        <span className="font-mono font-bold text-gray-800">6,340 ر.س</span>
-                      </div>
-                      <div className="flex items-center justify-between py-1 bg-red-50/60 -mx-2 px-2 rounded-lg">
-                        <span className="font-bold text-red-700">عجز مُكتشف</span>
-                        <span className="font-black text-red-700 font-mono">−360 ر.س</span>
-                      </div>
-                    </div>
-                    <div className="mt-3 pt-3 border-t border-indigo-100">
-                      <p className="text-xs font-semibold text-gray-600 mb-1">تحميل العجز على موظف:</p>
-                      <div className="flex items-center gap-2">
-                        <input placeholder="رقم الموظف..." className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5" dir="rtl"/>
-                        <span className="text-xs text-gray-400 flex-shrink-0">→ الاسم يظهر تلقائياً</span>
-                        <Btn size="sm" variant="danger">تحميل</Btn>
+
+                      {/* Multi-employee variance assignment */}
+                      <div className="mt-4 pt-3 border-t border-indigo-100">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs font-bold text-gray-700">تحميل العجز على الموظفين</p>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${remaining===0?"bg-emerald-100 text-emerald-700":remaining<0?"bg-red-100 text-red-700":"bg-amber-100 text-amber-700"}`}>
+                            {remaining===0?"متوازن":remaining>0?`متبقٍّ: ${fmtAmt(remaining)} ر.س`:`زيادة: ${fmtAmt(Math.abs(remaining))} ر.س`}
+                          </span>
+                        </div>
+
+                        {/* Pre-reported from branch manager (read-only) */}
+                        <div className="mb-2 p-2 bg-blue-50 border border-blue-100 rounded-lg">
+                          <p className="text-[10px] text-blue-600 font-semibold mb-1">📋 ورد من مدير الفرع</p>
+                          <div className="flex items-center justify-between text-xs text-blue-800 bg-white/70 px-2 py-1 rounded-lg">
+                            <span>خالد النجار (1003)</span>
+                            <span className="font-mono font-bold">−220 ر.س</span>
+                          </div>
+                        </div>
+
+                        {/* Editable employee rows */}
+                        <div className="space-y-2">
+                          {empList.map((emp,ei)=>(
+                            <div key={ei} className="flex items-center gap-2">
+                              <div className="w-5 h-5 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-rose-700">{ei+1}</div>
+                              <input value={emp.empId} onChange={e=>setDailyEmpField(branch,ei,"empId",e.target.value)}
+                                placeholder="رقم الموظف"
+                                className="w-28 text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-center font-mono"/>
+                              <input value={emp.empName} readOnly
+                                placeholder="الاسم تلقائياً"
+                                className="flex-1 text-xs border border-gray-100 rounded-lg px-2 py-1.5 bg-gray-50 text-gray-600"/>
+                              <input value={emp.amount} onChange={e=>setDailyEmpField(branch,ei,"amount",e.target.value)}
+                                placeholder="المبلغ"
+                                type="number"
+                                className="w-24 text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-center font-mono"/>
+                              <span className="text-[10px] text-gray-400 flex-shrink-0">ر.س</span>
+                              {empList.length>1 && (
+                                <button onClick={()=>setDailyEmps(branch,p=>p.filter((_,j)=>j!==ei))}
+                                  className="text-gray-300 hover:text-red-400 transition-colors"><X size={12}/></button>
+                              )}
+                              {ei===empList.length-1 && remaining>0 && (
+                                <button onClick={()=>setDailyEmpField(branch,ei,"amount",String(remaining))}
+                                  title="تعبئة المتبقي"
+                                  className="text-[10px] px-1.5 py-1 bg-rose-100 text-rose-600 rounded font-bold hover:bg-rose-200 flex-shrink-0">⚡</button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <button onClick={()=>setDailyEmps(branch,p=>[...p,{empId:"",empName:"",amount:""}])}
+                            className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline">
+                            <Plus size={11}/> إضافة موظف آخر
+                          </button>
+                          <div className="flex-1"/>
+                          <Btn size="sm" variant="danger"
+                            disabled={remaining!==0}
+                            className={remaining!==0?"opacity-40 cursor-not-allowed":""}>
+                            تأكيد التحميل
+                          </Btn>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           );
         })}
@@ -4832,8 +4965,12 @@ function AccWaste({}: PageProps) {
   const pending  = entries.filter(e=>e.status==="pending");
   const approved = entries.filter(e=>e.status==="approved");
   const displayed = filterBranch==="الكل" ? entries : entries.filter(e=>e.branch===filterBranch);
+  const displayedPending = displayed.filter(e=>e.status==="pending");
 
   const WASTE_BRANCHES = [...new Set(entries.map(e=>e.branch))];
+
+  const approveAllDisplayed = () =>
+    setEntries(p=>p.map(e=>(filterBranch==="الكل"||e.branch===filterBranch)?{...e,status:"approved" as const}:e));
 
   return (
     <div className="space-y-5" dir="rtl">
@@ -4842,23 +4979,41 @@ function AccWaste({}: PageProps) {
           <h2 className="text-xl font-bold text-gray-800">موديول الهدر والتالف</h2>
           <p className="text-gray-400 text-sm mt-0.5">مراجعة بيانات الهدر — تعديل التصنيف وتحديد المسؤولية والموظف المسؤول</p>
         </div>
-        {pending.length>0 && <Btn variant="success" size="sm" onClick={()=>setEntries(p=>p.map(e=>({...e,status:"approved" as const})))}><CheckCircle2 size={12}/> موافقة على الكل ({pending.length})</Btn>}
+        {displayedPending.length>0 && (
+          <Btn variant="success" size="sm" onClick={approveAllDisplayed}>
+            <CheckCircle2 size={12}/>
+            {filterBranch==="الكل"
+              ? `موافقة على الكل (${displayedPending.length})`
+              : `موافقة على ${filterBranch} (${displayedPending.length})`}
+          </Btn>
+        )}
       </div>
 
-      {/* Branch filter */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-4">
-        <div>
-          <label className="text-[11px] font-semibold text-gray-500 block mb-1">تصفية حسب الفرع</label>
-          <select value={filterBranch} onChange={e=>setFilterBranch(e.target.value)} className="text-sm border border-gray-200 rounded-lg px-3 py-2 min-w-[200px]">
-            <option value="الكل">الكل</option>
-            {WASTE_BRANCHES.map(b=><option key={b}>{b}</option>)}
-          </select>
+      {/* Branch filter — chips style */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <p className="text-[11px] font-semibold text-gray-500 mb-2">تصفية حسب الفرع</p>
+        <div className="flex flex-wrap gap-2">
+          {["الكل", ...WASTE_BRANCHES].map(b=>{
+            const bPending = b==="الكل" ? pending.length : entries.filter(e=>e.branch===b&&e.status==="pending").length;
+            return (
+              <button key={b} onClick={()=>setFilterBranch(b)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                  filterBranch===b
+                    ? "bg-purple-600 text-white border-purple-600 shadow-sm"
+                    : "bg-white text-gray-600 border-gray-200 hover:border-purple-300 hover:text-purple-600"
+                }`}>
+                {b}
+                {bPending>0 && (
+                  <span className={`w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center ${filterBranch===b?"bg-white text-purple-700":"bg-amber-500 text-white"}`}>
+                    {bPending}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
-        {filterBranch!=="الكل" && (
-          <button onClick={()=>setFilterBranch("الكل")} className="text-xs text-purple-600 hover:underline flex items-center gap-1 mt-4"><RotateCcw size={11}/> مسح</button>
-        )}
-        <div className="flex-1 text-left">
-          <p className="text-xs text-gray-400">{displayed.length} بيان{filterBranch!=="الكل"?` من ${filterBranch}`:""}</p>
+        <div className="mt-2">
+          <p className="text-xs text-gray-400">{displayed.length} بيان{filterBranch!=="الكل"?` — ${filterBranch}`:""}</p>
         </div>
       </div>
 
