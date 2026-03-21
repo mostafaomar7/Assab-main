@@ -140,9 +140,13 @@ const NAV_CONFIG: Record<RoleId, NavEntry[]> = {
     { id:"head-expenses",  label:"المصروفات",              icon:<Wallet size={16}/> },
     { id:"head-purchases", label:"المشتريات",              icon:<ShoppingCart size={16}/> },
     { id:"head-inventory", label:"المخزون",                icon:<Package size={16}/> },
+    { id:"head-waste",     label:"الهدر والتالف",          icon:<Trash2 size={16}/> },
+    { id:"head-assets",    label:"الأصول الثابتة",         icon:<Building2 size={16}/> },
     { id:"head-shifts",    label:"الشفتات",                icon:<Clock size={16}/> },
     { id:"head-employees", label:"كشف حساب الموظفين",     icon:<Users size={16}/> },
     { id:"head-cash",      label:"العهد النقدية",          icon:<ArrowLeftRight size={16}/> },
+    { section:"التذكيرات والتقارير" },
+    { id:"head-reminders", label:"التذكيرات",              icon:<Bell size={16}/>,            badge:3, badgeColor:"red" as const },
     { section:"الإدارة" },
     { id:"head-accountants", label:"أداء المحاسبين",       icon:<Users size={16}/> },
     { id:"head-erp",       label:"التصدير لـ ERP",         icon:<ChevronsRight size={16}/> },
@@ -1351,6 +1355,7 @@ function PageRouter({ state, pageProps, adminUsers, setAdminUsers }:{
     if(page==="head-accountants")  return <HeadAccountants {...p}/>;
     if(page==="head-erp")          return <HeadERP {...p}/>;
     if(page==="head-reports")      return <OwnerReportsPage {...p}/>;
+    if(page==="head-reminders")    return <AccReminders {...p}/>;
     const mk = page.replace("head-","") as ModuleKey;
     return <HeadModulePage moduleKey={mk} {...p}/>;
   }
@@ -1370,18 +1375,25 @@ function PageRouter({ state, pageProps, adminUsers, setAdminUsers }:{
     if(page==="branch-items")      return <BranchItems {...p}/>;
     if(page==="branch-suppliers")  return <BranchSuppliers {...p}/>;
     if(page==="branch-upload")     return <BranchUpload {...p}/>;
+    if(page==="branch-settings")   return <BranchSettings {...p}/>;
   }
   if(role==="procurement") {
-    if(page==="proc-overview") return <ProcOverview {...p}/>;
-    if(page==="proc-new")      return <ProcNewOrders {...p}/>;
-    if(page==="proc-grouped")  return <ProcGrouped {...p}/>;
-    if(page==="proc-sent")     return <ProcSent {...p}/>;
-    if(page==="proc-reports")  return <ReportsPage {...p}/>;
+    if(page==="proc-overview")   return <ProcOverview {...p}/>;
+    if(page==="proc-new")        return <ProcNewOrders {...p}/>;
+    if(page==="proc-grouped")    return <ProcGrouped {...p}/>;
+    if(page==="proc-sent")       return <ProcSent {...p}/>;
+    if(page==="proc-reports")    return <ReportsPage {...p}/>;
+    if(page==="proc-items")      return <ProcItems {...p}/>;
+    if(page==="proc-suppliers")  return <ProcSuppliers {...p}/>;
     return <SimplePage title={page} icon="🛒" desc=""/>;
   }
   if(role==="supplier") {
-    if(page==="sup-overview") return <SupOverview {...p}/>;
-    if(page==="sup-new")      return <SupNewOrders {...p}/>;
+    if(page==="sup-overview")  return <SupOverview {...p}/>;
+    if(page==="sup-new")       return <SupNewOrders {...p}/>;
+    if(page==="sup-accepted")  return <SupAccepted {...p}/>;
+    if(page==="sup-rejected")  return <SupRejected {...p}/>;
+    if(page==="sup-items")     return <SupItems {...p}/>;
+    if(page==="sup-reports")   return <SupReports {...p}/>;
     return <SimplePage title={page} icon="🏭" desc=""/>;
   }
   return <SimplePage title="قيد التطوير" icon="🚧" desc="هذه الصفحة قيد التطوير"/>;
@@ -1900,7 +1912,7 @@ function ModuleAggregationGrid({ ops, navigate }: { ops: Op[]; navigate:(p:PageI
                     </div>
                     <div className="px-4 py-2">
                       {selectedOps.filter(o=>o.status==="rejected").slice(0,2).map((o,i)=>(
-                        <p key={i} className="text-[10px] text-gray-400 py-0.5">{o.id} · {o.branch} · {o.rejectionReason||"—"}</p>
+                        <p key={i} className="text-[10px] text-gray-400 py-0.5">{o.id} · {o.branch} · {o.rejectReason||"—"}</p>
                       ))}
                     </div>
                   </div>
@@ -2370,6 +2382,36 @@ function AccDashboard({ navigate, setModal, setDetailId, ops, approveOp, rejectO
         <KpiCard label="وافقت عليها" value={String(approved.length)} sub="بانتظار الاعتماد النهائي" icon={<CheckCircle2 size={20} className="text-sky-600"/>} accent="blue"/>
         <KpiCard label="معتمدة نهائياً" value={String(ops.filter(o=>o.status==="final-approved").length)} sub="مُغلقة — تنتظر ERP أو مُرحَّلة" icon={<Lock size={20} className="text-emerald-600"/>} accent="emerald"/>
         <KpiCard label="معدل الموافقة" value={`${approvalRate}%`} sub="هذا الشهر" icon={<TrendingUp size={20} className="text-purple-600"/>} accent="purple"/>
+      </div>
+
+      {/* Daily progress bar */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-bold text-gray-800 text-sm">🎯 تقدم اليوم</h3>
+          <span className="text-xs text-gray-400">الهدف: مراجعة جميع العمليات المعلقة</span>
+        </div>
+        <div className="grid grid-cols-4 gap-4">
+          {[
+            {label:"المراجعة",done:ops.filter(o=>o.status!=="pending").length,total:ops.length,color:"bg-purple-500"},
+            {label:"الموافقة",done:ops.filter(o=>o.status==="approved"||o.status==="final-approved").length,total:ops.length,color:"bg-emerald-500"},
+            {label:"التوثيق",done:ops.filter(o=>o.status==="final-approved"&&o.erpPosted).length,total:ops.filter(o=>o.status==="final-approved").length||1,color:"bg-blue-500"},
+            {label:"الفروع المكتملة",done:4,total:8,color:"bg-cyan-500"},
+          ].map(({label,done,total,color})=>{
+            const pct = Math.min(100,total>0?Math.round(done/total*100):0);
+            return (
+              <div key={label}>
+                <div className="flex justify-between text-[11px] mb-1.5">
+                  <span className="font-semibold text-gray-600">{label}</span>
+                  <span className={`font-bold ${pct===100?"text-emerald-600":"text-gray-500"}`}>{done}/{total} {pct===100?"✅":""}</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-2">
+                  <div className={`h-2 rounded-full ${color} transition-all`} style={{width:`${pct}%`}}/>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-0.5 text-left">{pct}%</p>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <PipelineOverview ops={ops} navigate={navigate}/>
@@ -4586,55 +4628,189 @@ function AccInventoryItems({ navigate }:PageProps) {
 }
 
 function AccShifts({ navigate, setModal }:PageProps) {
+  const [tab, setTab] = useState<"live"|"close"|"history">("live");
+  const [closeForm, setCloseForm] = useState({cashInDrawer:"",salesSystem:"",notes:"",branch:"فرع الرياض - العليا"});
+  const [closeSent, setCloseSent] = useState(false);
+
   const shifts = [
     { name:"خالد الشمري", role:"مشرف الشفت", branch:"فرع الرياض - العليا", start:"8:00 ص", duration:"3:22 ساعة", orders:87, sales:12500, cash:4200, status:"active" as const },
     { name:"محمد العتيبي", role:"كاشير رئيسي", branch:"فرع الرياض - العليا", start:"8:00 ص", duration:"3:22 ساعة", orders:87, sales:12500, cash:null, status:"active" as const },
     { name:"سعد الدوسري", role:"مشرف الشفت", branch:"فرع مكة - المعابدة", start:"6:00 ص", duration:"5:22 ساعة", orders:45, sales:9200, cash:3800, status:"late" as const },
     { name:"فهد القحطاني", role:"كاشير", branch:"فرع جدة - الحمراء", start:"7:00 ص", duration:"4:22 ساعة", orders:63, sales:9200, cash:null, status:"active" as const },
   ];
+
+  const shiftHistory = [
+    {branch:"فرع الرياض - العليا", supervisor:"خالد الشمري", date:"13 أكت", startT:"8:00 ص", endT:"4:00 م", orders:145, sales:22400, cashExpected:8200, cashActual:8150, diff:-50, status:"closed"},
+    {branch:"فرع جدة - الحمراء",    supervisor:"فهد القحطاني", date:"13 أكت", startT:"7:00 ص", endT:"3:30 م", orders:118, sales:18900, cashExpected:7200, cashActual:7200, diff:0,   status:"closed"},
+    {branch:"فرع مكة - المعابدة",   supervisor:"سعد الدوسري",  date:"13 أكت", startT:"6:00 ص", endT:"2:00 م", orders:92,  sales:14300, cashExpected:5800, cashActual:5920, diff:120,  status:"closed"},
+    {branch:"فرع الرياض - العليا", supervisor:"خالد الشمري", date:"12 أكت", startT:"8:00 ص", endT:"4:00 م", orders:138, sales:21000, cashExpected:7800, cashActual:7800, diff:0,   status:"closed"},
+    {branch:"فرع جدة - الحمراء",    supervisor:"فهد القحطاني", date:"12 أكت", startT:"7:00 ص", endT:"3:30 م", orders:99,  sales:15600, cashExpected:6100, cashActual:6050, diff:-50,  status:"closed"},
+  ];
+
+  const cashIn = parseFloat(closeForm.cashInDrawer)||0;
+  const salesSys = parseFloat(closeForm.salesSystem)||0;
+  const diff = cashIn - salesSys;
+
+  const submitClose = () => {
+    setCloseSent(true);
+    setTimeout(()=>{ setCloseSent(false); setCloseForm({cashInDrawer:"",salesSystem:"",notes:"",branch:"فرع الرياض - العليا"}); setTab("history"); },1800);
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">الشفتات النشطة — مباشر</h2>
-          <p className="text-gray-400 text-sm mt-0.5">الوقت الفعلي لجميع الفروع المخصصة</p></div>
+        <div><h2 className="text-xl font-bold text-gray-800">إدارة الشفتات</h2>
+          <p className="text-gray-400 text-sm mt-0.5">الوقت الفعلي · إغلاق الشفت · السجل التاريخي</p></div>
         <span className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
-          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>مباشر — آخر تحديث: الآن
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>مباشر — آخر تحديث: الآن
         </span>
       </div>
+
       <div className="grid grid-cols-4 gap-4">
         <KpiCard label="شفتات نشطة" value="4" sub="" icon={<span className="w-2 h-2 rounded-full bg-emerald-500"></span>} accent="emerald"/>
         <KpiCard label="شفت متأخر" value="1" sub="يحتاج متابعة" icon={<AlertTriangle size={18} className="text-amber-600"/>} accent="amber"/>
         <KpiCard label="متوسط مدة الشفت" value="4.2 ساعة" sub="هذا اليوم" icon={<TrendingUp size={18} className="text-purple-600"/>} accent="purple"/>
         <KpiCard label="إجمالي الطلبات" value="282" sub="هذا اليوم" icon={<ShoppingCart size={18} className="text-blue-600"/>} accent="blue"/>
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        {shifts.map((sh,i)=>(
-          <div key={i} className={`bg-white rounded-xl border shadow-sm p-4 ${sh.status==="late"?"border-amber-300 bg-amber-50/20":"border-gray-100"}`}>
-            {sh.status==="late" && <div className="flex items-center gap-2 text-amber-700 text-xs font-semibold mb-3 bg-amber-100 rounded-lg px-3 py-2"><AlertTriangle size={13}/> انتهى وقت الشفت — لم يُغلق الصندوق بعد</div>}
-            <div className="flex items-center gap-3 mb-3">
-              <div className="relative">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-400 to-cyan-400 flex items-center justify-center text-white font-bold text-sm">{sh.name[0]}</div>
-                <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${sh.status==="late"?"bg-amber-500":"bg-emerald-500"}`}></span>
-              </div>
-              <div className="flex-1"><p className="font-bold text-gray-800 text-sm">{sh.name}</p><p className="text-xs text-gray-500">{sh.role} · {sh.branch}</p></div>
-              <Badge className={sh.status==="late"?"bg-amber-100 text-amber-700":"bg-emerald-100 text-emerald-700"}>{sh.status==="late"?"تأخير":"نشط"}</Badge>
-            </div>
-            <div className="grid grid-cols-3 gap-2 mb-3 text-center">
-              {[{label:"بداية الشفت",val:sh.start},{label:"المدة",val:sh.duration},{label:"الطلبات",val:String(sh.orders)}].map((s,j)=>(
-                <div key={j} className="bg-gray-50 rounded-lg p-2"><p className="text-[10px] text-gray-400">{s.label}</p><p className="text-sm font-bold text-gray-800">{s.val}</p></div>
-              ))}
-            </div>
-            <div className="flex items-center justify-between text-sm mb-3">
-              <span className="text-gray-500 text-xs">مبيعات الشفت</span>
-              <span className="font-bold text-purple-700">{fmtAmt(sh.sales)} ر.س</span>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={()=>setModal("contact")} className="flex-1 flex items-center justify-center gap-1.5 text-xs py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"><Phone size={12}/> تواصل</button>
-              <button className="flex-1 flex items-center justify-center gap-1.5 text-xs py-2 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100"><Eye size={12}/> التفاصيل</button>
-            </div>
-          </div>
+
+      <div className="flex gap-2 border-b border-gray-200">
+        {[{id:"live" as const,label:"🟢 مباشر"},{id:"close" as const,label:"🔒 إغلاق الشفت"},{id:"history" as const,label:"📋 السجل التاريخي"}].map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)} className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors -mb-px ${tab===t.id?"border-purple-600 text-purple-700":"border-transparent text-gray-500 hover:text-gray-700"}`}>{t.label}</button>
         ))}
       </div>
+
+      {tab==="live" && (
+        <div className="grid grid-cols-2 gap-4">
+          {shifts.map((sh,i)=>(
+            <div key={i} className={`bg-white rounded-xl border shadow-sm p-4 ${sh.status==="late"?"border-amber-300 bg-amber-50/20":"border-gray-100"}`}>
+              {sh.status==="late" && <div className="flex items-center gap-2 text-amber-700 text-xs font-semibold mb-3 bg-amber-100 rounded-lg px-3 py-2"><AlertTriangle size={13}/> انتهى وقت الشفت — لم يُغلق الصندوق بعد</div>}
+              <div className="flex items-center gap-3 mb-3">
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-400 to-cyan-400 flex items-center justify-center text-white font-bold text-sm">{sh.name[0]}</div>
+                  <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${sh.status==="late"?"bg-amber-500":"bg-emerald-500"}`}></span>
+                </div>
+                <div className="flex-1"><p className="font-bold text-gray-800 text-sm">{sh.name}</p><p className="text-xs text-gray-500">{sh.role} · {sh.branch}</p></div>
+                <Badge className={sh.status==="late"?"bg-amber-100 text-amber-700":"bg-emerald-100 text-emerald-700"}>{sh.status==="late"?"تأخير":"نشط"}</Badge>
+              </div>
+              <div className="grid grid-cols-3 gap-2 mb-3 text-center">
+                {[{label:"بداية الشفت",val:sh.start},{label:"المدة",val:sh.duration},{label:"الطلبات",val:String(sh.orders)}].map((s,j)=>(
+                  <div key={j} className="bg-gray-50 rounded-lg p-2"><p className="text-[10px] text-gray-400">{s.label}</p><p className="text-sm font-bold text-gray-800">{s.val}</p></div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between text-sm mb-3">
+                <span className="text-gray-500 text-xs">مبيعات الشفت</span>
+                <span className="font-bold text-purple-700">{fmtAmt(sh.sales)} ر.س</span>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={()=>setModal("contact")} className="flex-1 flex items-center justify-center gap-1.5 text-xs py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"><Phone size={12}/> تواصل</button>
+                <button onClick={()=>setTab("close")} className="flex-1 flex items-center justify-center gap-1.5 text-xs py-2 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100"><Lock size={12}/> إغلاق الشفت</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tab==="close" && (
+        <div className="max-w-xl mx-auto">
+          <Card title="🔒 إغلاق الشفت">
+            <div className="p-5 space-y-4">
+              {closeSent ? (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-3">✅</div>
+                  <p className="font-bold text-emerald-700">تم إغلاق الشفت بنجاح</p>
+                  <p className="text-sm text-gray-500 mt-1">سيتم توجيهك لسجل الشفتات...</p>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="text-[11px] font-semibold text-gray-500 block mb-1">الفرع</label>
+                    <select value={closeForm.branch} onChange={e=>setCloseForm(p=>({...p,branch:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
+                      {BRANCHES.map(b=><option key={b}>{b}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-gray-500 block mb-1">النقد الفعلي في الصندوق (ر.س)</label>
+                    <input type="number" value={closeForm.cashInDrawer} onChange={e=>setCloseForm(p=>({...p,cashInDrawer:e.target.value}))}
+                      placeholder="أدخل المبلغ المعدود..." className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 font-mono"/>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-gray-500 block mb-1">المبيعات النقدية (من النظام) (ر.س)</label>
+                    <input type="number" value={closeForm.salesSystem} onChange={e=>setCloseForm(p=>({...p,salesSystem:e.target.value}))}
+                      placeholder="من تقرير الكاشير..." className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 font-mono"/>
+                  </div>
+                  {closeForm.cashInDrawer && closeForm.salesSystem && (
+                    <div className={`p-3 rounded-xl border ${diff===0?"bg-emerald-50 border-emerald-200":diff>0?"bg-blue-50 border-blue-200":"bg-red-50 border-red-200"}`}>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-semibold text-gray-700">الفرق (عجز/زيادة)</span>
+                        <span className={`font-mono font-black text-lg ${diff===0?"text-emerald-700":diff>0?"text-blue-700":"text-red-700"}`}>
+                          {diff>0?"+":""}{fmtAmt(diff)} ر.س {diff===0?"✅":diff>0?"⬆":"⬇"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] mt-1 text-gray-500">{diff===0?"مطابق تاماً":diff>0?"زيادة في الصندوق — تحتاج توثيق":"نقص في الصندوق — يُحمَّل على المشرف"}</p>
+                    </div>
+                  )}
+                  <div>
+                    <label className="text-[11px] font-semibold text-gray-500 block mb-1">ملاحظات (اختياري)</label>
+                    <textarea value={closeForm.notes} onChange={e=>setCloseForm(p=>({...p,notes:e.target.value}))}
+                      placeholder="ملاحظات الشفت..." rows={3} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-none"/>
+                  </div>
+                  <Btn variant="success" className="w-full justify-center" onClick={submitClose} disabled={!closeForm.cashInDrawer||!closeForm.salesSystem}>
+                    <Lock size={14}/> تأكيد إغلاق الشفت
+                  </Btn>
+                </>
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {tab==="history" && (
+        <Card title="سجل الشفتات السابقة">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" dir="rtl">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr className="text-xs text-gray-500">
+                  <th className="px-4 py-3 text-right">الفرع / المشرف</th>
+                  <th className="px-4 py-3 text-center">التاريخ</th>
+                  <th className="px-4 py-3 text-center">بداية → نهاية</th>
+                  <th className="px-4 py-3 text-center">الطلبات</th>
+                  <th className="px-4 py-3 text-center">المبيعات</th>
+                  <th className="px-4 py-3 text-center">الفرق</th>
+                  <th className="px-4 py-3 text-center">الحالة</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shiftHistory.map((sh,i)=>(
+                  <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/60 last:border-0">
+                    <td className="px-4 py-3">
+                      <p className="font-semibold text-gray-800 text-xs">{sh.branch}</p>
+                      <p className="text-[10px] text-gray-400">{sh.supervisor}</p>
+                    </td>
+                    <td className="px-4 py-3 text-center text-gray-500 text-xs">{sh.date}</td>
+                    <td className="px-4 py-3 text-center font-mono text-xs text-gray-600">{sh.startT} → {sh.endT}</td>
+                    <td className="px-4 py-3 text-center font-bold text-gray-800">{sh.orders}</td>
+                    <td className="px-4 py-3 text-center font-mono font-bold text-purple-700">{fmtAmt(sh.sales)} ر.س</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`font-mono font-bold text-sm ${sh.diff===0?"text-emerald-600":sh.diff>0?"text-blue-600":"text-red-600"}`}>
+                        {sh.diff>0?"+":""}{sh.diff} ر.س
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center"><Badge className="bg-emerald-50 text-emerald-700">مُغلق</Badge></td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-gray-50/80 border-t border-gray-200">
+                <tr>
+                  <td className="px-4 py-2.5 font-bold text-gray-700 text-xs" colSpan={3}>إجمالي الأسبوع</td>
+                  <td className="px-4 py-2.5 text-center font-bold text-gray-800">{shiftHistory.reduce((s,sh)=>s+sh.orders,0)}</td>
+                  <td className="px-4 py-2.5 text-center font-mono font-black text-purple-700">{fmtAmt(shiftHistory.reduce((s,sh)=>s+sh.sales,0))} ر.س</td>
+                  <td colSpan={2}/>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
@@ -4664,15 +4840,18 @@ function AccEmployees({ navigate, setModal }:PageProps) {
   const totalDebit = emp.movements.filter(m=>m.type==="debit").reduce((s,m)=>s+m.amt,0);
 
   const filteredEmps = employees.filter(e=>{
-    if(empFilter.empNum && !e.name.includes(empFilter.empNum) && !empFilter.empNum.match(/^\d+$/)) return true;
-    if(empFilter.branch && !e.branch.includes(empFilter.branch.replace("الكل",""))) return empFilter.branch==="الكل"||!empFilter.branch;
+    if(empFilter.empNum && !e.name.includes(empFilter.empNum)) return false;
+    if(empFilter.branch && empFilter.branch!=="الكل" && !e.branch.includes(empFilter.branch.replace("الكل",""))) return false;
     return true;
   });
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-800">كشف حساب الموظفين</h2>
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">كشف حساب الموظفين</h2>
+          <p className="text-gray-400 text-sm mt-0.5">{filteredEmps.length} موظف {filteredEmps.length!==employees.length?`(من ${employees.length})`:""}</p>
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -4687,8 +4866,8 @@ function AccEmployees({ navigate, setModal }:PageProps) {
           </div>
           <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">الفرع</label>
-            <select value={empFilter.branch} onChange={e=>setEmpFilter(p=>({...p,branch:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-              {["الكل",...BRANCHES].map(b=><option key={b}>{b}</option>)}
+            <select value={empFilter.branch} onChange={e=>{ setEmpFilter(p=>({...p,branch:e.target.value})); setSelectedIdx(0); }} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
+              {["الكل",...[...new Set(employees.map(e=>e.branch))]].map(b=><option key={b}>{b}</option>)}
             </select>
           </div>
           <div>
@@ -4704,15 +4883,19 @@ function AccEmployees({ navigate, setModal }:PageProps) {
       </div>
 
       <div className="grid grid-cols-2 gap-5">
-        <Card title={`قائمة الموظفين (${employees.length})`}>
+        <Card title={`قائمة الموظفين (${filteredEmps.length})`}>
           <div className="divide-y divide-gray-100">
-            {employees.map((e,i)=>(
-              <button key={i} onClick={()=>setSelectedIdx(i)} className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-right ${selectedIdx===i?"bg-purple-50/50":""}`}>
+            {filteredEmps.length===0 && <EmptyState icon="🔍" title="لا نتائج" desc="لا يوجد موظفون يطابقون الفلاتر المحددة"/>}
+            {filteredEmps.map((e,i)=>{
+              const realIdx = employees.indexOf(e);
+              return (
+              <button key={i} onClick={()=>setSelectedIdx(realIdx)} className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-right ${selectedIdx===realIdx?"bg-purple-50/50":""}`}>
                 <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-400 to-cyan-400 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{e.name[0]}</div>
                 <div className="flex-1 min-w-0"><p className="font-semibold text-sm text-gray-800">{e.name}</p><p className="text-xs text-gray-400">{e.role} · {e.branch}</p></div>
                 <span className={`font-mono font-bold text-sm ${e.balance>=0?"text-emerald-600":"text-red-600"}`}>{e.balance>=0?"+":""}{e.balance} ر.س</span>
               </button>
-            ))}
+              );
+            })}
           </div>
         </Card>
         <div className="space-y-4">
@@ -6073,6 +6256,82 @@ function AccReminders({}: PageProps) {
           );
         })}
       </div>
+
+      {/* Auto-reminder rules creation */}
+      <AutoReminderRules moduleLabels={MODULE_LABELS}/>
+    </div>
+  );
+}
+
+function AutoReminderRules({ moduleLabels }:{ moduleLabels:Record<string,string> }) {
+  type Rule = { id:string; module:string; triggerHour:string; repeatHours:string; active:boolean };
+  const [rules, setRules] = useState<Rule[]>([
+    { id:"AR1", module:"sales",           triggerHour:"22:00", repeatHours:"2", active:true  },
+    { id:"AR2", module:"inventory_daily", triggerHour:"20:00", repeatHours:"3", active:true  },
+    { id:"AR3", module:"waste",           triggerHour:"21:00", repeatHours:"4", active:false },
+    { id:"AR4", module:"expenses",        triggerHour:"23:00", repeatHours:"2", active:true  },
+  ]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newRule, setNewRule] = useState({ module:"sales", triggerHour:"20:00", repeatHours:"3" });
+
+  const toggleRule = (id:string) => setRules(p=>p.map(r=>r.id===id?{...r,active:!r.active}:r));
+  const addRule = () => {
+    setRules(p=>[...p,{ id:`AR${p.length+1}`, ...newRule, active:true }]);
+    setShowAdd(false);
+    setNewRule({ module:"sales", triggerHour:"20:00", repeatHours:"3" });
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div>
+          <h3 className="font-bold text-gray-800 text-sm">⚙️ قواعد التذكير التلقائي</h3>
+          <p className="text-xs text-gray-400 mt-0.5">يُرسَل تذكير تلقائياً إذا لم يُرفع التقرير بحلول الوقت المحدد</p>
+        </div>
+        <Btn size="sm" variant="primary" onClick={()=>setShowAdd(s=>!s)}><Plus size={12}/> إضافة قاعدة</Btn>
+      </div>
+      {showAdd && (
+        <div className="px-5 py-4 bg-purple-50/40 border-b border-purple-100">
+          <p className="text-xs font-bold text-purple-700 mb-3">➕ قاعدة جديدة</p>
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            <div>
+              <label className="text-[10px] font-semibold text-gray-500 block mb-1">الموديول</label>
+              <select value={newRule.module} onChange={e=>setNewRule(p=>({...p,module:e.target.value}))} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5">
+                {Object.entries(moduleLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-gray-500 block mb-1">وقت التشغيل</label>
+              <input type="time" value={newRule.triggerHour} onChange={e=>setNewRule(p=>({...p,triggerHour:e.target.value}))} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5" dir="ltr"/>
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-gray-500 block mb-1">تكرار كل (ساعات)</label>
+              <input type="number" min="1" max="12" value={newRule.repeatHours} onChange={e=>setNewRule(p=>({...p,repeatHours:e.target.value}))} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5"/>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Btn size="sm" variant="success" onClick={addRule}><CheckCircle2 size={11}/> حفظ</Btn>
+            <Btn size="sm" onClick={()=>setShowAdd(false)}>إلغاء</Btn>
+          </div>
+        </div>
+      )}
+      <div>
+        {rules.map((r,i)=>(
+          <div key={r.id} className={`px-5 py-3.5 flex items-center gap-4 border-b border-gray-50 last:border-0 ${!r.active?"opacity-50":""}`}>
+            <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
+              <Bell size={14} className="text-purple-600"/>
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-sm text-gray-800">{moduleLabels[r.module]||r.module}</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">يُرسَل في {r.triggerHour} · يتكرر كل {r.repeatHours} ساعات إذا لا يوجد رد</p>
+            </div>
+            <button onClick={()=>toggleRule(r.id)}
+              className={`w-11 h-6 rounded-full transition-all flex-shrink-0 relative ${r.active?"bg-purple-500":"bg-gray-300"}`}>
+              <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${r.active?"right-0.5":"left-0.5"}`}/>
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -6121,6 +6380,41 @@ function HeadDashboard({ navigate, setModal, setDetailId, ops, finalApproveOp, r
         <KpiCard label="مرفوضة" value={String(rejected.length)} sub="خارج المسار" icon={<XCircle size={18} className="text-red-600"/>} accent="red"/>
         <KpiCard label="معدل الأداء" value="87%" sub="هذا الشهر" icon={<TrendingUp size={18} className="text-purple-600"/>} accent="purple"/>
       </div>
+      {/* Weekly performance chart */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-gray-800 text-sm">📈 الأداء الأسبوعي — عمليات مكتملة</h3>
+          <span className="text-xs text-gray-400">الأسبوع الماضي مقارنةً بهذا الأسبوع</span>
+        </div>
+        <div className="flex items-end gap-3 h-28">
+          {[
+            {day:"الأحد",    thisW:24, lastW:18},
+            {day:"الاثنين",  thisW:32, lastW:22},
+            {day:"الثلاثاء", thisW:19, lastW:28},
+            {day:"الأربعاء", thisW:41, lastW:31},
+            {day:"الخميس",  thisW:35, lastW:25},
+            {day:"الجمعة",  thisW:12, lastW:9},
+            {day:"السبت",   thisW:28, lastW:20},
+          ].map((d,i)=>{
+            const max = 41;
+            return (
+              <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                <div className="w-full flex items-end gap-0.5 h-20">
+                  <div className="flex-1 bg-gray-200 rounded-t" style={{height:`${(d.lastW/max)*100}%`}} title={`الأسبوع الماضي: ${d.lastW}`}/>
+                  <div className="flex-1 bg-gradient-to-t from-purple-600 to-purple-400 rounded-t" style={{height:`${(d.thisW/max)*100}%`}} title={`هذا الأسبوع: ${d.thisW}`}/>
+                </div>
+                <p className="text-[9px] text-gray-400 text-center leading-tight">{d.day}</p>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-4 mt-2 pt-2 border-t border-gray-100">
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-purple-500 flex-shrink-0"/><span className="text-[11px] text-gray-600">هذا الأسبوع</span></div>
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-gray-200 flex-shrink-0"/><span className="text-[11px] text-gray-600">الأسبوع الماضي</span></div>
+          <div className="mr-auto text-[11px] text-emerald-600 font-semibold">↑ +18% مقارنة بالأسبوع الماضي</div>
+        </div>
+      </div>
+
       <PipelineOverview ops={ops} navigate={navigate}/>
       <ExceptionPanel ops={ops} forRole="head" navigate={navigate}/>
       <ModuleAggregationGrid ops={ops} navigate={navigate}/>
@@ -6202,12 +6496,58 @@ function HeadPending({ navigate, setModal, setDetailId, ops, finalApproveOp, rej
   const [filters, setFilters] = useState<Filters>({branch:"",status:"approved",match:"",search:""});
   const [accFilter, setAccFilter] = useState("الكل");
   const [brandFilter, setBrandFilter] = useState("الكل");
+  const [groupBy, setGroupBy] = useState<"flat"|"module"|"accountant">("module");
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const HEAD_ACCS = ["أحمد الشهري","سارة العمري","محمد الحربي","فاطمة السالم"];
   const getAcc = (id:string) => HEAD_ACCS[parseInt(id.replace(/\D/g,"").slice(-2)||"0") % HEAD_ACCS.length];
   let filtered = applyFilters(ops, filters).filter(o=>o.status==="approved");
   if(accFilter!=="الكل") filtered = filtered.filter(o=>getAcc(o.id)===accFilter);
   const totalAmt = filtered.reduce((s,o)=>s+o.amount,0);
   const hasFilters = accFilter!=="الكل"||brandFilter!=="الكل"||!!filters.branch||!!filters.match||!!filters.search;
+
+  const toggleGroup = (key:string) => setCollapsedGroups(prev=>{
+    const next = new Set(prev);
+    if(next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
+  const buildGroups = () => {
+    if(groupBy==="flat") return [{ key:"all", label:"جميع العمليات", ops:filtered }];
+    const map = new Map<string,Op[]>();
+    filtered.forEach(op=>{
+      const key = groupBy==="module" ? op.moduleLabel : getAcc(op.id);
+      if(!map.has(key)) map.set(key,[]);
+      map.get(key)!.push(op);
+    });
+    return Array.from(map.entries()).map(([key,ops])=>({ key, label:key, ops })).sort((a,b)=>b.ops.length-a.ops.length);
+  };
+
+  const groups = buildGroups();
+
+  const OpRow = ({ op }:{ op:Op }) => {
+    const accountant = getAcc(op.id);
+    return (
+      <div key={op.id} className={`px-5 py-4 flex items-center gap-4 border-b border-gray-100 last:border-0 hover:bg-gray-50/60 ${op.match==="diff"?"border-r-4 border-r-red-400":""}`}>
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-400 to-cyan-400 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{accountant[0]}</div>
+        {groupBy!=="module" && <Badge className="bg-purple-50 text-purple-700 border border-purple-100 text-xs flex-shrink-0">{op.moduleLabel}</Badge>}
+        {groupBy!=="accountant" && <Badge className="bg-blue-50 text-blue-700 border border-blue-100 text-[10px] flex-shrink-0">{accountant}</Badge>}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-sm text-gray-800">{op.branch}</span>
+            <span className="text-xs font-mono text-gray-400">{op.id}</span>
+            <Badge className={`${MATCH_CFG[op.match].cls} border text-[10px]`}>{MATCH_CFG[op.match].label}</Badge>
+          </div>
+          <p className="text-xs text-gray-400 mt-0.5">⏰ {op.timeAgo}</p>
+        </div>
+        <span className="font-mono font-bold text-gray-800 tabular-nums">{fmtAmt(op.amount)} ر.س</span>
+        <div className="flex gap-1.5">
+          <Btn size="sm" variant="success" onClick={()=>finalApproveOp(op.id)}><CheckCircle2 size={12}/> اعتماد</Btn>
+          <Btn size="sm" variant="danger" onClick={()=>{ setDetailId(op.id); setModal("reject"); }}><XCircle size={12}/> رفض</Btn>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -6274,37 +6614,72 @@ function HeadPending({ navigate, setModal, setDetailId, ops, finalApproveOp, rej
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-5 py-3.5 bg-gray-50/60 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="font-bold text-gray-900 text-sm">العمليات المعلقة</h3>
-          <span className="text-xs text-gray-400">{filtered.length} عملية · {fmtAmt(totalAmt)} ر.س</span>
-        </div>
-        {filtered.length===0
-          ? <EmptyState icon="✅" title="لا توجد عمليات" desc="تم اعتماد الكل أو لا تطابق الفلاتر"/>
-          : filtered.map(op=>{
-              const accountant = getAcc(op.id);
-              return (
-                <div key={op.id} className={`px-5 py-4 flex items-center gap-4 border-b border-gray-100 last:border-0 hover:bg-gray-50/60 ${op.match==="diff"?"border-r-4 border-r-red-400":""}`}>
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-400 to-cyan-400 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{accountant[0]}</div>
-                  <Badge className="bg-purple-50 text-purple-700 border border-purple-100 text-xs flex-shrink-0">{op.moduleLabel}</Badge>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-sm text-gray-800">{op.branch}</span>
-                      <span className="text-xs font-mono text-gray-400">{op.id}</span>
-                      <Badge className={`${MATCH_CFG[op.match].cls} border text-[10px]`}>{MATCH_CFG[op.match].label}</Badge>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-0.5">راجعه: <span className="text-purple-600 font-medium">{accountant}</span> · <span>⏰ {op.timeAgo}</span></p>
-                  </div>
-                  <span className="font-mono font-bold text-gray-800 tabular-nums">{fmtAmt(op.amount)} ر.س</span>
-                  <div className="flex gap-1.5">
-                    <Btn size="sm" variant="success" onClick={()=>finalApproveOp(op.id)}><CheckCircle2 size={12}/> اعتماد</Btn>
-                    <Btn size="sm" variant="danger" onClick={()=>{ setDetailId(op.id); setModal("reject"); }}><XCircle size={12}/> رفض</Btn>
-                  </div>
-                </div>
-              );
-            })
-        }
+      {/* Group by toggle */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-semibold text-gray-500">تجميع حسب:</span>
+        {([["flat","بدون تجميع"],["module","الموديول"],["accountant","المحاسب"]] as [typeof groupBy, string][]).map(([val,lbl])=>(
+          <button key={val} onClick={()=>setGroupBy(val)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${groupBy===val?"bg-purple-100 text-purple-700 border-purple-300":"bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}>
+            {lbl}
+          </button>
+        ))}
+        {groupBy!=="flat" && (
+          <button onClick={()=>setCollapsedGroups(new Set(groups.map(g=>g.key)))} className="text-xs text-gray-400 hover:text-gray-600 mr-2">طي الكل</button>
+        )}
+        {collapsedGroups.size>0 && (
+          <button onClick={()=>setCollapsedGroups(new Set())} className="text-xs text-purple-600 hover:underline">فتح الكل</button>
+        )}
       </div>
+
+      {filtered.length===0
+        ? <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-10"><EmptyState icon="✅" title="لا توجد عمليات" desc="تم اعتماد الكل أو لا تطابق الفلاتر"/></div>
+        : groupBy==="flat"
+          ? (
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-5 py-3.5 bg-gray-50/60 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="font-bold text-gray-900 text-sm">العمليات المعلقة</h3>
+                <span className="text-xs text-gray-400">{filtered.length} عملية · {fmtAmt(totalAmt)} ر.س</span>
+              </div>
+              {filtered.map(op=><OpRow key={op.id} op={op}/>)}
+            </div>
+          )
+          : (
+            <div className="space-y-3">
+              {groups.map(grp=>{
+                const grpAmt = grp.ops.reduce((s,o)=>s+o.amount,0);
+                const isCollapsed = collapsedGroups.has(grp.key);
+                const diffCount = grp.ops.filter(o=>o.match==="diff").length;
+                return (
+                  <div key={grp.key} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                    <button onClick={()=>toggleGroup(grp.key)} className="w-full px-5 py-3.5 bg-gray-50/60 border-b border-gray-100 flex items-center justify-between hover:bg-gray-100/60 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <ChevronRight size={14} className={`text-gray-400 transition-transform ${isCollapsed?"rotate-0":"-rotate-90"}`}/>
+                        <span className="font-bold text-gray-900 text-sm">{grp.label}</span>
+                        <Badge className="bg-amber-50 text-amber-700 border border-amber-100 text-[10px]">{grp.ops.length} عملية</Badge>
+                        {diffCount>0 && <Badge className="bg-red-50 text-red-700 border border-red-100 text-[10px]">⚠️ {diffCount} فروقات</Badge>}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono text-sm font-bold text-gray-700">{fmtAmt(grpAmt)} ر.س</span>
+                        <Btn size="sm" variant="success" onClick={e=>{ e.stopPropagation(); bulkApprove(grp.ops.map(o=>o.id)); }}>
+                          <CheckCircle2 size={11}/> اعتماد المجموعة
+                        </Btn>
+                      </div>
+                    </button>
+                    {!isCollapsed && grp.ops.map(op=><OpRow key={op.id} op={op}/>)}
+                  </div>
+                );
+              })}
+              {/* Running totals footer */}
+              <div className="bg-gradient-to-l from-purple-50 to-blue-50 rounded-xl border border-purple-100 p-4 flex items-center justify-between">
+                <span className="font-bold text-purple-800 text-sm">إجمالي العمليات المعلقة</span>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-gray-600">{filtered.length} عملية في {groups.length} {groupBy==="module"?"موديول":"محاسب"}</span>
+                  <span className="font-mono font-bold text-purple-700 text-base">{fmtAmt(totalAmt)} ر.س</span>
+                </div>
+              </div>
+            </div>
+          )
+      }
     </div>
   );
 }
@@ -6394,9 +6769,11 @@ function HeadModulePage({ moduleKey, navigate, setModal, setDetailId, ops, final
   const [filters, setFilters] = useState<Filters>({branch:"",status:"",match:"",search:""});
   const [accFilter, setAccFilter] = useState("الكل");
   const [brandFilter, setBrandFilter] = useState("الكل");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo]   = useState("");
   const mk = moduleKey as ModuleKey;
-  const labels: Record<string,string> = {sales:"المبيعات",expenses:"المصروفات",purchases:"المشتريات",inventory:"المخزون",shifts:"الشفتات",employees:"كشف الحساب",cash:"العهد النقدية"};
-  const moduleEmoji: Record<string,string> = {sales:"💰",expenses:"🧾",purchases:"🛒",inventory:"📦",shifts:"🕐",employees:"👥",cash:"💵"};
+  const labels: Record<string,string> = {sales:"المبيعات",expenses:"المصروفات",purchases:"المشتريات",inventory:"المخزون",shifts:"الشفتات",employees:"كشف الحساب",cash:"العهد النقدية",waste:"الهدر والتالف",assets:"الأصول الثابتة"};
+  const moduleEmoji: Record<string,string> = {sales:"💰",expenses:"🧾",purchases:"🛒",inventory:"📦",shifts:"🕐",employees:"👥",cash:"💵",waste:"🗑️",assets:"🏢"};
   const label = labels[moduleKey]||moduleKey;
   const HEAD_ACCS = ["أحمد الشهري","سارة العمري","محمد الحربي","فاطمة السالم"];
   const getAcc = (id:string) => HEAD_ACCS[parseInt(id.replace(/\D/g,"").slice(-2)||"0") % HEAD_ACCS.length];
@@ -6405,16 +6782,22 @@ function HeadModulePage({ moduleKey, navigate, setModal, setDetailId, ops, final
   const totalAmt = filtered.reduce((s,o)=>s+o.amount,0);
   const diffCount = filtered.filter(o=>o.match==="diff").length;
   const exactCount = filtered.filter(o=>o.match==="exact").length;
-  const hasFilters = accFilter!=="الكل"||brandFilter!=="الكل"||!!filters.branch||!!filters.match||!!filters.search;
+  const hasFilters = accFilter!=="الكل"||brandFilter!=="الكل"||!!filters.branch||!!filters.match||!!filters.search||!!dateFrom||!!dateTo;
 
   return (
     <div className="space-y-5">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-1.5 text-xs text-gray-400">
+        <button onClick={()=>navigate("head-dashboard")} className="hover:text-purple-600 transition-colors">لوحة التحكم</button>
+        <ChevronRight size={12}/>
+        <span className="text-gray-500">الموديولات</span>
+        <ChevronRight size={12}/>
+        <span className="text-gray-800 font-semibold">{moduleEmoji[moduleKey]||"📋"} {label}</span>
+      </div>
+
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">{moduleEmoji[moduleKey]||"📋"}</span>
-            <h2 className="text-xl font-bold text-gray-800">{label} — الاعتماد النهائي</h2>
-          </div>
+          <h2 className="text-xl font-bold text-gray-800">{label} — الاعتماد النهائي</h2>
           <p className="text-gray-400 text-sm mt-0.5">العمليات الموافق عليها من المحاسبين — تنتظر اعتمادك النهائي</p>
         </div>
         <div className="flex gap-2">
@@ -6465,14 +6848,31 @@ function HeadModulePage({ moduleKey, navigate, setModal, setDetailId, ops, final
             </select>
           </div>
         </div>
+        {/* Date period filter */}
+        <div className="grid grid-cols-3 gap-3 mb-3">
+          <div>
+            <label className="text-[11px] font-semibold text-gray-500 block mb-1">من تاريخ</label>
+            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2" dir="ltr"/>
+          </div>
+          <div>
+            <label className="text-[11px] font-semibold text-gray-500 block mb-1">إلى تاريخ</label>
+            <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2" dir="ltr"/>
+          </div>
+          <div className="flex items-end gap-2">
+            {(dateFrom||dateTo) && (
+              <button onClick={()=>{ setDateFrom(""); setDateTo(""); }}
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-500 border border-gray-200 rounded-lg px-3 py-2"><RotateCcw size={10}/> مسح التاريخ</button>
+            )}
+          </div>
+        </div>
         <div className="flex items-center gap-2">
           <div className="flex-1 flex items-center gap-1.5 border border-gray-200 rounded-lg px-3 py-2">
             <Search size={13} className="text-gray-400 flex-shrink-0"/>
             <input value={filters.search} onChange={e=>setFilters({...filters,search:e.target.value})} placeholder="بحث بالفرع أو المطعم أو رقم العملية..." className="flex-1 text-sm outline-none"/>
           </div>
           {hasFilters && (
-            <button onClick={()=>{ setAccFilter("الكل"); setBrandFilter("الكل"); setFilters({branch:"",status:"",match:"",search:""}); }}
-              className="text-xs text-purple-600 hover:underline flex items-center gap-1"><RotateCcw size={11}/> مسح</button>
+            <button onClick={()=>{ setAccFilter("الكل"); setBrandFilter("الكل"); setFilters({branch:"",status:"",match:"",search:""}); setDateFrom(""); setDateTo(""); }}
+              className="text-xs text-purple-600 hover:underline flex items-center gap-1"><RotateCcw size={11}/> مسح الكل</button>
           )}
         </div>
       </div>
@@ -6506,6 +6906,17 @@ function HeadModulePage({ moduleKey, navigate, setModal, setDetailId, ops, final
               );
             })
         }
+        {filtered.length>0 && (
+          <div className="px-5 py-3 bg-gradient-to-r from-purple-50/80 to-cyan-50/60 border-t border-purple-100 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-gray-600">الإجمالي الكلي</span>
+              <Badge className="bg-purple-100 text-purple-700">{filtered.length} عملية</Badge>
+              {diffCount>0 && <Badge className="bg-red-50 text-red-700">{diffCount} فروقات</Badge>}
+              {exactCount>0 && <Badge className="bg-emerald-50 text-emerald-700">{exactCount} مطابقة</Badge>}
+            </div>
+            <span className="font-mono font-black text-xl text-purple-700">{fmtAmt(totalAmt)} ر.س</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -9479,6 +9890,426 @@ function SupNewOrders({}: PageProps) {
             </div>
           </Card>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// BRANCH SETTINGS PAGE
+// ════════════════════════════════════════════════════════════
+function BranchSettings({ navigate }:PageProps) {
+  const [saved, setSaved] = useState(false);
+  const [form, setForm] = useState({
+    branchName:"فرع الرياض - العليا", manager:"أحمد الشمري",
+    phone:"0112456789", address:"الرياض — حي العليا، شارع العروبة",
+    openTime:"08:00", closeTime:"23:00", shiftDuration:"8",
+    taxNumber:"310012345600003", bankAccount:"SA1234567890123456789012",
+    cashLimit:"5000", wasteThreshold:"3", autoReminders:true, requireImages:true
+  });
+  const save = () => { setSaved(true); setTimeout(()=>setSaved(false),2500); };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">إعدادات الفرع</h2>
+          <p className="text-gray-400 text-sm mt-0.5">{form.branchName}</p>
+        </div>
+        <Btn variant="success" onClick={save}><CheckCircle2 size={14}/> {saved?"✅ تم الحفظ":"حفظ الإعدادات"}</Btn>
+      </div>
+      <div className="grid grid-cols-2 gap-5">
+        <Card title="📋 البيانات الأساسية">
+          <div className="p-4 space-y-3">
+            {[{label:"اسم الفرع",field:"branchName"},{label:"مدير الفرع",field:"manager"},{label:"رقم الهاتف",field:"phone"},{label:"العنوان",field:"address"}].map(({label,field})=>(
+              <div key={field}>
+                <label className="text-[11px] font-semibold text-gray-500 block mb-1">{label}</label>
+                <input value={(form as any)[field]} onChange={e=>setForm(p=>({...p,[field]:e.target.value}))}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300"/>
+              </div>
+            ))}
+          </div>
+        </Card>
+        <Card title="⏰ أوقات العمل والشفتات">
+          <div className="p-4 space-y-3">
+            {[{label:"وقت الفتح",field:"openTime",type:"time"},{label:"وقت الإغلاق",field:"closeTime",type:"time"},{label:"مدة الشفت (ساعات)",field:"shiftDuration",type:"number"}].map(({label,field,type})=>(
+              <div key={field}>
+                <label className="text-[11px] font-semibold text-gray-500 block mb-1">{label}</label>
+                <input type={type} value={(form as any)[field]} onChange={e=>setForm(p=>({...p,[field]:e.target.value}))}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300"/>
+              </div>
+            ))}
+            <div className="bg-blue-50 rounded-xl p-3">
+              <p className="text-xs text-blue-700 font-medium">⏱ ساعات العمل اليومية: <strong>{(parseInt(form.closeTime)-parseInt(form.openTime))} ساعة</strong> · {Math.floor((parseInt(form.closeTime)-parseInt(form.openTime))/parseInt(form.shiftDuration))} شفتات</p>
+            </div>
+          </div>
+        </Card>
+        <Card title="💳 البيانات المالية والضريبية">
+          <div className="p-4 space-y-3">
+            {[{label:"الرقم الضريبي",field:"taxNumber"},{label:"رقم الحساب البنكي (IBAN)",field:"bankAccount"},{label:"سقف العهدة النقدية (ر.س)",field:"cashLimit",type:"number"}].map(({label,field,type})=>(
+              <div key={field}>
+                <label className="text-[11px] font-semibold text-gray-500 block mb-1">{label}</label>
+                <input type={type||"text"} value={(form as any)[field]} onChange={e=>setForm(p=>({...p,[field]:e.target.value}))}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300 font-mono" dir="ltr"/>
+              </div>
+            ))}
+          </div>
+        </Card>
+        <Card title="⚙️ خيارات التشغيل">
+          <div className="p-4 space-y-4">
+            <div>
+              <label className="text-[11px] font-semibold text-gray-500 block mb-1">حد التنبيه للهدر (%)</label>
+              <input type="number" value={form.wasteThreshold} onChange={e=>setForm(p=>({...p,wasteThreshold:e.target.value}))}
+                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300"/>
+            </div>
+            <div className="space-y-3">
+              {[{label:"إرسال التذكيرات تلقائياً",field:"autoReminders",desc:"إرسال تذكير للمحاسب عند غياب تقرير الفرع"},
+                {label:"إلزامية إرفاق الصور",field:"requireImages",desc:"يجب إرفاق صور مع كل عملية مشتريات أو هدر"}].map(({label,field,desc})=>(
+                <div key={field} className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
+                  <div className="pt-0.5">
+                    <button onClick={()=>setForm(p=>({...p,[field]:!(p as any)[field]}))}
+                      className={`w-10 h-5 rounded-full transition-all ${(form as any)[field]?"bg-purple-500":"bg-gray-300"}`}>
+                      <span className={`block w-4 h-4 rounded-full bg-white shadow transition-transform mx-0.5 ${(form as any)[field]?"translate-x-5":""}`}/>
+                    </button>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700">{label}</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// PROCUREMENT EXTRA PAGES
+// ════════════════════════════════════════════════════════════
+function ProcItems({}: PageProps) {
+  const [search, setSearch] = useState("");
+  const items = [
+    {name:"دجاج طازج",unit:"كجم",category:"لحوم ودواجن",supplier:"شركة الدواجن الوطنية",avgPrice:24,lastOrder:"أمس",monthlyUsage:2400,stock:180},
+    {name:"دجاج مجمد",unit:"كجم",category:"لحوم ودواجن",supplier:"شركة الدواجن الوطنية",avgPrice:21,lastOrder:"قبل 3 أيام",monthlyUsage:1800,stock:320},
+    {name:"طحين قمح",unit:"كيس 50كجم",category:"مواد جافة",supplier:"مطاحن الملك",avgPrice:185,lastOrder:"الأسبوع الماضي",monthlyUsage:40,stock:12},
+    {name:"زيت نباتي",unit:"جالون 20ل",category:"مواد جافة",supplier:"مطاحن الملك",avgPrice:95,lastOrder:"قبل 5 أيام",monthlyUsage:60,stock:8},
+    {name:"طماطم طازجة",unit:"كرتون 10كجم",category:"خضروات وفواكه",supplier:"مزرعة الخير",avgPrice:45,lastOrder:"اليوم",monthlyUsage:300,stock:25},
+    {name:"خس",unit:"كرتون",category:"خضروات وفواكه",supplier:"مزرعة الخير",avgPrice:38,lastOrder:"اليوم",monthlyUsage:120,stock:10},
+  ];
+  const filtered = items.filter(i=>!search||i.name.includes(search)||i.category.includes(search)||i.supplier.includes(search));
+  const totalMonthly = filtered.reduce((s,i)=>s+i.avgPrice*i.monthlyUsage,0);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div><h2 className="text-xl font-bold text-gray-800">كتالوج الأصناف</h2><p className="text-gray-400 text-sm mt-0.5">{filtered.length} صنف · تكلفة شهرية إجمالية: {fmtAmt(totalMonthly)} ر.س</p></div>
+        <div className="flex gap-2">
+          <button onClick={()=>alert("جارٍ تصدير الكتالوج إلى Excel...")} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> Excel</button>
+          <Btn variant="primary"><Plus size={13}/> إضافة صنف</Btn>
+        </div>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
+        <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2">
+          <Search size={13} className="text-gray-400 flex-shrink-0"/>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="بحث بالصنف أو التصنيف أو المورد..." className="flex-1 text-sm outline-none"/>
+        </div>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <table className="w-full text-sm" dir="rtl">
+          <thead className="bg-gray-50 border-b border-gray-100">
+            <tr className="text-xs text-gray-500">
+              <th className="px-4 py-3 text-right">الصنف</th>
+              <th className="px-4 py-3 text-center">التصنيف</th>
+              <th className="px-4 py-3 text-center">المورد</th>
+              <th className="px-4 py-3 text-center">الوحدة</th>
+              <th className="px-4 py-3 text-center">متوسط السعر</th>
+              <th className="px-4 py-3 text-center">الاستهلاك الشهري</th>
+              <th className="px-4 py-3 text-center">المخزون الحالي</th>
+              <th className="px-4 py-3 text-center">آخر طلب</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((item,i)=>(
+              <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/60 last:border-0">
+                <td className="px-4 py-3 font-semibold text-gray-800">{item.name}</td>
+                <td className="px-4 py-3 text-center"><Badge className="bg-purple-50 text-purple-700 text-[10px]">{item.category}</Badge></td>
+                <td className="px-4 py-3 text-center text-gray-500 text-xs">{item.supplier}</td>
+                <td className="px-4 py-3 text-center text-gray-600">{item.unit}</td>
+                <td className="px-4 py-3 text-center font-mono font-bold text-gray-800">{item.avgPrice} ر.س</td>
+                <td className="px-4 py-3 text-center font-mono">{item.monthlyUsage} {item.unit}</td>
+                <td className="px-4 py-3 text-center">
+                  <span className={`font-bold font-mono ${item.stock<15?"text-red-600":item.stock<25?"text-amber-600":"text-emerald-600"}`}>{item.stock}</span>
+                </td>
+                <td className="px-4 py-3 text-center text-gray-400 text-xs">{item.lastOrder}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot className="bg-gray-50/80 border-t border-gray-200">
+            <tr>
+              <td className="px-4 py-2.5 font-bold text-gray-700 text-xs" colSpan={4}>الإجمالي الشهري</td>
+              <td colSpan={4} className="px-4 py-2.5 text-left font-mono font-black text-purple-700">{fmtAmt(totalMonthly)} ر.س</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ProcSuppliers({}: PageProps) {
+  const suppliers = [
+    {name:"شركة الدواجن الوطنية",category:"لحوم ودواجن",contact:"0553421100",rating:4.8,orders:42,monthlyTotal:148000,onTime:96,status:"نشط"},
+    {name:"مطاحن الملك",category:"مواد جافة",contact:"0112345678",rating:4.5,orders:28,monthlyTotal:62000,onTime:91,status:"نشط"},
+    {name:"مزرعة الخير",category:"خضروات وفواكه",contact:"0564312200",rating:4.2,orders:35,monthlyTotal:38500,onTime:84,status:"نشط"},
+    {name:"مستودعات البحر",category:"مأكولات بحرية",contact:"0126789000",rating:3.8,orders:15,monthlyTotal:22000,onTime:77,status:"موقوف مؤقتاً"},
+  ];
+  const totalMonthly = suppliers.reduce((s,sup)=>s+sup.monthlyTotal,0);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div><h2 className="text-xl font-bold text-gray-800">الموردون</h2><p className="text-gray-400 text-sm mt-0.5">{suppliers.length} مورد · إجمالي شهري: {fmtAmt(totalMonthly)} ر.س</p></div>
+        <div className="flex gap-2">
+          <button onClick={()=>alert("جارٍ تصدير قائمة الموردين...")} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> Excel</button>
+          <Btn variant="primary"><Plus size={13}/> إضافة مورد</Btn>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        {suppliers.map((sup,i)=>(
+          <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{sup.name[0]}</div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="font-bold text-gray-800 text-sm">{sup.name}</p>
+                  <Badge className={sup.status==="نشط"?"bg-emerald-50 text-emerald-700":"bg-amber-50 text-amber-700"}>{sup.status}</Badge>
+                </div>
+                <p className="text-xs text-gray-400">{sup.category} · {sup.contact}</p>
+              </div>
+              <div className="flex items-center gap-0.5">
+                {[1,2,3,4,5].map(s=><Star key={s} size={10} fill={s<=Math.round(sup.rating)?"#F59E0B":"none"} className={s<=Math.round(sup.rating)?"text-amber-400":"text-gray-200"}/>)}
+                <span className="text-[10px] text-gray-500 mr-1">{sup.rating}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="bg-gray-50 rounded-lg p-2">
+                <p className="text-[9px] text-gray-400">الطلبات</p>
+                <p className="font-bold text-gray-800">{sup.orders}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-2">
+                <p className="text-[9px] text-gray-400">الشهري</p>
+                <p className="font-bold text-purple-700 font-mono text-xs">{(sup.monthlyTotal/1000).toFixed(0)}K</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-2">
+                <p className="text-[9px] text-gray-400">الالتزام</p>
+                <p className={`font-bold ${sup.onTime>=90?"text-emerald-600":sup.onTime>=80?"text-amber-600":"text-red-600"}`}>{sup.onTime}%</p>
+              </div>
+            </div>
+            <div className="mt-2.5 flex gap-2">
+              <Btn size="sm" variant="primary" className="flex-1"><ShoppingCart size={11}/> طلب جديد</Btn>
+              <Btn size="sm" className="flex-1"><Eye size={11}/> السجل</Btn>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 flex items-center justify-between">
+        <span className="text-sm font-semibold text-gray-700">إجمالي الإنفاق الشهري على الموردين</span>
+        <span className="font-mono font-black text-xl text-purple-700">{fmtAmt(totalMonthly)} ر.س</span>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// SUPPLIER EXTRA PAGES
+// ════════════════════════════════════════════════════════════
+function SupAccepted({}: PageProps) {
+  const orders = [
+    {id:"ORD-5498",rest:"مطعم هرفي",items:"دجاج طازج — 200 كجم",accepted:"اليوم 9:15 ص",deliveryDate:"غداً 8 ص",total:4800,status:"قيد التحضير"},
+    {id:"ORD-5495",rest:"ماكدونالدز السعودية",items:"دجاج مجمد — 500 كجم",accepted:"أمس 2:30 م",deliveryDate:"اليوم 6 م",total:10500,status:"في الطريق"},
+    {id:"ORD-5491",rest:"مطعم الريم",items:"قطع مشكلة — 150 كجم",accepted:"قبل يومين",deliveryDate:"اليوم 10 ص",total:3600,status:"تم التسليم"},
+    {id:"ORD-5488",rest:"فرع النخيل",items:"دجاج طازج — 100 كجم",accepted:"قبل 3 أيام",deliveryDate:"تم",total:2400,status:"تم التسليم"},
+  ];
+  const totalRunning = orders.reduce((s,o)=>s+o.total,0);
+  const statusStyle = (s:string)=> s==="تم التسليم"?"bg-emerald-50 text-emerald-700":s==="في الطريق"?"bg-blue-50 text-blue-700":"bg-amber-50 text-amber-700";
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div><h2 className="text-xl font-bold text-gray-800">الطلبات المقبولة</h2><p className="text-gray-400 text-sm mt-0.5">{orders.length} طلب · إجمالي: {fmtAmt(totalRunning)} ر.س</p></div>
+        <button onClick={()=>alert("جارٍ تصدير الطلبات المقبولة...")} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> Excel</button>
+      </div>
+      <Card title="سجل الطلبات المقبولة">
+        {orders.map((o,i)=>(
+          <div key={i} className="px-5 py-4 flex items-center gap-4 border-b border-gray-100 last:border-0 hover:bg-gray-50">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0"><CheckCircle2 size={16} className="text-emerald-600"/></div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2"><span className="font-semibold text-sm text-gray-800">{o.rest}</span><span className="font-mono text-xs text-gray-400">{o.id}</span></div>
+              <p className="text-xs text-gray-400 mt-0.5">{o.items} · قُبل: {o.accepted}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] text-gray-400">التسليم</p>
+              <p className="text-xs font-semibold text-gray-700">{o.deliveryDate}</p>
+            </div>
+            <Badge className={statusStyle(o.status)}>{o.status}</Badge>
+            <span className="font-mono font-bold text-gray-800">{fmtAmt(o.total)} ر.س</span>
+          </div>
+        ))}
+        <div className="px-5 py-3 bg-gray-50/80 border-t border-gray-100 flex justify-between items-center">
+          <span className="text-sm font-semibold text-gray-600">الإجمالي</span>
+          <span className="font-mono font-black text-purple-700 text-lg">{fmtAmt(totalRunning)} ر.س</span>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function SupRejected({}: PageProps) {
+  const [reason, setReason] = useState<string|null>(null);
+  const orders = [
+    {id:"ORD-5490",rest:"مطعم الكوخ",items:"دجاج طازج — 300 كجم",rejected:"أمس",total:7200,reason:"الكمية تتجاوز طاقتنا الإنتاجية اليومية"},
+    {id:"ORD-5486",rest:"فرع الشرقية",items:"قطع مشكلة — 400 كجم",rejected:"قبل يومين",total:9600,reason:"موعد التسليم المطلوب (نفس اليوم) غير ممكن"},
+  ];
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div><h2 className="text-xl font-bold text-gray-800">الطلبات المرفوضة</h2><p className="text-gray-400 text-sm mt-0.5">{orders.length} طلب مرفوض</p></div>
+      </div>
+      <Card title="سجل الرفض">
+        {orders.map((o,i)=>(
+          <div key={i} className="px-5 py-4 border-b border-gray-100 last:border-0 hover:bg-gray-50">
+            <div className="flex items-center gap-4">
+              <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0"><XCircle size={16} className="text-red-500"/></div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2"><span className="font-semibold text-sm text-gray-800">{o.rest}</span><span className="font-mono text-xs text-gray-400">{o.id}</span></div>
+                <p className="text-xs text-gray-400 mt-0.5">{o.items} · رُفض: {o.rejected}</p>
+              </div>
+              <Badge className="bg-red-50 text-red-700">مرفوض</Badge>
+              <span className="font-mono font-bold text-gray-800">{fmtAmt(o.total)} ر.س</span>
+              <button onClick={()=>setReason(reason===o.id?null:o.id)} className="text-xs px-2 py-1 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 flex items-center gap-1"><Eye size={11}/> السبب</button>
+            </div>
+            {reason===o.id && (
+              <div className="mt-2 mr-12 p-2.5 bg-red-50 rounded-lg border border-red-100">
+                <p className="text-xs text-red-700 font-medium">سبب الرفض: <span className="font-bold">{o.reason}</span></p>
+              </div>
+            )}
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+}
+
+function SupItems({}: PageProps) {
+  const items = [
+    {name:"دجاج طازج",unit:"كجم",minQty:50,maxQty:1000,price:24,available:true,leadTime:"24 ساعة"},
+    {name:"دجاج مجمد",unit:"كجم",minQty:100,maxQty:5000,price:21,available:true,leadTime:"48 ساعة"},
+    {name:"قطع مشكلة",unit:"كجم",minQty:50,maxQty:800,price:24,available:true,leadTime:"24 ساعة"},
+    {name:"دجاج كامل",unit:"كجم",minQty:30,maxQty:500,price:22,available:false,leadTime:"48 ساعة"},
+  ];
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div><h2 className="text-xl font-bold text-gray-800">قائمة الأصناف</h2><p className="text-gray-400 text-sm mt-0.5">المنتجات التي يوفرها المورد</p></div>
+        <Btn variant="primary"><Plus size={13}/> إضافة صنف</Btn>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <table className="w-full text-sm" dir="rtl">
+          <thead className="bg-gray-50 border-b border-gray-100">
+            <tr className="text-xs text-gray-500">
+              <th className="px-4 py-3 text-right">الصنف</th>
+              <th className="px-4 py-3 text-center">الوحدة</th>
+              <th className="px-4 py-3 text-center">الحد الأدنى</th>
+              <th className="px-4 py-3 text-center">الحد الأقصى</th>
+              <th className="px-4 py-3 text-center">السعر (ر.س)</th>
+              <th className="px-4 py-3 text-center">مدة التحضير</th>
+              <th className="px-4 py-3 text-center">الحالة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item,i)=>(
+              <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/60 last:border-0">
+                <td className="px-4 py-3 font-semibold text-gray-800">{item.name}</td>
+                <td className="px-4 py-3 text-center text-gray-600">{item.unit}</td>
+                <td className="px-4 py-3 text-center font-mono">{item.minQty}</td>
+                <td className="px-4 py-3 text-center font-mono">{item.maxQty}</td>
+                <td className="px-4 py-3 text-center font-mono font-bold text-purple-700">{item.price}</td>
+                <td className="px-4 py-3 text-center text-gray-500 text-xs">{item.leadTime}</td>
+                <td className="px-4 py-3 text-center">
+                  <Badge className={item.available?"bg-emerald-50 text-emerald-700":"bg-red-50 text-red-700"}>{item.available?"متاح":"غير متاح"}</Badge>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function SupReports({}: PageProps) {
+  const months = ["أكتوبر","سبتمبر","أغسطس","يوليو"];
+  const [month, setMonth] = useState("أكتوبر");
+  const stats = {accepted:12,rejected:2,totalRevenue:285000,avgOrderValue:21923,topClient:"ماكدونالدز السعودية",onTime:94};
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div><h2 className="text-xl font-bold text-gray-800">التقارير</h2><p className="text-gray-400 text-sm mt-0.5">تقارير أداء المورد الشهرية</p></div>
+        <div className="flex gap-2">
+          <select value={month} onChange={e=>setMonth(e.target.value)} className="text-sm border border-gray-200 rounded-lg px-3 py-2">
+            {months.map(m=><option key={m}>{m}</option>)}
+          </select>
+          <button onClick={()=>alert("جارٍ تصدير التقرير...")} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> Excel</button>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <KpiCard label="إجمالي الإيرادات" value={`${(stats.totalRevenue/1000).toFixed(0)}K ر.س`} sub={month} icon={<TrendingUp size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label="الطلبات المقبولة" value={String(stats.accepted)} sub="هذا الشهر" icon={<CheckCircle2 size={18} className="text-emerald-600"/>} accent="emerald"/>
+        <KpiCard label="نسبة الالتزام بالتسليم" value={`${stats.onTime}%`} sub="في الوقت المحدد" icon={<Truck size={18} className="text-blue-600"/>} accent="blue"/>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <Card title={`ملخص ${month}`}>
+          <div className="p-4 space-y-3">
+            {[
+              {label:"طلبات مقبولة",value:stats.accepted,cls:"text-emerald-600"},
+              {label:"طلبات مرفوضة",value:stats.rejected,cls:"text-red-600"},
+              {label:"متوسط قيمة الطلب",value:`${fmtAmt(stats.avgOrderValue)} ر.س`,cls:"text-purple-700"},
+              {label:"أكبر عميل",value:stats.topClient,cls:"text-blue-600"},
+            ].map(({label,value,cls})=>(
+              <div key={label} className="flex justify-between py-2 border-b border-gray-50 last:border-0">
+                <span className="text-sm text-gray-600">{label}</span>
+                <span className={`text-sm font-bold ${cls}`}>{value}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+        <Card title="توزيع الإيرادات حسب العميل">
+          <div className="p-4 space-y-2.5">
+            {[
+              {client:"ماكدونالدز السعودية",pct:37,amt:104600},
+              {client:"مطعم هرفي",pct:22,amt:62700},
+              {client:"مطعم الريم",pct:18,amt:51300},
+              {client:"فرع النخيل",pct:14,amt:39900},
+              {client:"آخرون",pct:9,amt:26500},
+            ].map((c,i)=>(
+              <div key={i}>
+                <div className="flex justify-between text-xs mb-0.5">
+                  <span className="text-gray-600">{c.client}</span>
+                  <span className="font-bold text-gray-800">{fmtAmt(c.amt)} ر.س</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-1.5">
+                  <div className="h-1.5 rounded-full bg-gradient-to-r from-purple-500 to-cyan-400" style={{width:`${c.pct}%`}}/>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
       </div>
     </div>
   );
