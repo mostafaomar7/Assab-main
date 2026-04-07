@@ -1,5 +1,5 @@
 import "./_group.css";
-import { useState, useMemo, ReactNode } from "react";
+import { useState, useMemo, ReactNode, createContext, useContext, useRef } from "react";
 import {
   LayoutDashboard, TrendingUp, Wallet, ShoppingCart, Package, Building2, Clock,
   Users, ArrowLeftRight, BarChart3, Settings, Bell, LogOut, ChevronRight,
@@ -7,7 +7,7 @@ import {
   AlertTriangle, Paperclip, ThumbsUp, ThumbsDown, RefreshCw, Star,
   Upload, ChevronsRight, Phone, Search, Plus, Trash2, Edit2, Edit3, X, FileText,
   Truck, Home, Shield, RotateCcw, Lock, Send, Tag, Smartphone, CheckSquare,
-  ZapOff, ChevronLeft, Clipboard, Check, CreditCard
+  ZapOff, ChevronLeft, Clipboard, Check, CreditCard, ArrowRightToLine, Layers, GitMerge
 } from "lucide-react";
 
 // ─────────────────────────────────────────────
@@ -63,6 +63,44 @@ interface AppState {
   detailId: string | null;
   modal: string | null;
 }
+
+// ─────────────────────────────────────────────
+// ASSET DRAFT — expense-to-asset conversion
+// ─────────────────────────────────────────────
+type AssetCatType = "معدات"|"تقنية"|"أثاث"|"مركبات"|"أخرى";
+interface AssetDraft {
+  draftId: string;
+  expenseOpId: string;
+  invNum: string;
+  vendor: string;
+  desc: string;
+  amount: number;
+  expenseBranch: string;
+  expenseDate: string;
+  assetName: string;
+  cat: AssetCatType;
+  usefulLife: number;
+  targetBranches: string[];
+  custodian: string;
+  qty: number;
+  notes: string;
+  convertedAt: string;
+  status: "draft"|"confirmed"|"discarded";
+}
+interface AssetDraftCtxType {
+  drafts: AssetDraft[];
+  addDraft: (d: AssetDraft) => void;
+  discardDraft: (draftId: string) => void;
+  confirmDraft: (draftId: string) => void;
+  getConvertedInvNums: () => Set<string>;
+  navigateToAssets?: () => void;
+  setNavigateToAssets: (fn: () => void) => void;
+}
+const AssetDraftContext = createContext<AssetDraftCtxType>({
+  drafts: [], addDraft: ()=>{}, discardDraft: ()=>{}, confirmDraft: ()=>{},
+  getConvertedInvNums: ()=>new Set(), navigateToAssets: undefined,
+  setNavigateToAssets: ()=>{},
+});
 
 interface PageProps {
   navigate: (p: PageId) => void;
@@ -1023,6 +1061,8 @@ function Sidebar({ role, ops, page, navigate, logout, collapsed, setCollapsed }:
 }) {
   const profile = ROLE_PROFILES[role];
   const navEntries = NAV_CONFIG[role];
+  const { drafts } = useContext(AssetDraftContext);
+  const activeDraftCount = drafts.filter(d=>d.status==="draft").length;
 
   // compute live badge per module nav item
   const pendingByModule = useMemo(()=>{
@@ -1036,6 +1076,7 @@ function Sidebar({ role, ops, page, navigate, logout, collapsed, setCollapsed }:
   const getBadge = (item: NavItem): number|undefined => {
     if (role==="accountant") {
       if (item.id==="acc-dashboard") return totalAccPending||undefined;
+      if (item.id==="acc-assets")    return activeDraftCount||undefined;
       return pendingByModule[item.id]||undefined;
     }
     if (role==="head" && item.id==="head-pending") return headPendingCount||undefined;
@@ -1076,7 +1117,7 @@ function Sidebar({ role, ops, page, navigate, logout, collapsed, setCollapsed }:
               <span className={`flex-shrink-0 ${active?"text-[#00D9FF]":""}`}>{entry.icon}</span>
               {!collapsed && (<>
                 <span className="text-[13px] font-medium flex-1 text-right leading-tight">{entry.label}</span>
-                {badge ? <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${(entry as NavItem).badgeColor==="yellow"?"bg-amber-500 text-white":"bg-red-500 text-white"}`}>{badge}</span> : null}
+                {badge ? <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center ${entry.id==="acc-assets"?"bg-purple-500 text-white":(entry as NavItem).badgeColor==="yellow"?"bg-amber-500 text-white":"bg-red-500 text-white"}`}>{badge}</span> : null}
               </>)}
             </button>
           );
@@ -2665,8 +2706,285 @@ function AccSalesPage({ navigate, setModal, setDetailId, ops, approveOp, rejectO
   );
 }
 
-// ─── Dedicated Expenses page ──────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// ASSET DRAFT PROVIDER
+// ─────────────────────────────────────────────
+function AssetDraftProvider({ children }: { children: ReactNode }) {
+  const [drafts, setDrafts] = useState<AssetDraft[]>([]);
+  const navRef = useRef<(()=>void)|undefined>(undefined);
+
+  const addDraft     = (d: AssetDraft) => setDrafts(p=>[...p.filter(x=>x.draftId!==d.draftId), d]);
+  const discardDraft = (id: string)    => setDrafts(p=>p.filter(x=>x.draftId!==id));
+  const confirmDraft = (id: string)    => setDrafts(p=>p.map(x=>x.draftId===id?{...x,status:"confirmed" as const}:x));
+  const getConvertedInvNums = () => new Set(drafts.filter(d=>d.status==="draft"||d.status==="confirmed").map(d=>d.invNum));
+  const setNavigateToAssets = (fn: ()=>void) => { navRef.current = fn; };
+
+  return (
+    <AssetDraftContext.Provider value={{ drafts, addDraft, discardDraft, confirmDraft, getConvertedInvNums, navigateToAssets: navRef.current, setNavigateToAssets }}>
+      {children}
+    </AssetDraftContext.Provider>
+  );
+}
+
+// ─────────────────────────────────────────────
+// CONVERT TO ASSET MODAL
+// ─────────────────────────────────────────────
+const ALL_BRANCHES_FULL = [
+  "فرع الرياض - العليا","فرع الرياض - السليمانية","فرع الرياض - النزهة",
+  "فرع جدة - الحمراء","فرع جدة - العزيزية",
+  "فرع مكة - المعابدة","فرع مكة - العزيزية",
+  "فرع الدمام - الخبر","فرع الدمام - الكورنيش","فرع الدمام - الدانة",
+  "فرع الطائف - المحطة",
+];
+const ASSET_CATS: AssetCatType[] = ["معدات","تقنية","أثاث","مركبات","أخرى"];
+const USEFUL_LIFE_OPTS = [
+  {label:"24 شهر (سنتان)",val:24},{label:"36 شهر (3 سنوات)",val:36},
+  {label:"48 شهر (4 سنوات)",val:48},{label:"60 شهر (5 سنوات)",val:60},
+  {label:"72 شهر (6 سنوات)",val:72},{label:"84 شهر (7 سنوات)",val:84},
+  {label:"96 شهر (8 سنوات)",val:96},{label:"120 شهر (10 سنوات)",val:120},
+];
+
+function ConvertToAssetModal({
+  expenseOpId, invNum, vendor, desc, amount, branch, date,
+  onClose, onSuccess,
+}: {
+  expenseOpId:string; invNum:string; vendor:string; desc:string;
+  amount:number; branch:string; date:string;
+  onClose:()=>void; onSuccess:(draftId:string)=>void;
+}) {
+  const { addDraft } = useContext(AssetDraftContext);
+  const [step, setStep] = useState<1|2|3>(1);
+  const [assetName,   setAssetName]   = useState(vendor || desc);
+  const [cat,         setCat]         = useState<AssetCatType>("معدات");
+  const [usefulLife,  setUsefulLife]  = useState(60);
+  const [custodian,   setCustodian]   = useState("مدير الفرع");
+  const [qty,         setQty]         = useState(1);
+  const [notes,       setNotes]       = useState("");
+  const [targetBranches, setTargetBranches] = useState<string[]>([branch]);
+  const [confirmed,   setConfirmed]   = useState(false);
+
+  const toggleBranch = (b:string) => setTargetBranches(p=>p.includes(b)?p.filter(x=>x!==b):[...p,b]);
+  const canProceed   = assetName.trim().length>0 && targetBranches.length>0 && custodian.trim().length>0;
+
+  const handleConfirm = () => {
+    const draftId = `DRAFT-${invNum}-${Date.now()}`;
+    addDraft({
+      draftId, expenseOpId, invNum, vendor, desc,
+      amount, expenseBranch: branch, expenseDate: date,
+      assetName: assetName.trim(), cat, usefulLife,
+      targetBranches, custodian, qty, notes,
+      convertedAt: new Date().toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}),
+      status: "draft",
+    });
+    setConfirmed(true);
+    setStep(3);
+    setTimeout(()=>{ onSuccess(draftId); }, 1500);
+  };
+
+  const CAT_ICONS:Record<AssetCatType,string> = {معدات:"🔧",تقنية:"💻",أثاث:"🪑",مركبات:"🚗",أخرى:"📦"};
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose} dir="rtl">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col" onClick={e=>e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="px-6 py-4 bg-gradient-to-l from-purple-700 to-indigo-700 text-white flex items-center justify-between flex-shrink-0">
+          <div>
+            <h3 className="font-bold text-base flex items-center gap-2">
+              <GitMerge size={16}/> تحويل مصروف إلى أصل ثابت
+            </h3>
+            <p className="text-purple-200 text-xs mt-0.5">الفاتورة {invNum} · {vendor}</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1">
+              {([1,2,3] as const).map((s,i)=>(
+                <div key={s} className="flex items-center gap-1">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold border-2 transition-all ${step>=s?"bg-white text-purple-700 border-white":"bg-transparent text-purple-300 border-purple-400"}`}>{s}</div>
+                  {i<2 && <div className={`w-5 h-0.5 ${step>s?"bg-white":"bg-purple-400/50"}`}/>}
+                </div>
+              ))}
+            </div>
+            <button onClick={onClose} className="text-purple-200 hover:text-white"><X size={18}/></button>
+          </div>
+        </div>
+
+        {/* Step labels */}
+        <div className="flex border-b border-gray-100 bg-gray-50/60 flex-shrink-0">
+          {[{n:1,l:"بيانات الأصل"},{n:2,l:"الفروع والعهدة"},{n:3,l:"تم الإنشاء"}].map(s=>(
+            <div key={s.n} className={`flex-1 py-2.5 text-center text-xs font-semibold transition-colors ${step===s.n?"text-purple-700 border-b-2 border-purple-600":"text-gray-400"}`}>{s.l}</div>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+
+          {/* ── STEP 1: Asset Details ── */}
+          {step===1 && (
+            <div className="p-6 space-y-5">
+              {/* Expense source chip */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3">
+                <div className="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0"><Wallet size={16} className="text-amber-600"/></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-amber-800">مصدر المصروف</p>
+                  <p className="text-xs text-amber-700 mt-0.5 truncate">{invNum} · {vendor} · <span className="font-mono font-bold">{fmtAmt(amount)} ر.س</span> · {branch}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-[10px] text-amber-600">يُحول المبلغ تلقائياً</p>
+                  <p className="text-xs font-bold text-amber-800 font-mono">{fmtAmt(amount)} ر.س</p>
+                </div>
+              </div>
+
+              {/* Asset name */}
+              <div>
+                <label className="text-xs font-semibold text-gray-700 block mb-1.5">اسم الأصل <span className="text-red-500">*</span></label>
+                <input value={assetName} onChange={e=>setAssetName(e.target.value)}
+                  placeholder="مثال: ثلاجة صناعية سامسونج — فرع الرياض"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-purple-400 outline-none"/>
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="text-xs font-semibold text-gray-700 block mb-1.5">فئة الأصل <span className="text-red-500">*</span></label>
+                <div className="grid grid-cols-5 gap-2">
+                  {ASSET_CATS.map(c=>(
+                    <button key={c} onClick={()=>setCat(c)}
+                      className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-xs font-semibold ${cat===c?"border-purple-500 bg-purple-50 text-purple-700":"border-gray-200 bg-white text-gray-600 hover:border-purple-200"}`}>
+                      <span className="text-xl">{CAT_ICONS[c]}</span>{c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Useful life */}
+              <div>
+                <label className="text-xs font-semibold text-gray-700 block mb-1.5">العمر الإنتاجي</label>
+                <select value={usefulLife} onChange={e=>setUsefulLife(Number(e.target.value))}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-purple-400 outline-none">
+                  {USEFUL_LIFE_OPTS.map(o=><option key={o.val} value={o.val}>{o.label}</option>)}
+                </select>
+              </div>
+
+              {/* Qty */}
+              <div>
+                <label className="text-xs font-semibold text-gray-700 block mb-1.5">الكمية (عدد الوحدات)</label>
+                <div className="flex items-center gap-2">
+                  <button onClick={()=>setQty(q=>Math.max(1,q-1))} className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 text-lg font-bold">−</button>
+                  <span className="w-14 text-center font-bold text-lg text-gray-800">{qty}</span>
+                  <button onClick={()=>setQty(q=>q+1)} className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 text-lg font-bold">+</button>
+                  <span className="text-xs text-gray-500 mr-2">وحدة — سعر الوحدة: <span className="font-mono font-bold">{fmtAmt(Math.round(amount/qty))} ر.س</span></span>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="text-xs font-semibold text-gray-700 block mb-1.5">ملاحظات إضافية</label>
+                <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2}
+                  placeholder="أي ملاحظات على الأصل (اختياري)..."
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-purple-400 outline-none resize-none"/>
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 2: Branches & Custodian ── */}
+          {step===2 && (
+            <div className="p-6 space-y-5">
+              <div>
+                <label className="text-xs font-semibold text-gray-700 block mb-1.5">
+                  الفروع المستفيدة <span className="text-red-500">*</span>
+                  <span className="text-gray-400 font-normal mr-2">— يمكن اختيار فرع واحد أو أكثر</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
+                  {ALL_BRANCHES_FULL.map(b=>(
+                    <button key={b} onClick={()=>toggleBranch(b)}
+                      className={`flex items-center gap-2 p-2.5 rounded-xl border-2 transition-all text-xs text-right ${targetBranches.includes(b)?"border-purple-500 bg-purple-50 text-purple-700":"border-gray-200 bg-white text-gray-600 hover:border-purple-200"}`}>
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${targetBranches.includes(b)?"bg-purple-500 border-purple-500":"border-gray-300"}`}>
+                        {targetBranches.includes(b) && <Check size={10} className="text-white"/>}
+                      </div>
+                      <span className="font-semibold truncate">{b}</span>
+                    </button>
+                  ))}
+                </div>
+                {targetBranches.length>0 && (
+                  <p className="text-[11px] text-purple-600 mt-2 font-semibold">
+                    ✓ {targetBranches.length} فرع محدد · سيُضاف {qty * targetBranches.length} أصل إجمالاً
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-gray-700 block mb-1.5">المسؤول عن العهدة <span className="text-red-500">*</span></label>
+                <input value={custodian} onChange={e=>setCustodian(e.target.value)}
+                  placeholder="اسم المسؤول عن الأصل (مدير الفرع، مشرف الشفت...)"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-purple-400 outline-none"/>
+              </div>
+
+              {/* Summary card */}
+              {canProceed && (
+                <div className="bg-gradient-to-l from-purple-50 to-indigo-50 border border-purple-100 rounded-xl p-4 space-y-2">
+                  <p className="text-xs font-bold text-purple-800 flex items-center gap-1.5"><Layers size={12}/> ملخص ما سيُضاف في موديول الأصول الثابتة</p>
+                  <div className="grid grid-cols-2 gap-y-1.5 gap-x-4 text-xs">
+                    <div><span className="text-gray-500">الأصل:</span> <span className="font-semibold text-gray-800">{assetName}</span></div>
+                    <div><span className="text-gray-500">الفئة:</span> <span className="font-semibold text-gray-800">{CAT_ICONS[cat]} {cat}</span></div>
+                    <div><span className="text-gray-500">الكمية:</span> <span className="font-semibold text-gray-800">{qty} وحدة × {targetBranches.length} فرع</span></div>
+                    <div><span className="text-gray-500">العمر الإنتاجي:</span> <span className="font-semibold text-gray-800">{usefulLife} شهر</span></div>
+                    <div><span className="text-gray-500">القيمة للوحدة:</span> <span className="font-mono font-bold text-purple-700">{fmtAmt(Math.round(amount/qty))} ر.س</span></div>
+                    <div><span className="text-gray-500">المسؤول:</span> <span className="font-semibold text-gray-800">{custodian}</span></div>
+                  </div>
+                  <p className="text-[10px] text-purple-600">سيظهر هذا الأصل كـ "مسودة" في موديول الأصول الثابتة لمراجعتك النهائية</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── STEP 3: Success ── */}
+          {step===3 && (
+            <div className="p-8 flex flex-col items-center gap-5 text-center">
+              <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center">
+                <CheckCircle2 size={40} className="text-emerald-500"/>
+              </div>
+              <div>
+                <h4 className="font-bold text-gray-800 text-lg">تم إنشاء المسودة بنجاح</h4>
+                <p className="text-gray-500 text-sm mt-1">
+                  تم تحويل <span className="font-semibold text-purple-700">{invNum}</span> إلى مسودة أصل ثابت
+                </p>
+                <p className="text-xs text-gray-400 mt-1">انتقل إلى موديول الأصول الثابتة لمراجعتها وتأكيدها</p>
+              </div>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {targetBranches.map(b=>(
+                  <span key={b} className="text-xs px-3 py-1.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-full font-semibold">{b}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/60 flex items-center justify-between flex-shrink-0">
+          <Btn size="sm" onClick={onClose}><X size={12}/> إغلاق</Btn>
+          <div className="flex gap-2">
+            {step===1 && (
+              <button onClick={()=>setStep(2)} disabled={!assetName.trim()}
+                className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all ${!assetName.trim()?"bg-gray-100 text-gray-400 cursor-not-allowed":"bg-purple-600 text-white hover:bg-purple-700 shadow-sm"}`}>
+                التالي: الفروع والعهدة <ChevronLeft size={13}/>
+              </button>
+            )}
+            {step===2 && (
+              <>
+                <Btn onClick={()=>setStep(1)}><ChevronRight size={13}/> رجوع</Btn>
+                <button onClick={handleConfirm} disabled={!canProceed || confirmed}
+                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all ${(!canProceed||confirmed)?"bg-gray-100 text-gray-400 cursor-not-allowed":"bg-purple-600 text-white hover:bg-purple-700 shadow-sm"}`}>
+                  <GitMerge size={13}/> تأكيد التحويل للمسودة
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, rejectOp, bulkApprove }:PageProps) {
+  const { getConvertedInvNums, drafts } = useContext(AssetDraftContext);
   const [filters,          setFilters]          = useState<Filters>({branch:"",status:"",match:"",search:""});
   const [expandedId,       setExpandedId]       = useState<string|null>(null);
   const [editingRow,       setEditingRow]       = useState<string|null>(null);
@@ -2674,6 +2992,8 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
   const [selectedDay,      setSelectedDay]      = useState("الكل");
   const [verifiedInvoices, setVerifiedInvoices] = useState<Record<string,boolean>>({});
   const [attachModal,      setAttachModal]      = useState<{opId:string; invNum:string; idx:number; total:number}|null>(null);
+  const [convertModal,     setConvertModal]     = useState<{opId:string; invNum:string; vendor:string; desc:string; amount:number; branch:string; date:string}|null>(null);
+  const convertedInvNums = getConvertedInvNums();
 
   const EXP_DAY_OPTIONS = [
     { label:"الكل",             val:"الكل"     },
@@ -2868,6 +3188,7 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
                             <th className="px-3 py-2 text-center bg-emerald-50/60 text-emerald-700">بعد الضريبة</th>
                             <th className="px-3 py-2 text-center">المرفقات</th>
                             <th className="px-3 py-2 text-center">توثيق</th>
+                            <th className="px-3 py-2 text-center bg-purple-50/60 text-purple-700">أصل ثابت</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 bg-white">
@@ -2876,8 +3197,9 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
                             const isInvVerified = verifiedInvoices[vKey]||false;
                             const amtBeforeVat = Math.round(inv.amount / 1.15);
                             const vatAmt       = inv.amount - amtBeforeVat;
+                            const alreadyConverted = convertedInvNums.has(inv.invNum);
                             return (
-                              <tr key={k} className={`hover:bg-gray-50 ${isInvVerified?"bg-emerald-50/40":""}`}>
+                              <tr key={k} className={`hover:bg-gray-50 ${isInvVerified?"bg-emerald-50/40":""} ${alreadyConverted?"bg-purple-50/20":""}`}>
                                 <td className="px-3 py-2 font-mono text-purple-700 font-semibold">{inv.invNum}</td>
                                 <td className="px-3 py-2 font-medium text-gray-800">{inv.vendor}</td>
                                 <td className="px-3 py-2 text-gray-600">{inv.desc}</td>
@@ -2897,6 +3219,21 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
                                     className={`w-7 h-7 rounded-full flex items-center justify-center mx-auto transition-all ${isInvVerified?"bg-emerald-500 text-white":"border-2 border-dashed border-gray-300 text-gray-300 hover:border-emerald-400 hover:text-emerald-400"}`}>
                                     <CheckSquare size={12}/>
                                   </button>
+                                </td>
+                                <td className="px-3 py-2 text-center bg-purple-50/10">
+                                  {alreadyConverted ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-purple-100 text-purple-700 text-[10px] font-semibold">
+                                      <Building2 size={10}/> محوّل
+                                    </span>
+                                  ) : (
+                                    <button
+                                      onClick={()=>setConvertModal({opId:op.id, invNum:inv.invNum, vendor:inv.vendor, desc:inv.desc, amount:inv.amount, branch:op.branch, date:inv.date})}
+                                      title="تحويل هذه الفاتورة إلى أصل ثابت"
+                                      className="group inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border-2 border-dashed border-purple-200 text-purple-400 hover:border-purple-500 hover:bg-purple-50 hover:text-purple-700 transition-all">
+                                      <ArrowRightToLine size={11}/>
+                                      <span className="text-[10px] font-semibold hidden group-hover:inline">أصل ثابت</span>
+                                    </button>
+                                  )}
                                 </td>
                               </tr>
                             );
@@ -2922,6 +3259,27 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
             })
         }
       </div>
+
+      {/* ── Pending conversions banner ── */}
+      {drafts.filter(d=>d.status==="draft").length>0 && (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-3.5 flex items-center gap-3">
+          <div className="w-9 h-9 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+            <Building2 size={16} className="text-purple-600"/>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-purple-800">
+              {drafts.filter(d=>d.status==="draft").length} فاتورة محوّلة إلى مسودة أصول ثابتة
+            </p>
+            <p className="text-[11px] text-purple-600 mt-0.5">
+              {drafts.filter(d=>d.status==="draft").map(d=>d.invNum).join(" · ")} — انتقل إلى موديول الأصول الثابتة لمراجعتها
+            </p>
+          </div>
+          <button onClick={()=>navigate("acc-assets")}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-lg text-xs font-bold hover:bg-purple-700 transition-all flex-shrink-0">
+            <Building2 size={12}/> فتح الأصول الثابتة
+          </button>
+        </div>
+      )}
 
       {/* Attachment Viewer Modal */}
       {attachModal && (
@@ -2973,6 +3331,21 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
             </div>
           </div>
         </div>
+      )}
+
+      {/* Convert to Asset Modal */}
+      {convertModal && (
+        <ConvertToAssetModal
+          expenseOpId={convertModal.opId}
+          invNum={convertModal.invNum}
+          vendor={convertModal.vendor}
+          desc={convertModal.desc}
+          amount={convertModal.amount}
+          branch={convertModal.branch}
+          date={convertModal.date}
+          onClose={()=>setConvertModal(null)}
+          onSuccess={()=>setConvertModal(null)}
+        />
       )}
     </div>
   );
@@ -5707,7 +6080,8 @@ function ExcelImportModal({ assets, setAssets, onClose }:{ assets:any[]; setAsse
   );
 }
 
-function AccAssets({}: PageProps) {
+function AccAssets({ navigate }: PageProps) {
+  const { drafts, discardDraft, confirmDraft } = useContext(AssetDraftContext);
   type AssetStatus = "pending_branch"|"pending_accountant"|"confirmed"|"registered";
   type AssetCat    = "معدات"|"تقنية"|"أثاث"|"مركبات"|"أخرى";
   interface TransferLog { date:string; from:string; to:string; note:string; by:string; }
@@ -5760,7 +6134,35 @@ function AccAssets({}: PageProps) {
   const [addSent,  setAddSent]  = useState(false);
   const [transferForm, setTransferForm] = useState({to:"",note:""});
 
+  const [reviewingDraft, setReviewingDraft] = useState<string|null>(null);
+
   const confirmAsset   = (id:string) => setAssets(p=>p.map(a=>a.id===id?{...a,status:"confirmed" as AssetStatus}:a));
+
+  const confirmDraftToAssets = (draftId:string) => {
+    const draft = drafts.find(d=>d.draftId===draftId);
+    if(!draft) return;
+    const costPerUnit = Math.round(draft.amount / Math.max(draft.qty,1));
+    const newEntries: AssetEntry[] = draft.targetBranches.flatMap((br,bi)=>
+      Array.from({length:draft.qty},(_,qi)=>({
+        id: `FA-${String(assets.length+1+(bi*draft.qty)+qi).padStart(3,"0")}`,
+        name: draft.qty>1 ? `${draft.assetName} (${qi+1})` : draft.assetName,
+        cat: draft.cat as AssetCat, branch: br,
+        cost: costPerUnit, book: costPerUnit, usefulLife: draft.usefulLife,
+        case_: "acc_register" as const, status: "pending_branch" as AssetStatus,
+        invNum: draft.invNum, submittedBy: "المحاسب — تحويل من مصروف",
+        date: "اليوم", custodian: draft.custodian,
+        history: [{
+          date:"اليوم", from:"—", to: draft.custodian,
+          note:`تحويل من فاتورة مصروف ${draft.invNum} (${draft.vendor}) — مصدر: ${draft.expenseBranch}`,
+          by:"المحاسب"
+        }]
+      }))
+    );
+    setAssets(p=>[...p, ...newEntries]);
+    confirmDraft(draftId);
+    setReviewingDraft(null);
+  };
+
   const submitNewAsset = () => {
     const id = `FA-${String(assets.length+1).padStart(3,"0")}`;
     setAssets(p=>[...p, {
@@ -5790,6 +6192,7 @@ function AccAssets({}: PageProps) {
   const displayedAssets   = (filterStatus==="الكل"?assets:assets.filter(a=>a.status===filterStatus));
   const ASSET_BRANCHES    = [...new Set(assets.map(a=>a.branch))];
   const branchFiltered    = filterBranch==="الكل"?assets:assets.filter(a=>a.branch===filterBranch);
+  const activeDrafts      = drafts.filter(d=>d.status==="draft");
 
   const STATUS_ASSET: Record<AssetStatus,{label:string;cls:string}> = {
     pending_branch:     {label:"ينتظر تأكيد الفرع",   cls:"bg-amber-50 text-amber-700 border border-amber-200"},
@@ -5860,6 +6263,136 @@ function AccAssets({}: PageProps) {
           </div>
         </div>
       </div>
+
+      {/* ── From-Expense Drafts Section ── */}
+      {activeDrafts.length>0 && (
+        <div className="bg-gradient-to-l from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 flex items-center justify-between border-b border-purple-100 bg-purple-100/40">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-200 rounded-xl flex items-center justify-center">
+                <GitMerge size={18} className="text-purple-700"/>
+              </div>
+              <div>
+                <h3 className="font-bold text-purple-900 text-base flex items-center gap-2">
+                  مسودات محوّلة من المصروفات
+                  <span className="bg-purple-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-full">{activeDrafts.length}</span>
+                </h3>
+                <p className="text-purple-600 text-xs mt-0.5">راجع بيانات كل مسودة وأكّد إضافتها لسجل الأصول الثابتة</p>
+              </div>
+            </div>
+            <button onClick={()=>navigate("acc-expenses")}
+              className="text-xs text-purple-600 hover:text-purple-800 flex items-center gap-1 border border-purple-200 px-3 py-1.5 rounded-lg hover:bg-purple-100 transition-all">
+              <Wallet size={12}/> العودة للمصروفات
+            </button>
+          </div>
+
+          <div className="divide-y divide-purple-100">
+            {activeDrafts.map(draft=>{
+              const isReviewing = reviewingDraft===draft.draftId;
+              const CAT_ICON_D:Record<AssetCatType,string> = {معدات:"🔧",تقنية:"💻",أثاث:"🪑",مركبات:"🚗",أخرى:"📦"};
+              return (
+                <div key={draft.draftId} className={`px-5 py-4 ${isReviewing?"bg-white":"hover:bg-purple-50/60"} transition-all`}>
+                  {/* Draft row header */}
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0 text-xl">{CAT_ICON_D[draft.cat]}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-gray-800 text-sm">{draft.assetName}</span>
+                        <span className="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded-full">{draft.cat}</span>
+                        <span className="bg-amber-100 text-amber-700 text-[10px] font-semibold px-2 py-0.5 rounded-full">مسودة</span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 flex-wrap">
+                        <span className="flex items-center gap-1"><Wallet size={10}/> من: {draft.invNum} · {draft.vendor}</span>
+                        <span>·</span>
+                        <span className="font-mono font-bold text-purple-700">{fmtAmt(draft.amount)} ر.س</span>
+                        <span>·</span>
+                        <span>{draft.targetBranches.length} فرع · {draft.qty} وحدة · {draft.usefulLife} شهر</span>
+                        <span>·</span>
+                        <span>عهدة: {draft.custodian}</span>
+                      </div>
+                      <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                        {draft.targetBranches.map(b=>(
+                          <span key={b} className="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-full font-semibold">{b}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <button onClick={()=>setReviewingDraft(isReviewing?null:draft.draftId)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${isReviewing?"bg-purple-100 border-purple-300 text-purple-700":"bg-white border-gray-200 text-gray-600 hover:border-purple-300"}`}>
+                        <Eye size={11}/> {isReviewing?"إخفاء":"مراجعة"}
+                      </button>
+                      <button onClick={()=>discardDraft(draft.draftId)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-red-100 text-red-500 hover:bg-red-50 transition-all">
+                        <X size={11}/>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Review panel */}
+                  {isReviewing && (
+                    <div className="mt-4 bg-gray-50 rounded-xl border border-gray-200 p-4">
+                      <p className="text-xs font-bold text-gray-700 mb-3 flex items-center gap-1.5"><Eye size={12}/> مراجعة بيانات الأصل قبل الإضافة</p>
+
+                      {/* Two-column detail grid */}
+                      <div className="grid grid-cols-2 gap-3 text-xs mb-4">
+                        <div className="bg-white rounded-lg border border-gray-100 p-3">
+                          <p className="text-[10px] text-gray-400 font-semibold mb-1">بيانات المصروف الأصلي</p>
+                          <div className="space-y-1">
+                            <div className="flex justify-between"><span className="text-gray-500">الفاتورة:</span> <span className="font-mono font-bold text-purple-700">{draft.invNum}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500">المورد:</span> <span className="font-semibold text-gray-800">{draft.vendor}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500">المبلغ:</span> <span className="font-mono font-bold text-gray-800">{fmtAmt(draft.amount)} ر.س</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500">الفرع المصدر:</span> <span className="font-semibold text-gray-800 text-[10px]">{draft.expenseBranch}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500">التاريخ:</span> <span className="font-semibold text-gray-800">{draft.expenseDate}</span></div>
+                          </div>
+                        </div>
+                        <div className="bg-white rounded-lg border border-gray-100 p-3">
+                          <p className="text-[10px] text-gray-400 font-semibold mb-1">بيانات الأصل المحوّل</p>
+                          <div className="space-y-1">
+                            <div className="flex justify-between"><span className="text-gray-500">اسم الأصل:</span> <span className="font-semibold text-gray-800 text-[10px]">{draft.assetName}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500">الفئة:</span> <span className="font-semibold text-gray-800">{CAT_ICON_D[draft.cat]} {draft.cat}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500">الكمية:</span> <span className="font-semibold text-gray-800">{draft.qty} وحدة × {draft.targetBranches.length} فرع = {draft.qty*draft.targetBranches.length} إجمالاً</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500">تكلفة الوحدة:</span> <span className="font-mono font-bold text-purple-700">{fmtAmt(Math.round(draft.amount/Math.max(draft.qty,1)))} ر.س</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500">المسؤول:</span> <span className="font-semibold text-gray-800">{draft.custodian}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500">العمر:</span> <span className="font-semibold text-gray-800">{draft.usefulLife} شهر</span></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Target branches */}
+                      <div className="mb-4">
+                        <p className="text-[10px] font-bold text-gray-500 mb-1.5">الفروع التي ستُضاف إليها الأصول ({draft.targetBranches.length})</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {draft.targetBranches.map(b=>(
+                            <span key={b} className="text-[11px] px-3 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full font-semibold">{b}</span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {draft.notes && (
+                        <div className="mb-4 bg-yellow-50 border border-yellow-100 rounded-lg p-2.5">
+                          <p className="text-[10px] font-bold text-yellow-700">ملاحظات المحاسب:</p>
+                          <p className="text-xs text-yellow-800 mt-0.5">{draft.notes}</p>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <button onClick={()=>confirmDraftToAssets(draft.draftId)}
+                          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-l from-emerald-600 to-emerald-500 text-white rounded-xl text-sm font-bold hover:from-emerald-700 hover:to-emerald-600 transition-all shadow-sm">
+                          <CheckCircle2 size={14}/> تأكيد الإضافة — {draft.qty*draft.targetBranches.length} أصل لـ {draft.targetBranches.length} فرع
+                        </button>
+                        <button onClick={()=>setReviewingDraft(null)}
+                          className="px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-500 hover:bg-gray-50 transition-all">
+                          إغلاق المراجعة
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-4 gap-4">
         <KpiCard label="بانتظار مراجعتي"    value={String(pendingAccountant.length)} sub="رُفعت من الفروع"  icon={<Clock size={18} className="text-blue-600"/>}         accent="blue"/>
@@ -11376,12 +11909,14 @@ export function ASABPrototype() {
   if(!appState.role) return <LoginScreen onLogin={login}/>;
 
   return (
-    <AppShell
-      state={appState} ops={ops}
-      approveOp={approveOp} rejectOp={rejectOp} finalApproveOp={finalApproveOp} bulkApprove={bulkApprove}
-      addCorrectiveOp={addCorrectiveOp} markErpPosted={markErpPosted}
-      navigate={navigate} logout={logout} setModal={setModal} setDetailId={setDetailId}
-    />
+    <AssetDraftProvider>
+      <AppShell
+        state={appState} ops={ops}
+        approveOp={approveOp} rejectOp={rejectOp} finalApproveOp={finalApproveOp} bulkApprove={bulkApprove}
+        addCorrectiveOp={addCorrectiveOp} markErpPosted={markErpPosted}
+        navigate={navigate} logout={logout} setModal={setModal} setDetailId={setDetailId}
+      />
+    </AssetDraftProvider>
   );
 }
 
