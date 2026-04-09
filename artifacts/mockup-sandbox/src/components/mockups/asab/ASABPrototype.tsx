@@ -1188,7 +1188,7 @@ function Sidebar({ role, ops, page, navigate, logout, collapsed, setCollapsed }:
 
   return (
     <aside className="flex flex-col flex-shrink-0 transition-all duration-200"
-      style={{ width:collapsed?64:252, background:"linear-gradient(180deg,#0F1C35 0%,#1B3A6B 100%)", minHeight:"100vh", direction:"rtl" }}>
+      style={{ width:collapsed?64:252, background:"linear-gradient(180deg,#0F1C35 0%,#1B3A6B 100%)", minHeight:"100vh", direction:dir }}>
       {/* Brand */}
       <div className="flex items-center gap-2.5 px-3 py-4 border-b border-white/10">
         <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -1364,24 +1364,25 @@ function AppShell({ state, ops, approveOp, rejectOp, finalApproveOp, bulkApprove
       {/* Contact Modal */}
       {state.modal==="contact" && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-[380px]" dir="rtl">
+          <div className="bg-white rounded-2xl shadow-2xl w-[380px]" dir={dir}>
             <div className="flex items-center justify-between p-5 border-b border-gray-100">
-              <h3 className="font-bold text-gray-800">التواصل مع الموظف</h3>
+              <h3 className="font-bold text-gray-800">{tL("التواصل مع الموظف","Contact Employee")}</h3>
               <button onClick={()=>setModal(null)} className="text-gray-400 hover:text-gray-600"><X size={18}/></button>
             </div>
             <div className="p-5">
               <div className="text-center mb-5">
                 <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-400 to-cyan-400 flex items-center justify-center mx-auto mb-2"><span className="text-white font-bold text-lg">خش</span></div>
-                <p className="font-bold text-gray-800">خالد الشمري</p><p className="text-gray-500 text-sm">مشرف الشفت — فرع الرياض العليا</p>
+                <p className="font-bold text-gray-800">{tL("خالد الشمري","Khalid Al-Shamri")}</p>
+                <p className="text-gray-500 text-sm">{tL("مشرف الشفت — فرع الرياض العليا","Shift Supervisor — Riyadh Al-Olaya Branch")}</p>
               </div>
               <div className="space-y-3">
                 <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer">
                   <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center"><Phone size={18} className="text-emerald-600"/></div>
-                  <div><p className="font-semibold text-sm">اتصال هاتفي</p><p className="text-xs text-gray-400">+966 51 234 5678</p></div>
+                  <div><p className="font-semibold text-sm">{tL("اتصال هاتفي","Phone Call")}</p><p className="text-xs text-gray-400">+966 51 234 5678</p></div>
                 </div>
                 <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{background:"#25D366"}}><span className="text-white text-lg">📱</span></div>
-                  <div><p className="font-semibold text-sm">واتساب</p><p className="text-xs text-gray-400">فتح المحادثة في واتساب</p></div>
+                  <div><p className="font-semibold text-sm">{tL("واتساب","WhatsApp")}</p><p className="text-xs text-gray-400">{tL("فتح المحادثة في واتساب","Open WhatsApp chat")}</p></div>
                 </div>
               </div>
             </div>

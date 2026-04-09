@@ -244,8 +244,9 @@ function ConvertToAssetModalCD({
     onClose();
   };
 
+  const { t, dir } = useCLang();
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" dir="rtl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" dir={dir}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         <div className="bg-gradient-to-l from-purple-600 to-indigo-700 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2 text-white">
@@ -271,7 +272,7 @@ function ConvertToAssetModalCD({
               <div>
                 <label className="text-xs font-semibold text-gray-600 block mb-1">اسم الأصل *</label>
                 <input value={assetName} onChange={e=>setAssetName(e.target.value)}
-                  className="w-full text-sm border border-purple-200 rounded-xl px-3 py-2 outline-none focus:border-purple-400" dir="rtl"/>
+                  className="w-full text-sm border border-purple-200 rounded-xl px-3 py-2 outline-none focus:border-purple-400" dir={dir}/>
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-600 block mb-1">فئة الأصل *</label>
@@ -328,11 +329,28 @@ const STATUS_CFG:Record<COpStatus,{label:string;cls:string;short:string}> = {
   "rejected":      { label:"مرفوض",           cls:"bg-red-50 text-red-700 border border-red-200",             short:"مرفوض"    },
   "final-approved":{ label:"معتمد نهائياً",   cls:"bg-purple-50 text-purple-700 border border-purple-200",    short:"نهائي"    },
 };
+const EN_STATUS_CD:Record<COpStatus,{label:string;short:string}> = {
+  "pending":       { label:"Under Review",     short:"Pending"  },
+  "approved":      { label:"Approved",         short:"Approved" },
+  "rejected":      { label:"Rejected",         short:"Rejected" },
+  "final-approved":{ label:"Final Approved",   short:"Final"    },
+};
 
 const MATCH_CFG:Record<CMatch,{label:string;cls:string;dot:string}> = {
   exact:  { label:"متطابق",         cls:"bg-emerald-50 text-emerald-700 border border-emerald-200", dot:"bg-emerald-500" },
   review: { label:"يحتاج مراجعة",  cls:"bg-amber-50 text-amber-700 border border-amber-200",       dot:"bg-amber-500"   },
   diff:   { label:"فرق في الكمية", cls:"bg-red-50 text-red-700 border border-red-200",              dot:"bg-red-500"     },
+};
+const EN_MATCH_CD:Record<CMatch,string> = {
+  exact:"Exact Match", review:"Needs Review", diff:"Qty Difference",
+};
+const EN_PIPELINE_CD:Record<string,{label:string;labelShort:string}> = {
+  submit:  { label:"Uploaded from Branch",   labelShort:"Upload"   },
+  review:  { label:"Under Review",           labelShort:"Review"   },
+  approved:{ label:"Accountant Approved",    labelShort:"Approved" },
+  final:   { label:"Final Approved",         labelShort:"Final"    },
+  erp:     { label:"Posted to ERP",          labelShort:"ERP"      },
+  reports: { label:"ERP Reports (Read)",     labelShort:"Reports"  },
 };
 
 // ═══════════════════════════════════════════════════
@@ -356,29 +374,34 @@ function getCOpPipelineStage(op: COp): number {
 }
 
 function COpStagePill({ op }: { op: COp }) {
+  const { t } = useCLang();
   if (op.status === "rejected") {
-    return <Badge className="bg-red-50 text-red-600 border border-red-200 text-[10px]">✕ مرفوض</Badge>;
+    return <Badge className="bg-red-50 text-red-600 border border-red-200 text-[10px]">✕ {t("مرفوض","Rejected")}</Badge>;
   }
   const idx = getCOpPipelineStage(op);
   const s = C_PIPELINE_STAGES[idx];
+  const labelShort = t(s.labelShort, EN_PIPELINE_CD[s.id]?.labelShort || s.labelShort);
   return (
     <Badge className={`${s.bg} ${s.text} border ${s.border} text-[10px] font-semibold`}>
-      {s.icon} م{idx+1} · {s.labelShort}
+      {s.icon} {t("م","S")}{idx+1} · {labelShort}
     </Badge>
   );
 }
 
 function CPipelineBar({ op }: { op: COp }) {
+  const { t, dir } = useCLang();
   const stage = getCOpPipelineStage(op);
   const isRejected = op.status === "rejected";
+  const curStage = C_PIPELINE_STAGES[stage];
+  const curLabel = curStage ? t(curStage.label, EN_PIPELINE_CD[curStage.id]?.label || curStage.label) : "";
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4" dir="rtl">
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4" dir={dir}>
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">دورة حياة العملية</span>
+        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">{t("دورة حياة العملية","Operation Lifecycle")}</span>
         {isRejected
-          ? <Badge className="bg-red-50 text-red-700 border border-red-200 text-xs">✕ مرفوض</Badge>
-          : <Badge className={`${C_PIPELINE_STAGES[stage]?.bg} ${C_PIPELINE_STAGES[stage]?.text} border ${C_PIPELINE_STAGES[stage]?.border} text-xs font-bold`}>
-              المرحلة {stage+1}/6 · {C_PIPELINE_STAGES[stage]?.label}
+          ? <Badge className="bg-red-50 text-red-700 border border-red-200 text-xs">✕ {t("مرفوض","Rejected")}</Badge>
+          : <Badge className={`${curStage?.bg} ${curStage?.text} border ${curStage?.border} text-xs font-bold`}>
+              {t("المرحلة","Stage")} {stage+1}/6 · {curLabel}
             </Badge>
         }
       </div>
@@ -386,6 +409,7 @@ function CPipelineBar({ op }: { op: COp }) {
         {C_PIPELINE_STAGES.map((s, i) => {
           const isComplete = !isRejected && i < stage;
           const isCurrent  = !isRejected && i === stage;
+          const sLabel = t(s.labelShort, EN_PIPELINE_CD[s.id]?.labelShort || s.labelShort);
           return (
             <div key={s.id} className="flex items-center flex-1 min-w-0">
               <div className="flex flex-col items-center gap-1 flex-shrink-0">
@@ -397,7 +421,7 @@ function CPipelineBar({ op }: { op: COp }) {
                 </div>
                 <span className={`text-[9px] font-medium leading-tight text-center max-w-[44px] truncate
                   ${isComplete ? "text-gray-600" : isCurrent ? `${s.text} font-bold` : "text-gray-300"}`}>
-                  {s.labelShort}
+                  {sLabel}
                 </span>
               </div>
               {i < C_PIPELINE_STAGES.length - 1 && (
@@ -417,18 +441,20 @@ function CPipelineBar({ op }: { op: COp }) {
 }
 
 function CPipelineOverview({ ops }: { ops: COp[] }) {
+  const { t, dir } = useCLang();
   const stageCounts = C_PIPELINE_STAGES.map((s, i) => ({
     ...s,
     count: ops.filter(o => getCOpPipelineStage(o) === i).length,
+    labelShortTr: t(s.labelShort, EN_PIPELINE_CD[s.id]?.labelShort || s.labelShort),
   }));
   const rejected = ops.filter(o => o.status === "rejected").length;
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden" dir="rtl">
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden" dir={dir}>
       <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
-        <h3 className="font-bold text-gray-900 text-sm tracking-tight">مسار العمليات — رؤية شاملة للخط الزمني</h3>
+        <h3 className="font-bold text-gray-900 text-sm tracking-tight">{t("مسار العمليات — رؤية شاملة للخط الزمني","Operations Pipeline — Full Timeline View")}</h3>
         <div className="flex items-center gap-2">
-          {rejected>0 && <Badge className="bg-red-50 text-red-600 border border-red-200 text-[10px]">✕ {rejected} مرفوض</Badge>}
-          <span className="text-xs text-gray-400">{ops.length} عملية إجمالاً</span>
+          {rejected>0 && <Badge className="bg-red-50 text-red-600 border border-red-200 text-[10px]">✕ {rejected} {t("مرفوض","Rejected")}</Badge>}
+          <span className="text-xs text-gray-400">{ops.length} {t("عملية إجمالاً","total operations")}</span>
         </div>
       </div>
       <div className="grid grid-cols-6 divide-x divide-x-reverse divide-gray-100">
@@ -440,13 +466,13 @@ function CPipelineOverview({ ops }: { ops: COp[] }) {
               {isAspirational ? (
                 <>
                   <p className="text-[10px] font-bold text-slate-400 font-mono">—</p>
-                  <p className="text-[9px] text-slate-400 mt-0.5 leading-tight">{s.labelShort}</p>
-                  <p className="text-[8px] text-slate-300 mt-1 leading-tight">مرحلة مستقبلية</p>
+                  <p className="text-[9px] text-slate-400 mt-0.5 leading-tight">{s.labelShortTr}</p>
+                  <p className="text-[8px] text-slate-300 mt-1 leading-tight">{t("مرحلة مستقبلية","Future Stage")}</p>
                 </>
               ) : (
                 <>
                   <p className={`text-2xl font-extrabold font-mono ${s.count > 0 ? s.text : "text-gray-200"}`}>{s.count}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">{s.labelShort}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">{s.labelShortTr}</p>
                   {i < 4 && (
                     <div className={`mx-auto mt-2 h-1 w-6 rounded-full ${s.count > 0 ? s.fill : "bg-gray-100"}`}/>
                   )}
@@ -958,7 +984,7 @@ function SalesReconPanel({ op, onApprove, onReject, isPending, forHead }:{
             </button>
           )}
         </div>
-        <div className="divide-y divide-gray-100" dir="rtl">
+        <div className="divide-y divide-gray-100">
           {/* إجمالي المبيعات */}
           <div className="flex items-center justify-between px-4 py-3 bg-indigo-50/60">
             <div className="flex items-center gap-2">
@@ -1079,6 +1105,7 @@ function OpRow({ op, onApprove, onReject, onView, expanded, onToggle, forHead=fa
   op:COp; onApprove:()=>void; onReject:()=>void; onView:()=>void;
   expanded?:boolean; onToggle?:()=>void; forHead?:boolean;
 }) {
+  const { t } = useCLang();
   const isPending = op.status === "pending";
   const isApproved = op.status === "approved";
   const isLocked = op.status === "final-approved";
@@ -1101,55 +1128,51 @@ function OpRow({ op, onApprove, onReject, onView, expanded, onToggle, forHead=fa
             <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-100">{op.moduleLabel}</span>
             <Badge className={`text-[10px] border ${MATCH_CFG[op.match].cls}`}>
               <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${MATCH_CFG[op.match].dot}`}/>
-              {MATCH_CFG[op.match].label}
+              {t(MATCH_CFG[op.match].label, EN_MATCH_CD[op.match])}
             </Badge>
             {op.diff && <span className="text-[10px] text-red-600 font-semibold bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">⚠ {op.diff}</span>}
             <Badge className={`text-[10px] border ${STATUS_CFG[op.status].cls}`}>
               {isLocked && <Lock size={9}/>}
-              {STATUS_CFG[op.status].label}
+              {t(STATUS_CFG[op.status].label, EN_STATUS_CD[op.status].label)}
             </Badge>
             <COpStagePill op={op}/>
           </div>
           <div className="flex items-center gap-3 mt-0.5">
             <span className="text-[11px] text-gray-400">{op.submittedBy}</span>
             <span className="text-[11px] text-gray-400">⏰ {op.timeAgo}</span>
-            <span className="text-[11px] text-gray-400 flex items-center gap-0.5"><Paperclip size={9}/> {op.attachments} مرفق</span>
+            <span className="text-[11px] text-gray-400 flex items-center gap-0.5"><Paperclip size={9}/> {op.attachments} {t("مرفق","attach.")}</span>
           </div>
         </div>
         <div className="text-left flex-shrink-0">
-          {op.amount>0 && <p className="font-mono font-bold text-gray-800 text-sm">{fmt(op.amount)} ر.س</p>}
+          {op.amount>0 && <p className="font-mono font-bold text-gray-800 text-sm">{fmt(op.amount)} {t("ر.س","SAR")}</p>}
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e=>e.stopPropagation()}>
           {!forHead && isPending && <>
-            <button onClick={onApprove} title="موافقة" className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 flex items-center justify-center transition-all"><ThumbsUp size={13}/></button>
-            <button onClick={onReject} title="رفض" className="w-8 h-8 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 flex items-center justify-center transition-all"><ThumbsDown size={13}/></button>
+            <button onClick={onApprove} title={t("موافقة","Approve")} className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 flex items-center justify-center transition-all"><ThumbsUp size={13}/></button>
+            <button onClick={onReject} title={t("رفض","Reject")} className="w-8 h-8 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 flex items-center justify-center transition-all"><ThumbsDown size={13}/></button>
           </>}
           {forHead && isApproved && <>
-            <button onClick={onApprove} title="اعتماد نهائي" className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 flex items-center justify-center transition-all"><ThumbsUp size={13}/></button>
-            <button onClick={onReject} title="رفض" className="w-8 h-8 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 flex items-center justify-center transition-all"><ThumbsDown size={13}/></button>
+            <button onClick={onApprove} title={t("اعتماد نهائي","Final Approve")} className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 flex items-center justify-center transition-all"><ThumbsUp size={13}/></button>
+            <button onClick={onReject} title={t("رفض","Reject")} className="w-8 h-8 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 flex items-center justify-center transition-all"><ThumbsDown size={13}/></button>
           </>}
-          {isLocked && <span className="flex items-center gap-1 text-xs text-slate-400 bg-slate-100 border border-slate-200 px-2 py-1.5 rounded-lg"><Lock size={11}/> مُغلق</span>}
+          {isLocked && <span className="flex items-center gap-1 text-xs text-slate-400 bg-slate-100 border border-slate-200 px-2 py-1.5 rounded-lg"><Lock size={11}/> {t("مُغلق","Locked")}</span>}
           <button className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-200 text-gray-500 hover:bg-gray-100 flex items-center justify-center transition-all" onClick={onToggle}>
             {expanded?<ChevronUp size={13}/>:<ChevronDown size={13}/>}
           </button>
         </div>
       </div>
-      {/* ═══ EXPANDED DETAIL PANEL ═══ */}
       {expanded && (
         <div className="border-t border-gray-100 bg-gray-50/60 px-5 py-4 space-y-4">
-          {/* SALES: channel breakdown + full reconciliation + variance assignment */}
           {op.module==="sales" && <SalesReconPanel op={op} onApprove={onApprove} onReject={onReject} isPending={isPending} forHead={forHead}/>}
-          {/* EXPENSES: handled by AccCompanyExpenses with full table + VAT + convert-to-asset */}
           {op.module==="expenses" && (
-            <p className="text-xs text-gray-400 text-center py-2">افتح البيان لعرض الفواتير كاملاً مع خيار التحويل إلى أصل ثابت</p>
+            <p className="text-xs text-gray-400 text-center py-2">{t("افتح البيان لعرض الفواتير كاملاً مع خيار التحويل إلى أصل ثابت","Open statement to view full invoices with asset conversion option")}</p>
           )}
-          {/* PURCHASES: items table */}
           {op.module==="purchases" && op.purchaseItems && (
             <div>
-              <p className="text-xs font-bold text-gray-600 mb-2">أصناف المشتريات ({op.purchaseItems.length})</p>
+              <p className="text-xs font-bold text-gray-600 mb-2">{t("أصناف المشتريات","Purchase Items")} ({op.purchaseItems.length})</p>
               <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
                 <div className="grid grid-cols-5 px-4 py-2 bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-gray-500">
-                  <span>الصنف</span><span className="text-center">الوحدة</span><span className="text-center">مطلوب</span><span className="text-center">مُستلم</span><span className="text-center">الإجمالي</span>
+                  <span>{t("الصنف","Item")}</span><span className="text-center">{t("الوحدة","Unit")}</span><span className="text-center">{t("مطلوب","Ordered")}</span><span className="text-center">{t("مُستلم","Received")}</span><span className="text-center">{t("الإجمالي","Total")}</span>
                 </div>
                 {op.purchaseItems.map((it,i)=>{
                   const diff = it.rcvQty - it.ordQty;
@@ -1164,27 +1187,26 @@ function OpRow({ op, onApprove, onReject, onView, expanded, onToggle, forHead=fa
                   );
                 })}
                 <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-200 flex items-center justify-between text-xs">
-                  <span className={`font-semibold ${op.match==="diff"?"text-red-600":"text-emerald-600"}`}>{op.match==="diff"?"⚠ يوجد فارق في الكميات":"✓ الكميات متطابقة"}</span>
-                  <span className="font-mono font-bold text-purple-700">{fmt(op.purchaseItems.reduce((s,i)=>s+i.rcvQty*i.unitPrice,0))} ر.س</span>
+                  <span className={`font-semibold ${op.match==="diff"?"text-red-600":"text-emerald-600"}`}>{op.match==="diff"?t("⚠ يوجد فارق في الكميات","⚠ Quantity discrepancy found"):t("✓ الكميات متطابقة","✓ Quantities match")}</span>
+                  <span className="font-mono font-bold text-purple-700">{fmt(op.purchaseItems.reduce((s,i)=>s+i.rcvQty*i.unitPrice,0))} {t("ر.س","SAR")}</span>
                 </div>
               </div>
               {isPending && !forHead && (
                 <div className="flex gap-2 mt-3 justify-end">
-                  <button onClick={e=>{e.stopPropagation();onReject();}} className="px-4 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold hover:bg-red-100">✕ رفض</button>
-                  <button onClick={e=>{e.stopPropagation();onApprove();}} className="px-4 py-2 rounded-xl bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600">✓ موافقة</button>
+                  <button onClick={e=>{e.stopPropagation();onReject();}} className="px-4 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold hover:bg-red-100">✕ {t("رفض","Reject")}</button>
+                  <button onClick={e=>{e.stopPropagation();onApprove();}} className="px-4 py-2 rounded-xl bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600">✓ {t("موافقة","Approve")}</button>
                 </div>
               )}
             </div>
           )}
-          {/* INVENTORY: branch items diff */}
           {op.module==="inventory" && (()=>{
             const items = INV_BRANCH_DATA[op.branch] || [];
             return items.length>0 ? (
               <div>
-                <p className="text-xs font-bold text-gray-600 mb-2">تفاصيل جرد المخزون — {op.branch}</p>
+                <p className="text-xs font-bold text-gray-600 mb-2">{t("تفاصيل جرد المخزون","Inventory Count Details")} — {op.branch}</p>
                 <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
                   <div className="grid grid-cols-5 px-4 py-2 bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-gray-500">
-                    <span>الصنف</span><span className="text-center">الوحدة</span><span className="text-center">الأمس</span><span className="text-center">اليوم</span><span className="text-center">الفرق</span>
+                    <span>{t("الصنف","Item")}</span><span className="text-center">{t("الوحدة","Unit")}</span><span className="text-center">{t("الأمس","Yesterday")}</span><span className="text-center">{t("اليوم","Today")}</span><span className="text-center">{t("الفرق","Diff")}</span>
                   </div>
                   {items.map(it=>{
                     const diff = it.curr - it.prev;
@@ -1202,9 +1224,8 @@ function OpRow({ op, onApprove, onReject, onView, expanded, onToggle, forHead=fa
               </div>
             ) : null;
           })()}
-          {/* Default: no detail */}
           {(op.module!=="sales"&&op.module!=="expenses"&&op.module!=="purchases"&&op.module!=="inventory") && (
-            <p className="text-xs text-gray-400 text-center">انقر على زر العرض للتفاصيل الكاملة</p>
+            <p className="text-xs text-gray-400 text-center">{t("انقر على زر العرض للتفاصيل الكاملة","Click view for full details")}</p>
           )}
         </div>
       )}
@@ -1216,36 +1237,48 @@ function OpRow({ op, onApprove, onReject, onView, expanded, onToggle, forHead=fa
 // COMPANY ADMIN PAGES
 // ═══════════════════════════════════════════════════
 function CADashboard({ navigate }:{ navigate:(p:string)=>void }) {
+  const { t, dir } = useCLang();
   const totalSalesM = ALL_BRANCHES.reduce((s,b)=>s+b.salesM,0);
   const totalExpM   = ALL_BRANCHES.reduce((s,b)=>s+b.expM,0);
+  const statItems:[string,string,string,string][] = [
+    [t("العلامات","Brands"),"3 / ∞","",""],
+    [t("المطاعم","Restaurants"),"7 / ∞","",""],
+    [t("الفروع","Branches"),"12 / 20","",""],
+    [t("المستخدمون","Users"),"31 / 50","",""],
+  ];
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div className="flex items-start justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">مرحباً، {COMPANY.name} 🏢</h2><p className="text-gray-400 text-sm mt-0.5">خطة {COMPANY.plan} · 12 فرع · 3 علامات تجارية</p></div>
-        <button onClick={()=>navigate("ca-subscription")} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 shadow-sm"><CreditCard size={14}/> إدارة الاشتراك</button>
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">{t("مرحباً،","Welcome,")} {COMPANY.name} 🏢</h2>
+          <p className="text-gray-400 text-sm mt-0.5">{t("خطة","Plan")} {COMPANY.plan} · 12 {t("فرع","branches")} · 3 {t("علامات تجارية","brands")}</p>
+        </div>
+        <button onClick={()=>navigate("ca-subscription")} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 shadow-sm">
+          <CreditCard size={14}/> {t("إدارة الاشتراك","Manage Subscription")}
+        </button>
       </div>
       <div className="bg-gradient-to-l from-purple-600 to-blue-700 rounded-2xl p-5 text-white">
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-bold text-lg">خطة Professional — نشطة ✅</p>
-            <p className="text-white/70 text-sm mt-0.5">تنتهي في 15 يناير 2026 · متبقي <span className="text-cyan-300 font-bold">87</span> يوم</p>
+            <p className="font-bold text-lg">{t("خطة Professional — نشطة ✅","Professional Plan — Active ✅")}</p>
+            <p className="text-white/70 text-sm mt-0.5">{t("تنتهي في 15 يناير 2026 · متبقي","Expires Jan 15, 2026 · ")} <span className="text-cyan-300 font-bold">87</span> {t("يوم","days remaining")}</p>
             <div className="flex items-center gap-6 mt-3">
-              {[["العلامات","3 / ∞"],["المطاعم","7 / ∞"],["الفروع","12 / 20"],["المستخدمون","31 / 50"]].map(([l,v])=>(
+              {statItems.map(([l,v])=>(
                 <div key={l}><p className="text-white/50 text-xs">{l}</p><p className="font-bold">{v}</p></div>
               ))}
             </div>
           </div>
-          <div className="text-left">
-            <p className="text-3xl font-black">4,800 <span className="text-base font-normal text-white/60">ر.س/سنة</span></p>
-            <button onClick={()=>navigate("ca-subscription")} className="mt-2 px-4 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-xs font-bold border border-white/30">ترقية الخطة ↑</button>
+          <div className={dir==="ltr"?"text-left":"text-right"}>
+            <p className="text-3xl font-black">4,800 <span className="text-base font-normal text-white/60">{t("ر.س/سنة","SAR/year")}</span></p>
+            <button onClick={()=>navigate("ca-subscription")} className="mt-2 px-4 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-xs font-bold border border-white/30">{t("ترقية الخطة ↑","Upgrade Plan ↑")}</button>
           </div>
         </div>
       </div>
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label="إجمالي المبيعات الشهرية" value={`${fmt(Math.round(totalSalesM/1000))}K`} sub="ر.س هذا الشهر" icon={<TrendingUp size={18} className="text-emerald-600"/>} accent="emerald" delta="+8.2%"/>
-        <KpiCard label="إجمالي المصروفات"         value={`${fmt(Math.round(totalExpM/1000))}K`}   sub="ر.س هذا الشهر" icon={<Wallet size={18} className="text-red-500"/>}      accent="red"/>
-        <KpiCard label="صافي الربح"                value={`${fmt(Math.round((totalSalesM-totalExpM)/1000))}K`} sub="ر.س" icon={<BarChart3 size={18} className="text-purple-600"/>} accent="purple" delta="+12.4%"/>
-        <KpiCard label="معدل إنجاز الفروع"         value="83%" sub="10 من 12 فرع فوق الهدف" icon={<CheckCircle2 size={18} className="text-blue-600"/>} accent="blue"/>
+        <KpiCard label={t("إجمالي المبيعات الشهرية","Monthly Total Sales")} value={`${fmt(Math.round(totalSalesM/1000))}K`} sub={t("ر.س هذا الشهر","SAR this month")} icon={<TrendingUp size={18} className="text-emerald-600"/>} accent="emerald" delta="+8.2%"/>
+        <KpiCard label={t("إجمالي المصروفات","Total Expenses")}            value={`${fmt(Math.round(totalExpM/1000))}K`}   sub={t("ر.س هذا الشهر","SAR this month")} icon={<Wallet size={18} className="text-red-500"/>}      accent="red"/>
+        <KpiCard label={t("صافي الربح","Net Profit")}                       value={`${fmt(Math.round((totalSalesM-totalExpM)/1000))}K`} sub={t("ر.س","SAR")} icon={<BarChart3 size={18} className="text-purple-600"/>} accent="purple" delta="+12.4%"/>
+        <KpiCard label={t("معدل إنجاز الفروع","Branch Completion Rate")}    value="83%" sub={t("10 من 12 فرع فوق الهدف","10 of 12 branches above target")} icon={<CheckCircle2 size={18} className="text-blue-600"/>} accent="blue"/>
       </div>
       <div className="grid grid-cols-3 gap-4">
         {BRANDS.map(b=>{
@@ -1257,11 +1290,11 @@ function CADashboard({ navigate }:{ navigate:(p:string)=>void }) {
             <div key={b.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold" style={{background:b.color}}>{b.abbr}</div>
-                <div><p className="font-bold text-gray-800 text-sm">{b.name}</p><p className="text-[10px] text-gray-400">{brs.length} فروع</p></div>
+                <div><p className="font-bold text-gray-800 text-sm">{b.name}</p><p className="text-[10px] text-gray-400">{brs.length} {t("فروع","branches")}</p></div>
               </div>
-              <div className="flex justify-between text-xs text-gray-500 mb-1"><span>المبيعات vs الهدف</span><span>{pct}%</span></div>
+              <div className="flex justify-between text-xs text-gray-500 mb-1"><span>{t("المبيعات vs الهدف","Sales vs Target")}</span><span>{pct}%</span></div>
               <div className="w-full h-2 bg-gray-100 rounded-full mb-2"><div className="h-2 rounded-full" style={{width:`${Math.min(100,pct)}%`,background:b.color}}/></div>
-              <div className="flex justify-between text-[11px]"><span className="text-gray-500">{fmt(sales)} ر.س</span><span className="text-gray-400">هدف: {fmt(target)}</span></div>
+              <div className="flex justify-between text-[11px]"><span className="text-gray-500">{fmt(sales)} {t("ر.س","SAR")}</span><span className="text-gray-400">{t("هدف:","Target:")} {fmt(target)}</span></div>
             </div>
           );
         })}
@@ -1271,24 +1304,34 @@ function CADashboard({ navigate }:{ navigate:(p:string)=>void }) {
 }
 
 function CASubscription() {
+  const { t, dir } = useCLang();
   const [billing,setBilling]=useState<"annual"|"monthly">("annual");
   const plans=[
-    { id:"basic",plan:"Basic",price_m:199,price_a:1990,features:["5 فروع","15 مستخدم","4 وحدات","دعم بريد"],current:false },
-    { id:"professional",plan:"Professional",price_m:400,price_a:4800,features:["20 فرعاً","50 مستخدم","كل الوحدات","مدير حساب","تقارير متقدمة"],current:true },
-    { id:"enterprise",plan:"Enterprise",price_m:null,price_a:null,features:["فروع غير محدودة","مستخدمون غير محدودون","SLA 99.9%","API مفتوح"],current:false },
+    { id:"basic",plan:"Basic",price_m:199,price_a:1990,features:[t("5 فروع","5 Branches"),t("15 مستخدم","15 Users"),t("4 وحدات","4 Modules"),t("دعم بريد","Email support")],current:false },
+    { id:"professional",plan:"Professional",price_m:400,price_a:4800,features:[t("20 فرعاً","20 Branches"),t("50 مستخدم","50 Users"),t("كل الوحدات","All modules"),t("مدير حساب","Account manager"),t("تقارير متقدمة","Advanced reports")],current:true },
+    { id:"enterprise",plan:"Enterprise",price_m:null,price_a:null,features:[t("فروع غير محدودة","Unlimited branches"),t("مستخدمون غير محدودون","Unlimited users"),"SLA 99.9%",t("API مفتوح","Open API")],current:false },
   ];
+  const SAR = t("ر.س","SAR");
+  const perYear = t("سنة","year"); const perMonth = t("شهر","mo");
   return (
-    <div className="space-y-5" dir="rtl">
-      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">الاشتراك والخطة</h2></div>
-        <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">{(["annual","monthly"] as const).map(b=><button key={b} onClick={()=>setBilling(b)} className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${billing===b?"bg-white text-gray-800 shadow-sm":"text-gray-500"}`}>{b==="annual"?"سنوي (وفّر 17%)":"شهري"}</button>)}</div>
+    <div className="space-y-5" dir={dir}>
+      <div className="flex items-center justify-between">
+        <div><h2 className="text-xl font-bold text-gray-800">{t("الاشتراك والخطة","Subscription & Plan")}</h2></div>
+        <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+          {(["annual","monthly"] as const).map(b=>(
+            <button key={b} onClick={()=>setBilling(b)} className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${billing===b?"bg-white text-gray-800 shadow-sm":"text-gray-500"}`}>
+              {b==="annual"?t("سنوي (وفّر 17%)","Annual (save 17%)"):t("شهري","Monthly")}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="bg-white rounded-2xl border border-purple-100 shadow-sm overflow-hidden">
         <div className="px-5 py-4 bg-gradient-to-l from-purple-600 to-blue-700 text-white flex items-center justify-between">
-          <div><div className="flex items-center gap-2"><span className="font-black text-xl">Professional</span><Badge className="bg-white/20 text-white text-[10px]">الخطة الحالية</Badge></div><p className="text-white/70 text-xs mt-0.5">تنتهي 15 يناير 2026</p></div>
-          <p className="text-2xl font-black">{billing==="annual"?"4,800":"400"} <span className="text-sm font-normal text-white/60">ر.س/{billing==="annual"?"سنة":"شهر"}</span></p>
+          <div><div className="flex items-center gap-2"><span className="font-black text-xl">Professional</span><Badge className="bg-white/20 text-white text-[10px]">{t("الخطة الحالية","Current Plan")}</Badge></div><p className="text-white/70 text-xs mt-0.5">{t("تنتهي 15 يناير 2026","Expires Jan 15, 2026")}</p></div>
+          <p className="text-2xl font-black">{billing==="annual"?"4,800":"400"} <span className="text-sm font-normal text-white/60">{SAR}/{billing==="annual"?perYear:perMonth}</span></p>
         </div>
         <div className="p-5 grid grid-cols-3 gap-4">
-          {[["الفروع",12,20,"bg-blue-500"],["المستخدمون",31,50,"bg-purple-500"],["التخزين (GB)",2.4,10,"bg-emerald-500"]].map(([l,u,m,c])=>(
+          {[[t("الفروع","Branches"),12,20,"bg-blue-500"],[t("المستخدمون","Users"),31,50,"bg-purple-500"],[t("التخزين (GB)","Storage (GB)"),2.4,10,"bg-emerald-500"]].map(([l,u,m,c])=>(
             <div key={String(l)}><div className="flex justify-between mb-1.5 text-xs font-semibold text-gray-600"><span>{l}</span><span>{u}/{m}</span></div><div className="w-full h-2 bg-gray-100 rounded-full"><div className={`h-2 rounded-full ${c}`} style={{width:`${Math.round((Number(u)/Number(m))*100)}%`}}/></div></div>
           ))}
         </div>
@@ -1296,12 +1339,12 @@ function CASubscription() {
       <div className="grid grid-cols-3 gap-4">
         {plans.map(p=>(
           <div key={p.id} className={`bg-white rounded-2xl border-2 shadow-sm overflow-hidden ${p.current?"border-purple-400 shadow-purple-100":"border-gray-100"}`}>
-            {p.current&&<div className="px-4 py-1.5 text-center text-xs font-bold bg-purple-600 text-white">⭐ خطتك الحالية</div>}
+            {p.current&&<div className="px-4 py-1.5 text-center text-xs font-bold bg-purple-600 text-white">⭐ {t("خطتك الحالية","Your Current Plan")}</div>}
             <div className="p-5">
               <p className="font-black text-gray-900 text-lg">{p.plan}</p>
-              <div className="mt-2 mb-4">{p.price_m===null?<p className="text-2xl font-black text-gray-800">حسب الطلب</p>:<><span className="text-2xl font-black text-gray-800">{billing==="annual"?p.price_a!.toLocaleString():p.price_m.toLocaleString()}</span><span className="text-gray-400 text-sm"> ر.س/{billing==="annual"?"سنة":"شهر"}</span></>}</div>
+              <div className="mt-2 mb-4">{p.price_m===null?<p className="text-2xl font-black text-gray-800">{t("حسب الطلب","Custom")}</p>:<><span className="text-2xl font-black text-gray-800">{billing==="annual"?p.price_a!.toLocaleString():p.price_m.toLocaleString()}</span><span className="text-gray-400 text-sm"> {SAR}/{billing==="annual"?perYear:perMonth}</span></>}</div>
               <ul className="space-y-1.5 mb-5">{p.features.map(f=><li key={f} className="flex items-center gap-2 text-xs text-gray-600"><Check size={11} className="text-emerald-500 flex-shrink-0"/>{f}</li>)}</ul>
-              {p.current?<div className="w-full py-2 rounded-lg bg-purple-100 text-purple-700 text-xs font-bold text-center">خطتك الحالية ✓</div>:p.price_m===null?<button className="w-full py-2 rounded-lg border-2 border-purple-300 text-purple-700 text-xs font-bold hover:bg-purple-50">تواصل مع المبيعات</button>:<button onClick={()=>alert("✅ طلب الترقية تم إرساله")} className="w-full py-2 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700">ترقية ↑</button>}
+              {p.current?<div className="w-full py-2 rounded-lg bg-purple-100 text-purple-700 text-xs font-bold text-center">{t("خطتك الحالية ✓","Your Current Plan ✓")}</div>:p.price_m===null?<button className="w-full py-2 rounded-lg border-2 border-purple-300 text-purple-700 text-xs font-bold hover:bg-purple-50">{t("تواصل مع المبيعات","Contact Sales")}</button>:<button onClick={()=>alert(`✅ ${t("طلب الترقية تم إرساله","Upgrade request sent")}`)} className="w-full py-2 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700">{t("ترقية ↑","Upgrade ↑")}</button>}
             </div>
           </div>
         ))}
@@ -1311,6 +1354,7 @@ function CASubscription() {
 }
 
 function CAUsers() {
+  const { t, dir } = useCLang();
   type U = { id:string;name:string;role:string;branch:string;email:string;status:"active"|"inactive";last:string };
   const [users,setUsers]=useState<U[]>([
     { id:"U1",name:"أحمد العمري",    role:"رئيس الحسابات", branch:"—",             email:"ahmed@altaj.com", status:"active",  last:"اليوم"  },
@@ -1327,32 +1371,35 @@ function CAUsers() {
   const shown=users.filter(u=>!search||u.name.includes(search)||u.role.includes(search));
   const RB:Record<string,string>={"رئيس الحسابات":"bg-blue-50 text-blue-700 border border-blue-100","محاسب":"bg-purple-50 text-purple-700 border border-purple-100","مدير فرع":"bg-emerald-50 text-emerald-700 border border-emerald-100","مدير مشتريات":"bg-amber-50 text-amber-700 border border-amber-100"};
   return (
-    <div className="space-y-5" dir="rtl">
-      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">إدارة المستخدمين</h2><p className="text-gray-400 text-sm">{users.filter(u=>u.status==="active").length} نشط · {users.length}/50</p></div><Btn variant="primary" onClick={()=>setShowAdd(true)}><Plus size={13}/> إضافة مستخدم</Btn></div>
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4"><div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2"><Search size={13} className="text-gray-400"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="بحث..." className="flex-1 text-sm outline-none"/></div></div>
+    <div className="space-y-5" dir={dir}>
+      <div className="flex items-center justify-between">
+        <div><h2 className="text-xl font-bold text-gray-800">{t("إدارة المستخدمين","User Management")}</h2><p className="text-gray-400 text-sm">{users.filter(u=>u.status==="active").length} {t("نشط","active")} · {users.length}/50</p></div>
+        <Btn variant="primary" onClick={()=>setShowAdd(true)}><Plus size={13}/> {t("إضافة مستخدم","Add User")}</Btn>
+      </div>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4"><div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2"><Search size={13} className="text-gray-400"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={t("بحث...","Search...")} className="flex-1 text-sm outline-none"/></div></div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {shown.map(u=>(
           <div key={u.id} className="px-5 py-4 flex items-center gap-4 border-b border-gray-50 last:border-0 hover:bg-gray-50/50">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-400 to-blue-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{u.name[0]}</div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap"><span className="font-semibold text-gray-800 text-sm">{u.name}</span><Badge className={`${RB[u.role]||"bg-gray-50 text-gray-600"} text-[10px]`}>{u.role}</Badge><span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${u.status==="active"?"bg-emerald-50 text-emerald-700":"bg-gray-100 text-gray-400"}`}>{u.status==="active"?"● نشط":"○ غير نشط"}</span></div>
+              <div className="flex items-center gap-2 flex-wrap"><span className="font-semibold text-gray-800 text-sm">{u.name}</span><Badge className={`${RB[u.role]||"bg-gray-50 text-gray-600"} text-[10px]`}>{u.role}</Badge><span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${u.status==="active"?"bg-emerald-50 text-emerald-700":"bg-gray-100 text-gray-400"}`}>{u.status==="active"?`● ${t("نشط","Active")}`:` ○ ${t("غير نشط","Inactive")}`}</span></div>
               <div className="flex gap-3 mt-0.5"><p className="text-xs text-gray-400" dir="ltr">{u.email}</p>{u.branch!=="—"&&<span className="text-[10px] text-gray-500">{u.branch}</span>}</div>
             </div>
             <div className="flex gap-1.5">
-              <button onClick={()=>toggle(u.id)} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border ${u.status==="active"?"bg-gray-50 border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600":"bg-emerald-50 border-emerald-200 text-emerald-700"}`}>{u.status==="active"?"إيقاف":"تفعيل"}</button>
-              <button onClick={()=>alert(`✏️ تعديل بيانات المستخدم:\n${u.name}\n\nيمكن تعديل:\n• اسم المستخدم\n• الصلاحيات والدور\n• بيانات التواصل`)} className="p-1.5 rounded-lg text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"><Edit2 size={13}/></button>
+              <button onClick={()=>toggle(u.id)} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border ${u.status==="active"?"bg-gray-50 border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600":"bg-emerald-50 border-emerald-200 text-emerald-700"}`}>{u.status==="active"?t("إيقاف","Disable"):t("تفعيل","Enable")}</button>
+              <button onClick={()=>alert(`✏️ ${t("تعديل بيانات المستخدم:","Edit user:")}\n${u.name}\n\n${t("يمكن تعديل:","Can edit:")}\n• ${t("اسم المستخدم","Username")}\n• ${t("الصلاحيات والدور","Role & permissions")}\n• ${t("بيانات التواصل","Contact info")}`)} className="p-1.5 rounded-lg text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"><Edit2 size={13}/></button>
             </div>
           </div>
         ))}
       </div>
       {showAdd&&(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setShowAdd(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e=>e.stopPropagation()} dir="rtl">
-            <div className="px-5 py-4 bg-purple-600 text-white flex items-center justify-between"><h3 className="font-bold">إضافة مستخدم</h3><button onClick={()=>setShowAdd(false)} className="text-purple-200 hover:text-white"><X size={18}/></button></div>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e=>e.stopPropagation()} dir={dir}>
+            <div className="px-5 py-4 bg-purple-600 text-white flex items-center justify-between"><h3 className="font-bold">{t("إضافة مستخدم","Add User")}</h3><button onClick={()=>setShowAdd(false)} className="text-purple-200 hover:text-white"><X size={18}/></button></div>
             <div className="p-5 space-y-3">
-              {[["الاسم الكامل",""],["البريد الإلكتروني","email@company.sa"]].map(([l,ph])=><div key={l}><label className="text-xs font-semibold text-gray-600 block mb-1">{l}</label><input placeholder={ph} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>)}
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1">الدور</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none">{["رئيس الحسابات","محاسب","مدير فرع","مدير مشتريات"].map(r=><option key={r}>{r}</option>)}</select></div>
-              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>إلغاء</Btn><Btn variant="primary" onClick={()=>{setShowAdd(false);alert("✅ تم إرسال دعوة التسجيل")}}><Send size={13}/> إرسال دعوة</Btn></div>
+              {[[t("الاسم الكامل","Full Name"),""],[ t("البريد الإلكتروني","Email"),"email@company.sa"]].map(([l,ph])=><div key={l}><label className="text-xs font-semibold text-gray-600 block mb-1">{l}</label><input placeholder={ph} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>)}
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الدور","Role")}</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none">{["رئيس الحسابات","محاسب","مدير فرع","مدير مشتريات"].map(r=><option key={r}>{r}</option>)}</select></div>
+              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={()=>{setShowAdd(false);alert(`✅ ${t("تم إرسال دعوة التسجيل","Registration invite sent")}`)}}><Send size={13}/> {t("إرسال دعوة","Send Invite")}</Btn></div>
             </div>
           </div>
         </div>
@@ -1362,6 +1409,7 @@ function CAUsers() {
 }
 
 function CABranches() {
+  const { t, dir } = useCLang();
   const [expandedBrand,setExpandedBrand]=useState<string>("B1");
   const totalSales=ALL_BRANCHES.reduce((s,b)=>s+b.salesM,0);
   const [showAddBranch,setShowAddBranch]=useState(false);
@@ -1369,34 +1417,37 @@ function CABranches() {
   const [newBranchBrand,setNewBranchBrand]=useState(BRANDS[0].name);
   const [newBranchCity,setNewBranchCity]=useState("الرياض");
   return (
-    <div className="space-y-5" dir="rtl">
-      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">العلامات التجارية والفروع</h2><p className="text-gray-400 text-sm">{BRANDS.length} علامات · {ALL_BRANCHES.length} فرع</p></div><Btn variant="primary" onClick={()=>setShowAddBranch(true)}><Plus size={13}/> إضافة فرع</Btn></div>
+    <div className="space-y-5" dir={dir}>
+      <div className="flex items-center justify-between">
+        <div><h2 className="text-xl font-bold text-gray-800">{t("العلامات التجارية والفروع","Brands & Branches")}</h2><p className="text-gray-400 text-sm">{BRANDS.length} {t("علامات","brands")} · {ALL_BRANCHES.length} {t("فرع","branches")}</p></div>
+        <Btn variant="primary" onClick={()=>setShowAddBranch(true)}><Plus size={13}/> {t("إضافة فرع","Add Branch")}</Btn>
+      </div>
       {showAddBranch&&(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setShowAddBranch(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e=>e.stopPropagation()} dir="rtl">
-            <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">إضافة فرع جديد</h3><button onClick={()=>setShowAddBranch(false)} className="text-gray-400 hover:text-gray-600"><X size={18}/></button></div>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e=>e.stopPropagation()} dir={dir}>
+            <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">{t("إضافة فرع جديد","Add New Branch")}</h3><button onClick={()=>setShowAddBranch(false)} className="text-gray-400 hover:text-gray-600"><X size={18}/></button></div>
             <div className="space-y-3">
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1">اسم الفرع</label><input value={newBranchName} onChange={e=>setNewBranchName(e.target.value)} placeholder="مثال: فرع حي الياسمين..." className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1">العلامة التجارية</label><select value={newBranchBrand} onChange={e=>setNewBranchBrand(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none">{BRANDS.map(b=><option key={b.id}>{b.name}</option>)}</select></div>
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1">المدينة</label><select value={newBranchCity} onChange={e=>setNewBranchCity(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>الرياض</option><option>جدة</option><option>الدمام</option><option>مكة المكرمة</option></select></div>
-              <div className="flex gap-2 justify-end pt-1"><Btn onClick={()=>setShowAddBranch(false)}>إلغاء</Btn><Btn variant="primary" onClick={()=>{if(!newBranchName){alert("أدخل اسم الفرع");return;}setShowAddBranch(false);setNewBranchName("");alert(`✅ تم إضافة ${newBranchName} — سيظهر بعد مراجعة الإدارة`)}}><Plus size={13}/> إضافة</Btn></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("اسم الفرع","Branch Name")}</label><input value={newBranchName} onChange={e=>setNewBranchName(e.target.value)} placeholder={t("مثال: فرع حي الياسمين...","e.g. Al-Yasmin district branch...")} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("العلامة التجارية","Brand")}</label><select value={newBranchBrand} onChange={e=>setNewBranchBrand(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none">{BRANDS.map(b=><option key={b.id}>{b.name}</option>)}</select></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("المدينة","City")}</label><select value={newBranchCity} onChange={e=>setNewBranchCity(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>الرياض</option><option>جدة</option><option>الدمام</option><option>مكة المكرمة</option></select></div>
+              <div className="flex gap-2 justify-end pt-1"><Btn onClick={()=>setShowAddBranch(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={()=>{if(!newBranchName){alert(t("أدخل اسم الفرع","Enter branch name"));return;}setShowAddBranch(false);setNewBranchName("");alert(`✅ ${t("تم إضافة","Added")} ${newBranchName} — ${t("سيظهر بعد مراجعة الإدارة","will appear after admin review")}`)}}><Plus size={13}/> {t("إضافة","Add")}</Btn></div>
             </div>
           </div>
         </div>
       )}
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label="العلامات التجارية" value={String(BRANDS.length)} sub="تحت إدارة المجموعة" icon={<Star size={18} className="text-amber-600"/>} accent="amber"/>
-        <KpiCard label="إجمالي المطاعم" value={String(BRANDS.reduce((s,b)=>s+b.restaurants.length,0))} sub="مطعم" icon={<Home size={18} className="text-blue-600"/>} accent="blue"/>
-        <KpiCard label="الفروع النشطة" value={String(ALL_BRANCHES.length)} sub="فرع من 20 مسموح" icon={<Building2 size={18} className="text-emerald-600"/>} accent="emerald"/>
-        <KpiCard label="إجمالي مبيعات شهرية" value={`${fmt(Math.round(totalSales/1000))}K`} sub="ر.س" icon={<TrendingUp size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label={t("العلامات التجارية","Brands")}           value={String(BRANDS.length)} sub={t("تحت إدارة المجموعة","Under group management")} icon={<Star size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("إجمالي المطاعم","Total Restaurants")}  value={String(BRANDS.reduce((s,b)=>s+b.restaurants.length,0))} sub={t("مطعم","restaurant")} icon={<Home size={18} className="text-blue-600"/>} accent="blue"/>
+        <KpiCard label={t("الفروع النشطة","Active Branches")}     value={String(ALL_BRANCHES.length)} sub={t("فرع من 20 مسموح","of 20 allowed")} icon={<Building2 size={18} className="text-emerald-600"/>} accent="emerald"/>
+        <KpiCard label={t("إجمالي مبيعات شهرية","Monthly Sales")} value={`${fmt(Math.round(totalSales/1000))}K`} sub={t("ر.س","SAR")} icon={<TrendingUp size={18} className="text-purple-600"/>} accent="purple"/>
       </div>
       <div className="space-y-3">
         {BRANDS.map(brand=>(
           <div key={brand.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <button className="w-full px-5 py-4 flex items-center gap-4 hover:bg-gray-50/50" onClick={()=>setExpandedBrand(expandedBrand===brand.id?"":brand.id)}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold" style={{background:brand.color}}>{brand.abbr}</div>
-              <div className="flex-1 text-right"><p className="font-bold text-gray-800">{brand.name}</p><p className="text-xs text-gray-400">{brand.restaurants.length} مطاعم · {brand.restaurants.flatMap(r=>r.branches).length} فروع</p></div>
-              <div className="text-left"><p className="font-mono font-bold text-gray-800 text-sm">{fmt(brand.restaurants.flatMap(r=>r.branches).reduce((s,b)=>s+b.salesM,0))} ر.س</p><p className="text-[10px] text-gray-400">مبيعات شهرية</p></div>
+              <div className={`flex-1 ${dir==="rtl"?"text-right":"text-left"}`}><p className="font-bold text-gray-800">{brand.name}</p><p className="text-xs text-gray-400">{brand.restaurants.length} {t("مطاعم","restaurants")} · {brand.restaurants.flatMap(r=>r.branches).length} {t("فروع","branches")}</p></div>
+              <div className={dir==="rtl"?"text-left":"text-right"}><p className="font-mono font-bold text-gray-800 text-sm">{fmt(brand.restaurants.flatMap(r=>r.branches).reduce((s,b)=>s+b.salesM,0))} {t("ر.س","SAR")}</p><p className="text-[10px] text-gray-400">{t("مبيعات شهرية","Monthly sales")}</p></div>
               <ChevronDown size={14} className={`text-gray-400 transition-transform ${expandedBrand===brand.id?"rotate-180":""}`}/>
             </button>
             {expandedBrand===brand.id&&(
@@ -1410,9 +1461,9 @@ function CABranches() {
                         return (
                           <div key={br.id} className="flex items-center gap-4 px-3 py-2.5 bg-gray-50 rounded-lg">
                             <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{background:brand.color}}>{br.city[0]}</div>
-                            <div className="flex-1 min-w-0"><p className="font-semibold text-gray-700 text-xs">{br.name}</p><p className="text-[10px] text-gray-400">م.الفرع: {br.mgr} · {br.city}</p></div>
+                            <div className="flex-1 min-w-0"><p className="font-semibold text-gray-700 text-xs">{br.name}</p><p className="text-[10px] text-gray-400">{t("م.الفرع:","Mgr:")} {br.mgr} · {br.city}</p></div>
                             <div className="w-28 flex-shrink-0"><div className="flex justify-between text-[10px] text-gray-400 mb-1"><span>{pct}%</span></div><div className="w-full h-1.5 bg-gray-200 rounded-full"><div className={`h-1.5 rounded-full ${pct>=100?"bg-emerald-500":pct>=80?"bg-blue-500":"bg-amber-500"}`} style={{width:`${Math.min(100,pct)}%`}}/></div></div>
-                            <p className="font-mono font-bold text-gray-700 text-xs flex-shrink-0">{fmt(br.salesM)} ر.س</p>
+                            <p className="font-mono font-bold text-gray-700 text-xs flex-shrink-0">{fmt(br.salesM)} {t("ر.س","SAR")}</p>
                           </div>
                         );
                       })}
@@ -1429,32 +1480,33 @@ function CABranches() {
 }
 
 function CAModules() {
-  type Mod = { id:string;name:string;desc:string;icon:string;active:boolean;inPlan:boolean };
+  const { t, dir } = useCLang();
+  type Mod = { id:string;nameAr:string;nameEn:string;descAr:string;descEn:string;icon:string;active:boolean;inPlan:boolean };
   const [mods,setMods]=useState<Mod[]>([
-    { id:"sales",    name:"المبيعات",       desc:"تتبع المبيعات اليومية لجميع الفروع",        icon:"💰",active:true, inPlan:true  },
-    { id:"expenses", name:"المصروفات",      desc:"إدارة المصروفات بموافقات متعددة المستويات", icon:"💸",active:true, inPlan:true  },
-    { id:"purchases",name:"المشتريات",      desc:"أوامر الشراء والموردون ومطابقة الفواتير",   icon:"🛒",active:true, inPlan:true  },
-    { id:"inventory",name:"المخزون",        desc:"الجرد اليومي والشهري ومستويات المخزون",     icon:"📦",active:true, inPlan:true  },
-    { id:"assets",   name:"الأصول الثابتة",desc:"تسجيل الأصول والاستهلاك وسجل العهدة",       icon:"🏢",active:true, inPlan:true  },
-    { id:"shifts",   name:"الشفتات",        desc:"جداول العمل وإغلاق الشفت",                  icon:"🕐",active:true, inPlan:true  },
-    { id:"waste",    name:"الهدر والتالف",  desc:"تتبع هدر الخامات والمسؤولية",               icon:"🗑",active:false,inPlan:true  },
-    { id:"emp",      name:"كشف الحساب",     desc:"رواتب وسلف الموظفين",                       icon:"👥",active:false,inPlan:false },
-    { id:"cash",     name:"العهدة النقدية", desc:"إدارة الخزينة والعهدة اليومية",             icon:"💵",active:false,inPlan:false },
+    { id:"sales",    nameAr:"المبيعات",       nameEn:"Sales",        descAr:"تتبع المبيعات اليومية لجميع الفروع",        descEn:"Track daily sales across all branches",          icon:"💰",active:true, inPlan:true  },
+    { id:"expenses", nameAr:"المصروفات",      nameEn:"Expenses",     descAr:"إدارة المصروفات بموافقات متعددة المستويات", descEn:"Manage expenses with multi-level approvals",     icon:"💸",active:true, inPlan:true  },
+    { id:"purchases",nameAr:"المشتريات",      nameEn:"Purchases",    descAr:"أوامر الشراء والموردون ومطابقة الفواتير",   descEn:"Purchase orders, suppliers & invoice matching", icon:"🛒",active:true, inPlan:true  },
+    { id:"inventory",nameAr:"المخزون",        nameEn:"Inventory",    descAr:"الجرد اليومي والشهري ومستويات المخزون",     descEn:"Daily & monthly inventory & stock levels",       icon:"📦",active:true, inPlan:true  },
+    { id:"assets",   nameAr:"الأصول الثابتة",nameEn:"Fixed Assets", descAr:"تسجيل الأصول والاستهلاك وسجل العهدة",       descEn:"Asset registration, depreciation & custody",     icon:"🏢",active:true, inPlan:true  },
+    { id:"shifts",   nameAr:"الشفتات",        nameEn:"Shifts",       descAr:"جداول العمل وإغلاق الشفت",                  descEn:"Work schedules and shift closing",                icon:"🕐",active:true, inPlan:true  },
+    { id:"waste",    nameAr:"الهدر والتالف",  nameEn:"Waste",        descAr:"تتبع هدر الخامات والمسؤولية",               descEn:"Track raw material waste & responsibility",       icon:"🗑",active:false,inPlan:true  },
+    { id:"emp",      nameAr:"كشف الحساب",     nameEn:"Payroll",      descAr:"رواتب وسلف الموظفين",                       descEn:"Employee salaries & advances",                    icon:"👥",active:false,inPlan:false },
+    { id:"cash",     nameAr:"العهدة النقدية", nameEn:"Cash Custody", descAr:"إدارة الخزينة والعهدة اليومية",             descEn:"Treasury & daily cash custody management",       icon:"💵",active:false,inPlan:false },
   ]);
-  const toggle=(id:string)=>{const m=mods.find(x=>x.id===id);if(!m?.inPlan){alert("يحتاج ترقية الخطة");return;}setMods(p=>p.map(x=>x.id===id?{...x,active:!x.active}:x));};
+  const toggle=(id:string)=>{const m=mods.find(x=>x.id===id);if(!m?.inPlan){alert(t("يحتاج ترقية الخطة","Plan upgrade required"));return;}setMods(p=>p.map(x=>x.id===id?{...x,active:!x.active}:x));};
   return (
-    <div className="space-y-5" dir="rtl">
-      <div><h2 className="text-xl font-bold text-gray-800">الوحدات النشطة</h2></div>
+    <div className="space-y-5" dir={dir}>
+      <div><h2 className="text-xl font-bold text-gray-800">{t("الوحدات النشطة","Active Modules")}</h2></div>
       <div className="grid grid-cols-3 gap-4">
-        <KpiCard label="مفعّلة" value={String(mods.filter(m=>m.active).length)} sub="وحدات نشطة" icon={<CheckCircle2 size={18} className="text-emerald-600"/>} accent="emerald"/>
-        <KpiCard label="متاحة للتفعيل" value={String(mods.filter(m=>!m.active&&m.inPlan).length)} sub="ضمن خطتك" icon={<Zap size={18} className="text-amber-600"/>} accent="amber"/>
-        <KpiCard label="تحتاج ترقية" value={String(mods.filter(m=>!m.inPlan).length)} sub="غير مشمولة" icon={<Lock size={18} className="text-gray-500"/>} accent="blue"/>
+        <KpiCard label={t("مفعّلة","Active")}           value={String(mods.filter(m=>m.active).length)} sub={t("وحدات نشطة","active modules")} icon={<CheckCircle2 size={18} className="text-emerald-600"/>} accent="emerald"/>
+        <KpiCard label={t("متاحة للتفعيل","Available")} value={String(mods.filter(m=>!m.active&&m.inPlan).length)} sub={t("ضمن خطتك","In your plan")} icon={<Zap size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("تحتاج ترقية","Needs Upgrade")} value={String(mods.filter(m=>!m.inPlan).length)} sub={t("غير مشمولة","Not included")} icon={<Lock size={18} className="text-gray-500"/>} accent="blue"/>
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {mods.map(m=>(
           <div key={m.id} className={`px-5 py-4 flex items-center gap-4 border-b border-gray-50 last:border-0 ${!m.inPlan?"bg-gray-50/60":""}`}>
             <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-xl flex-shrink-0">{m.icon}</div>
-            <div className="flex-1"><div className="flex items-center gap-2"><span className="font-semibold text-gray-800 text-sm">{m.name}</span>{!m.inPlan&&<Badge className="bg-amber-50 text-amber-700 border border-amber-100 text-[10px]"><Lock size={9}/> يحتاج ترقية</Badge>}</div><p className="text-xs text-gray-400 mt-0.5">{m.desc}</p></div>
+            <div className="flex-1"><div className="flex items-center gap-2"><span className="font-semibold text-gray-800 text-sm">{t(m.nameAr,m.nameEn)}</span>{!m.inPlan&&<Badge className="bg-amber-50 text-amber-700 border border-amber-100 text-[10px]"><Lock size={9}/> {t("يحتاج ترقية","Needs upgrade")}</Badge>}</div><p className="text-xs text-gray-400 mt-0.5">{t(m.descAr,m.descEn)}</p></div>
             <button onClick={()=>toggle(m.id)} className={`w-12 h-6 rounded-full transition-all flex-shrink-0 relative ${m.active?"bg-purple-500":m.inPlan?"bg-gray-300":"bg-gray-200 cursor-not-allowed"}`}>
               <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${m.active?"right-0.5":"left-0.5"}`}/>
             </button>
@@ -1466,24 +1518,28 @@ function CAModules() {
 }
 
 function CABilling() {
+  const { t, dir } = useCLang();
   const invoices=[{id:"INV-2025-012",date:"01 يناير 2025",amount:4800},{id:"INV-2024-012",date:"01 يناير 2024",amount:3600}];
   return (
-    <div className="space-y-5" dir="rtl">
-      <div><h2 className="text-xl font-bold text-gray-800">الفواتير والمدفوعات</h2></div>
+    <div className="space-y-5" dir={dir}>
+      <div><h2 className="text-xl font-bold text-gray-800">{t("الفواتير والمدفوعات","Invoices & Payments")}</h2></div>
       <div className="grid grid-cols-3 gap-4">
-        <KpiCard label="إجمالي المدفوع" value={fmt(invoices.reduce((s,i)=>s+i.amount,0))} sub="ر.س" icon={<Wallet size={18} className="text-emerald-600"/>} accent="emerald"/>
-        <KpiCard label="الفاتورة التالية" value="15 يناير 2026" sub="4,800 ر.س" icon={<CreditCard size={18} className="text-blue-600"/>} accent="blue"/>
-        <KpiCard label="طريقة الدفع" value="بطاقة ائتمان" sub="**** 4521" icon={<Shield size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label={t("إجمالي المدفوع","Total Paid")} value={fmt(invoices.reduce((s,i)=>s+i.amount,0))} sub={t("ر.س","SAR")} icon={<Wallet size={18} className="text-emerald-600"/>} accent="emerald"/>
+        <KpiCard label={t("الفاتورة التالية","Next Invoice")} value={t("15 يناير 2026","Jan 15, 2026")} sub={t("4,800 ر.س","4,800 SAR")} icon={<CreditCard size={18} className="text-blue-600"/>} accent="blue"/>
+        <KpiCard label={t("طريقة الدفع","Payment Method")} value={t("بطاقة ائتمان","Credit Card")} sub="**** 4521" icon={<Shield size={18} className="text-purple-600"/>} accent="purple"/>
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between"><h3 className="font-bold text-gray-900 text-sm">سجل الفواتير</h3><button onClick={()=>alert("⬇️ تصدير جميع الفواتير\n\nجار تحضير ملف Excel يحتوي على:\n• جميع الفواتير المدفوعة\n• تواريخ الدفع والمبالغ\n• رقم كل فاتورة")} className="text-xs text-emerald-700 font-semibold flex items-center gap-1 hover:text-emerald-800 transition-colors"><Download size={11}/> تصدير</button></div>
+        <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
+          <h3 className="font-bold text-gray-900 text-sm">{t("سجل الفواتير","Invoice History")}</h3>
+          <button onClick={()=>alert(t("⬇️ تصدير جميع الفواتير\n\nجار تحضير ملف Excel يحتوي على:\n• جميع الفواتير المدفوعة\n• تواريخ الدفع والمبالغ\n• رقم كل فاتورة","⬇️ Exporting all invoices\n\nPreparing Excel file with:\n• All paid invoices\n• Payment dates & amounts\n• Invoice numbers"))} className="text-xs text-emerald-700 font-semibold flex items-center gap-1 hover:text-emerald-800 transition-colors"><Download size={11}/> {t("تصدير","Export")}</button>
+        </div>
         {invoices.map(inv=>(
           <div key={inv.id} className="px-5 py-4 flex items-center gap-4 border-b border-gray-50 last:border-0">
             <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0"><FileText size={16} className="text-emerald-600"/></div>
             <div className="flex-1"><p className="font-semibold text-gray-800 text-sm" dir="ltr">{inv.id}</p><p className="text-xs text-gray-400">{inv.date}</p></div>
-            <span className="font-mono font-bold text-gray-800">{fmt(inv.amount)} ر.س</span>
-            <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px]">✓ مدفوع</Badge>
-            <button onClick={()=>alert(`⬇️ تحميل الفاتورة:\n${inv.id}\n\nجار تحميل PDF...`)} className="p-1.5 rounded-lg text-gray-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors" title="تحميل PDF"><Download size={13}/></button>
+            <span className="font-mono font-bold text-gray-800">{fmt(inv.amount)} {t("ر.س","SAR")}</span>
+            <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px]">✓ {t("مدفوع","Paid")}</Badge>
+            <button onClick={()=>alert(`⬇️ ${t("تحميل الفاتورة:","Download invoice:")}\n${inv.id}\n\n${t("جار تحميل PDF...","Downloading PDF...")}`)} className="p-1.5 rounded-lg text-gray-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"><Download size={13}/></button>
           </div>
         ))}
       </div>
@@ -1492,66 +1548,79 @@ function CABilling() {
 }
 
 function CASettings() {
+  const { t, dir } = useCLang();
   const [saved,setSaved]=useState(false);
+  const fields = [
+    [t("اسم المجموعة","Group Name"),       "مجموعة التاج للمطاعم"],
+    [t("المدينة الرئيسية","Main City"),     "الرياض"],
+    [t("رقم السجل التجاري","CR Number"),   "1010XXXXXX"],
+    [t("البريد الإلكتروني","Email"),        "info@altaj.com"],
+  ];
   return (
-    <div className="space-y-5" dir="rtl">
-      <div><h2 className="text-xl font-bold text-gray-800">إعدادات الشركة</h2></div>
+    <div className="space-y-5" dir={dir}>
+      <div><h2 className="text-xl font-bold text-gray-800">{t("إعدادات الشركة","Company Settings")}</h2></div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
-        <h3 className="font-bold text-gray-800 text-sm border-b border-gray-100 pb-3">بيانات الشركة</h3>
+        <h3 className="font-bold text-gray-800 text-sm border-b border-gray-100 pb-3">{t("بيانات الشركة","Company Information")}</h3>
         <div className="grid grid-cols-2 gap-4">
-          {[["اسم المجموعة","مجموعة التاج للمطاعم"],["المدينة الرئيسية","الرياض"],["رقم السجل التجاري","1010XXXXXX"],["البريد الإلكتروني","info@altaj.com"]].map(([l,v])=>(
+          {fields.map(([l,v])=>(
             <div key={l}><label className="text-xs font-semibold text-gray-600 block mb-1">{l}</label><input defaultValue={v} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
           ))}
         </div>
-        <div className="flex justify-end"><button onClick={()=>{setSaved(true);setTimeout(()=>setSaved(false),2000);}} className={`inline-flex items-center gap-1.5 px-5 py-2 rounded-lg font-bold text-sm transition-all ${saved?"bg-emerald-500 text-white":"bg-purple-600 text-white hover:bg-purple-700"}`}>{saved?<><Check size={14}/> تم الحفظ</>:<><CheckCircle2 size={14}/> حفظ</>}</button></div>
+        <div className="flex justify-end"><button onClick={()=>{setSaved(true);setTimeout(()=>setSaved(false),2000);}} className={`inline-flex items-center gap-1.5 px-5 py-2 rounded-lg font-bold text-sm transition-all ${saved?"bg-emerald-500 text-white":"bg-purple-600 text-white hover:bg-purple-700"}`}>{saved?<><Check size={14}/> {t("تم الحفظ","Saved")}</>:<><CheckCircle2 size={14}/> {t("حفظ","Save")}</>}</button></div>
       </div>
     </div>
   );
 }
 
 function CASupport() {
-  const [msgType,setMsgType]=useState("نوع المشكلة...");
+  const { t, dir } = useCLang();
+  const PLACEHOLDER = t("نوع المشكلة...","Issue type...");
+  const [msgType,setMsgType]=useState(PLACEHOLDER);
   const [msgBody,setMsgBody]=useState("");
   const [sent,setSent]=useState(false);
   const channels=[
-    {ic:"💬",t:"الدردشة الفورية",d:"9 ص — 9 م",b:"متاح الآن",   action:()=>alert("✅ سيتم فتح نافذة الدردشة — متاح الآن")},
-    {ic:"📞",t:"الاتصال",         d:"800 123 4567",b:"أيام العمل",action:()=>alert("📞 يمكنك الاتصال على: 800 123 4567\nأيام العمل 9 ص — 5 م")},
-    {ic:"📧",t:"البريد",           d:"support@asab.sa",b:"خلال 24 ساعة",action:()=>alert("📧 البريد الإلكتروني: support@asab.sa")},
+    {ic:"💬",label:t("الدردشة الفورية","Live Chat"),       d:t("9 ص — 9 م","9 AM — 9 PM"),   b:t("متاح الآن","Available now"),    action:()=>alert(t("✅ سيتم فتح نافذة الدردشة — متاح الآن","✅ Chat window opening — available now"))},
+    {ic:"📞",label:t("الاتصال","Call"),                    d:"800 123 4567",                    b:t("أيام العمل","Business days"),  action:()=>alert(`📞 ${t("يمكنك الاتصال على:","You can call:")} 800 123 4567\n${t("أيام العمل 9 ص — 5 م","Business days 9 AM — 5 PM")}`)},
+    {ic:"📧",label:t("البريد","Email"),                    d:"support@asab.sa",                 b:t("خلال 24 ساعة","Within 24 hrs"),action:()=>alert(`📧 ${t("البريد الإلكتروني:","Email:")} support@asab.sa`)},
   ];
   const handleSend=()=>{
-    if(msgType==="نوع المشكلة..."){alert("يرجى تحديد نوع المشكلة");return;}
-    if(!msgBody.trim()){alert("يرجى شرح المشكلة أولاً");return;}
+    if(msgType===PLACEHOLDER){alert(t("يرجى تحديد نوع المشكلة","Please select an issue type"));return;}
+    if(!msgBody.trim()){alert(t("يرجى شرح المشكلة أولاً","Please describe the issue first"));return;}
     setSent(true);
   };
   return (
-    <div className="space-y-5" dir="rtl">
-      <div><h2 className="text-xl font-bold text-gray-800">الدعم الفني</h2></div>
+    <div className="space-y-5" dir={dir}>
+      <div><h2 className="text-xl font-bold text-gray-800">{t("الدعم الفني","Technical Support")}</h2></div>
       <div className="grid grid-cols-3 gap-4">
-        {channels.map(({ic,t,d,b,action})=>(
-          <button key={t} onClick={action} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 text-right hover:border-purple-200 hover:shadow-md transition-all">
+        {channels.map(({ic,label,d,b,action})=>(
+          <button key={label} onClick={action} className={`bg-white rounded-xl border border-gray-100 shadow-sm p-5 hover:border-purple-200 hover:shadow-md transition-all ${dir==="rtl"?"text-right":"text-left"}`}>
             <div className="text-3xl mb-3">{ic}</div>
-            <p className="font-bold text-gray-800 text-sm">{t}</p>
+            <p className="font-bold text-gray-800 text-sm">{label}</p>
             <p className="text-xs text-gray-400 mt-1">{d}</p>
             <Badge className="mt-2 bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px]">{b}</Badge>
           </button>
         ))}
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-        <h3 className="font-bold text-gray-800 text-sm mb-3">إرسال طلب دعم</h3>
+        <h3 className="font-bold text-gray-800 text-sm mb-3">{t("إرسال طلب دعم","Submit Support Request")}</h3>
         {sent?(
           <div className="text-center py-6">
             <div className="text-4xl mb-3">✅</div>
-            <p className="font-bold text-gray-800">تم إرسال طلب الدعم</p>
-            <p className="text-sm text-gray-400 mt-1">سنتواصل معك خلال 24 ساعة</p>
-            <Btn onClick={()=>{setSent(false);setMsgBody("");setMsgType("نوع المشكلة...");}} variant="ghost" size="sm">إرسال طلب آخر</Btn>
+            <p className="font-bold text-gray-800">{t("تم إرسال طلب الدعم","Support request submitted")}</p>
+            <p className="text-sm text-gray-400 mt-1">{t("سنتواصل معك خلال 24 ساعة","We will contact you within 24 hours")}</p>
+            <Btn onClick={()=>{setSent(false);setMsgBody("");setMsgType(PLACEHOLDER);}} variant="ghost" size="sm">{t("إرسال طلب آخر","Submit another request")}</Btn>
           </div>
         ):(
           <div className="space-y-3">
             <select value={msgType} onChange={e=>setMsgType(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none">
-              <option>نوع المشكلة...</option><option>مشكلة في الاشتراك</option><option>مشكلة تقنية</option><option>استفسار عام</option><option>طلب ميزة</option>
+              <option>{PLACEHOLDER}</option>
+              <option>{t("مشكلة في الاشتراك","Subscription issue")}</option>
+              <option>{t("مشكلة تقنية","Technical issue")}</option>
+              <option>{t("استفسار عام","General inquiry")}</option>
+              <option>{t("طلب ميزة","Feature request")}</option>
             </select>
-            <textarea rows={4} value={msgBody} onChange={e=>setMsgBody(e.target.value)} placeholder="اشرح المشكلة بالتفصيل..." className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none resize-none focus:border-purple-400"/>
-            <Btn variant="primary" onClick={handleSend}><Send size={13}/> إرسال الطلب</Btn>
+            <textarea rows={4} value={msgBody} onChange={e=>setMsgBody(e.target.value)} placeholder={t("اشرح المشكلة بالتفصيل...","Describe the issue in detail...")} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none resize-none focus:border-purple-400"/>
+            <Btn variant="primary" onClick={handleSend}><Send size={13}/> {t("إرسال الطلب","Submit Request")}</Btn>
           </div>
         )}
       </div>
@@ -1576,39 +1645,35 @@ type HeadProps = {
 // HEAD ACCOUNTANT — DASHBOARD
 // ═══════════════════════════════════════════════════
 function HeadDashboard({ navigate, ops, finalApprove, reject, bulkFinalApprove }:HeadProps) {
-  // العمليات التي وافق عليها المحاسب وتنتظر الاعتماد النهائي من رئيس الحسابات
+  const { t, dir } = useCLang();
   const awaitingHead  = ops.filter(o=>o.status==="approved");
   const finalApproved = ops.filter(o=>o.status==="final-approved");
   const rejected      = ops.filter(o=>o.status==="rejected");
   const totalSalesM   = ALL_BRANCHES.reduce((s,b)=>s+b.salesM,0);
-  const totalExpM     = ALL_BRANCHES.reduce((s,b)=>s+b.expM,0);
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">لوحة رئيس الحسابات 👑</h2>
-          <p className="text-gray-400 text-sm">{COMPANY.name} · الإشراف على المحاسبين · الاعتماد النهائي</p>
+          <h2 className="text-xl font-bold text-gray-800">{t("لوحة رئيس الحسابات 👑","Head Accountant Dashboard 👑")}</h2>
+          <p className="text-gray-400 text-sm">{COMPANY.name} · {t("الإشراف على المحاسبين · الاعتماد النهائي","Accountant Oversight · Final Approval")}</p>
         </div>
         <button onClick={()=>navigate("head-pending")} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 shadow-sm relative">
-          <Clock size={14}/> بانتظار اعتمادي
+          <Clock size={14}/> {t("بانتظار اعتمادي","Awaiting My Approval")}
           {awaitingHead.length>0&&<span className="absolute -top-1.5 -left-1.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">{awaitingHead.length}</span>}
         </button>
       </div>
 
-      {/* KPIs — مطابقة للداشبورد الرئيسي */}
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label="بانتظار اعتمادي"  value={String(awaitingHead.length)} sub="📱 من المحاسبين · م3"   icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
-        <KpiCard label="معتمدة نهائياً"   value={String(finalApproved.length)} sub="مُغلقة · تنتظر ERP · م4" icon={<Lock size={18} className="text-emerald-600"/>} accent="emerald"/>
-        <KpiCard label="مرفوضة"           value={String(rejected.length)} sub="خارج المسار"                  icon={<XCircle size={18} className="text-red-600"/>} accent="red"/>
-        <KpiCard label="إجمالي المبيعات"  value={`${fmt(Math.round(totalSalesM/1000))}K`} sub="ر.س هذا الشهر" icon={<TrendingUp size={18} className="text-blue-600"/>} accent="blue" delta="+8.2%"/>
+        <KpiCard label={t("بانتظار اعتمادي","Awaiting My Approval")}  value={String(awaitingHead.length)}  sub={t("📱 من المحاسبين · م3","📱 From accountants · S3")}      icon={<Clock size={18} className="text-amber-600"/>}   accent="amber"/>
+        <KpiCard label={t("معتمدة نهائياً","Final Approved")}          value={String(finalApproved.length)} sub={t("مُغلقة · تنتظر ERP · م4","Closed · Awaiting ERP · S4")} icon={<Lock size={18} className="text-emerald-600"/>}  accent="emerald"/>
+        <KpiCard label={t("مرفوضة","Rejected")}                        value={String(rejected.length)}      sub={t("خارج المسار","Off Pipeline")}                           icon={<XCircle size={18} className="text-red-600"/>}    accent="red"/>
+        <KpiCard label={t("إجمالي المبيعات","Total Sales")}            value={`${fmt(Math.round(totalSalesM/1000))}K`} sub={t("ر.س هذا الشهر","SAR this month")}             icon={<TrendingUp size={18} className="text-blue-600"/>} accent="blue" delta="+8.2%"/>
       </div>
 
-      {/* مسار العمليات */}
       <CPipelineOverview ops={ops}/>
 
-      {/* أداء العلامات التجارية */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-        <h3 className="font-bold text-gray-800 text-sm mb-4">أداء العلامات التجارية هذا الشهر</h3>
+        <h3 className="font-bold text-gray-800 text-sm mb-4">{t("أداء العلامات التجارية هذا الشهر","Brand Performance This Month")}</h3>
         <div className="space-y-4">
           {BRANDS.map(b=>{
             const brs=b.restaurants.flatMap(r=>r.branches);
@@ -1622,17 +1687,17 @@ function HeadDashboard({ navigate, ops, finalApprove, reject, bulkFinalApprove }
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-semibold text-gray-700">{b.name}</span>
-                    <span className="text-xs text-gray-500">{pct}% من الهدف</span>
+                    <span className="text-xs text-gray-500">{pct}% {t("من الهدف","of target")}</span>
                   </div>
                   <div className="w-full h-2 bg-gray-100 rounded-full"><div className="h-2 rounded-full" style={{width:`${Math.min(100,pct)}%`,background:b.color}}/></div>
                 </div>
-                <div className="text-left flex-shrink-0 w-32">
+                <div className={`flex-shrink-0 w-32 ${dir==="ltr"?"text-left":"text-right"}`}>
                   <p className="font-mono font-bold text-gray-800 text-xs">{fmt(sales)}</p>
-                  <p className="text-[10px] text-gray-400">مصروفات: {fmt(exp)}</p>
+                  <p className="text-[10px] text-gray-400">{t("مصروفات:","Expenses:")} {fmt(exp)}</p>
                 </div>
-                <div className="w-16 text-left flex-shrink-0">
+                <div className={`w-16 flex-shrink-0 ${dir==="ltr"?"text-left":"text-right"}`}>
                   <p className={`font-bold text-sm ${sales-exp>0?"text-emerald-600":"text-red-500"}`}>{fmt(sales-exp)}</p>
-                  <p className="text-[10px] text-gray-400">صافي</p>
+                  <p className="text-[10px] text-gray-400">{t("صافي","Net")}</p>
                 </div>
               </div>
             );
@@ -1640,18 +1705,17 @@ function HeadDashboard({ navigate, ops, finalApprove, reject, bulkFinalApprove }
         </div>
       </div>
 
-      {/* العمليات بانتظار الاعتماد النهائي */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-3.5 border-b border-gray-100 bg-amber-50/60 flex items-center justify-between">
-          <h3 className="font-bold text-amber-800 text-sm">⏳ بانتظار اعتمادك النهائي ({awaitingHead.length})</h3>
+          <h3 className="font-bold text-amber-800 text-sm">⏳ {t("بانتظار اعتمادك النهائي","Awaiting Your Final Approval")} ({awaitingHead.length})</h3>
           {awaitingHead.length>0 && (
             <div className="flex items-center gap-2">
-              <Btn size="sm" variant="success" onClick={()=>bulkFinalApprove(awaitingHead.map(o=>o.id))}>✅ اعتماد الكل</Btn>
-              <button onClick={()=>navigate("head-pending")} className="text-xs text-purple-600 font-semibold hover:underline">عرض الكل ←</button>
+              <Btn size="sm" variant="success" onClick={()=>bulkFinalApprove(awaitingHead.map(o=>o.id))}>✅ {t("اعتماد الكل","Approve All")}</Btn>
+              <button onClick={()=>navigate("head-pending")} className="text-xs text-purple-600 font-semibold hover:underline">{t("عرض الكل ←","View All →")}</button>
             </div>
           )}
         </div>
-        {awaitingHead.length===0 && <div className="p-8 text-center text-gray-400 text-sm">✅ تم اعتماد جميع العمليات الصادرة من المحاسبين</div>}
+        {awaitingHead.length===0 && <div className="p-8 text-center text-gray-400 text-sm">✅ {t("تم اعتماد جميع العمليات الصادرة من المحاسبين","All accountant operations have been final-approved")}</div>}
         {awaitingHead.slice(0,4).map(op=>(
           <div key={op.id} className="px-5 py-3.5 flex items-center gap-4 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
             <div className="w-1 h-8 rounded-full flex-shrink-0" style={{background:op.brandColor}}/>
@@ -1659,15 +1723,15 @@ function HeadDashboard({ navigate, ops, finalApprove, reject, bulkFinalApprove }
               <p className="text-sm font-semibold text-gray-800">{op.moduleLabel} — {op.branch}</p>
               <p className="text-xs text-gray-400">{op.brandName} · {op.submittedBy} · {op.timeAgo}</p>
             </div>
-            {op.amount>0&&<span className="font-mono font-bold text-gray-800 text-sm">{fmt(op.amount)} ر.س</span>}
+            {op.amount>0&&<span className="font-mono font-bold text-gray-800 text-sm">{fmt(op.amount)} {t("ر.س","SAR")}</span>}
             <COpStagePill op={op}/>
             <Badge className={`text-[10px] border ${MATCH_CFG[op.match].cls}`}>
               <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${MATCH_CFG[op.match].dot}`}/>
-              {MATCH_CFG[op.match].label}
+              {t(MATCH_CFG[op.match].label, EN_MATCH_CD[op.match])}
             </Badge>
             <div className="flex gap-1.5 flex-shrink-0">
-              <button onClick={()=>finalApprove(op.id)} title="اعتماد نهائي" className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 flex items-center justify-center text-xs"><CheckCircle2 size={12}/></button>
-              <button onClick={()=>reject(op.id)} title="رفض" className="w-7 h-7 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 flex items-center justify-center text-xs"><XCircle size={12}/></button>
+              <button onClick={()=>finalApprove(op.id)} title={t("اعتماد نهائي","Final Approve")} className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 flex items-center justify-center text-xs"><CheckCircle2 size={12}/></button>
+              <button onClick={()=>reject(op.id)} title={t("رفض","Reject")} className="w-7 h-7 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 flex items-center justify-center text-xs"><XCircle size={12}/></button>
             </div>
           </div>
         ))}
@@ -1682,11 +1746,11 @@ function HeadDashboard({ navigate, ops, finalApprove, reject, bulkFinalApprove }
 // وينقلها لـ "final-approved" بدلاً من حذفها
 // ═══════════════════════════════════════════════════
 function HeadPending({ ops, finalApprove, reject, bulkFinalApprove }:HeadProps) {
+  const { t, dir } = useCLang();
   const [selected,setSelected]  = useState<string|null>(null);
   const [brandFilter,setBrandFilter] = useState("الكل");
   const [modFilter,setModFilter] = useState<""|CModKey>("");
 
-  // رئيس الحسابات يرى فقط العمليات التي أجاز عليها المحاسب (م3) والتي تنتظر اعتماده النهائي (→ م4)
   const awaitingHead = ops.filter(o=>o.status==="approved");
   const brands = ["الكل",...new Set(ops.map(o=>o.brandName))];
   const shown  = awaitingHead.filter(o=>{
@@ -1696,41 +1760,42 @@ function HeadPending({ ops, finalApprove, reject, bulkFinalApprove }:HeadProps) 
   });
   const totalAmt = shown.reduce((s,o)=>s+o.amount,0);
 
+  const modLabels:Record<string,string>={
+    sales:`💰 ${t("مبيعات","Sales")}`, expenses:`💸 ${t("مصروفات","Expenses")}`,
+    purchases:`🛒 ${t("مشتريات","Purchases")}`, inventory:`📦 ${t("مخزون","Inventory")}`,
+  };
+
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">بانتظار الاعتماد النهائي</h2>
-          <p className="text-gray-400 text-sm mt-0.5">{awaitingHead.length} عملية — موافق عليها من المحاسب · تنتظر اعتمادك (م3 → م4)</p>
+          <h2 className="text-xl font-bold text-gray-800">{t("بانتظار الاعتماد النهائي","Awaiting Final Approval")}</h2>
+          <p className="text-gray-400 text-sm mt-0.5">{awaitingHead.length} {t("عملية — موافق عليها من المحاسب · تنتظر اعتمادك (م3 → م4)","operations — accountant-approved · awaiting your final approval (S3 → S4)")}</p>
         </div>
         {awaitingHead.length>0 && (
           <Btn variant="success" onClick={()=>bulkFinalApprove(awaitingHead.map(o=>o.id))}>
-            <CheckCircle2 size={13}/> اعتماد الكل ({awaitingHead.length})
+            <CheckCircle2 size={13}/> {t("اعتماد الكل","Approve All")} ({awaitingHead.length})
           </Btn>
         )}
       </div>
 
-      {/* فلاتر */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
         <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
           {brands.map(b=>(
             <button key={b} onClick={()=>setBrandFilter(b)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${brandFilter===b?"bg-white text-gray-800 shadow-sm":"text-gray-500 hover:text-gray-700"}`}>
-              {b}
+              {b === "الكل" ? t("الكل","All") : b}
             </button>
           ))}
         </div>
         <div className="flex items-center gap-2">
-          {(["","sales","expenses","purchases","inventory"] as (""|CModKey)[]).map(m=>{
-            const labels:Record<string,string>={sales:"💰 مبيعات",expenses:"💸 مصروفات",purchases:"🛒 مشتريات",inventory:"📦 مخزون"};
-            return (
-              <button key={m} onClick={()=>setModFilter(m)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${modFilter===m?"bg-purple-600 text-white border-purple-600":"bg-white text-gray-600 border-gray-200 hover:border-purple-300"}`}>
-                {m===""?"الكل":labels[m]}
-              </button>
-            );
-          })}
-          {totalAmt>0 && <span className="mr-auto text-xs text-gray-500 font-mono font-semibold">إجمالي العرض: {fmt(totalAmt)} ر.س</span>}
+          {(["","sales","expenses","purchases","inventory"] as (""|CModKey)[]).map(m=>(
+            <button key={m} onClick={()=>setModFilter(m)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${modFilter===m?"bg-purple-600 text-white border-purple-600":"bg-white text-gray-600 border-gray-200 hover:border-purple-300"}`}>
+              {m===""?t("الكل","All"):modLabels[m]}
+            </button>
+          ))}
+          {totalAmt>0 && <span className="mr-auto text-xs text-gray-500 font-mono font-semibold">{t("إجمالي العرض:","Displayed total:")} {fmt(totalAmt)} {t("ر.س","SAR")}</span>}
         </div>
       </div>
 
@@ -1738,8 +1803,8 @@ function HeadPending({ ops, finalApprove, reject, bulkFinalApprove }:HeadProps) 
         {shown.length===0 ? (
           <div className="p-10 text-center">
             <p className="text-2xl mb-2">✅</p>
-            <p className="text-gray-600 font-semibold text-sm">لا توجد عمليات بانتظار اعتمادك النهائي</p>
-            <p className="text-gray-400 text-xs mt-1">كل العمليات معتمدة نهائياً أو ما زالت قيد المراجعة لدى المحاسب</p>
+            <p className="text-gray-600 font-semibold text-sm">{t("لا توجد عمليات بانتظار اعتمادك النهائي","No operations awaiting your final approval")}</p>
+            <p className="text-gray-400 text-xs mt-1">{t("كل العمليات معتمدة نهائياً أو ما زالت قيد المراجعة لدى المحاسب","All operations are final-approved or still under accountant review")}</p>
           </div>
         ) : shown.map(op=>(
           <div key={op.id} className={`border-b border-gray-50 last:border-0 ${selected===op.id?"bg-purple-50/30":""}`}>
@@ -1754,17 +1819,16 @@ function HeadPending({ ops, finalApprove, reject, bulkFinalApprove }:HeadProps) 
             />
             {selected===op.id && (
               <div className="px-5 pb-4 space-y-3 border-t border-gray-50 pt-3">
-                {/* Pipeline bar */}
                 <CPipelineBar op={op}/>
                 <div className="flex gap-2">
                   <Btn variant="success" size="sm" onClick={()=>{ finalApprove(op.id); setSelected(null); }}>
-                    <Lock size={12}/> اعتماد نهائي (م4)
+                    <Lock size={12}/> {t("اعتماد نهائي (م4)","Final Approve (S4)")}
                   </Btn>
                   <Btn variant="danger" size="sm" onClick={()=>{ reject(op.id); setSelected(null); }}>
-                    <ThumbsDown size={12}/> رفض
+                    <ThumbsDown size={12}/> {t("رفض","Reject")}
                   </Btn>
-                  <Btn size="sm" onClick={()=>alert(`📎 المرفقات (${op.attachments}):\n• فاتورة مبيعات POS\n• تقرير الكاشير\n• صورة إيصال التسليم`)}>
-                    <Paperclip size={12}/> {op.attachments} مرفقات
+                  <Btn size="sm" onClick={()=>alert(`📎 ${t("المرفقات","Attachments")} (${op.attachments}):\n• ${t("فاتورة مبيعات POS","POS Sales Invoice")}\n• ${t("تقرير الكاشير","Cashier Report")}\n• ${t("صورة إيصال التسليم","Delivery Receipt Image")}`)}>
+                    <Paperclip size={12}/> {op.attachments} {t("مرفقات","attachments")}
                   </Btn>
                 </div>
               </div>
@@ -1780,19 +1844,20 @@ function HeadPending({ ops, finalApprove, reject, bulkFinalApprove }:HeadProps) 
 // HEAD — APPROVED (المعتمدة نهائياً)
 // ═══════════════════════════════════════════════════
 function HeadApproved({ ops }:{ ops:COp[] }) {
+  const { t, dir } = useCLang();
   const finalApproved = ops.filter(o=>o.status==="final-approved");
   const totalAmt      = finalApproved.reduce((s,o)=>s+o.amount,0);
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">المعتمدة نهائياً 🔒</h2>
-          <p className="text-gray-400 text-sm mt-0.5">{finalApproved.length} عملية معتمدة نهائياً — م4 في مسار الاعتماد · بانتظار الترحيل لـ ERP</p>
+          <h2 className="text-xl font-bold text-gray-800">{t("المعتمدة نهائياً 🔒","Final Approved 🔒")}</h2>
+          <p className="text-gray-400 text-sm mt-0.5">{finalApproved.length} {t("عملية معتمدة نهائياً — م4 في مسار الاعتماد · بانتظار الترحيل لـ ERP","final-approved operations — S4 in pipeline · awaiting ERP posting")}</p>
         </div>
-        {totalAmt>0 && <span className="text-sm font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">{fmt(totalAmt)} ر.س إجمالاً</span>}
+        {totalAmt>0 && <span className="text-sm font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">{fmt(totalAmt)} {t("ر.س إجمالاً","SAR total")}</span>}
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        {finalApproved.length===0 && <div className="p-8 text-center text-gray-400 text-sm">لا توجد عمليات معتمدة نهائياً حتى الآن</div>}
+        {finalApproved.length===0 && <div className="p-8 text-center text-gray-400 text-sm">{t("لا توجد عمليات معتمدة نهائياً حتى الآن","No final-approved operations yet")}</div>}
         {finalApproved.map(op=>(
           <div key={op.id} className="px-5 py-4 flex items-center gap-4 border-b border-gray-50 last:border-0 bg-slate-50/30">
             <div className="w-1 h-8 rounded-full flex-shrink-0" style={{background:op.brandColor}}/>
@@ -1801,9 +1866,9 @@ function HeadApproved({ ops }:{ ops:COp[] }) {
               <p className="font-semibold text-gray-800 text-sm">{op.moduleLabel} — {op.branch}</p>
               <p className="text-xs text-gray-400">{op.brandName} · {op.submittedBy} · {op.timeAgo}</p>
             </div>
-            {op.amount>0&&<span className="font-mono font-bold text-gray-800 text-sm">{fmt(op.amount)} ر.س</span>}
+            {op.amount>0&&<span className="font-mono font-bold text-gray-800 text-sm">{fmt(op.amount)} {t("ر.س","SAR")}</span>}
             <COpStagePill op={op}/>
-            <Badge className={`text-[10px] border ${STATUS_CFG[op.status].cls}`}>{STATUS_CFG[op.status].label}</Badge>
+            <Badge className={`text-[10px] border ${STATUS_CFG[op.status].cls}`}>{t(STATUS_CFG[op.status].label, EN_STATUS_CD[op.status].label)}</Badge>
           </div>
         ))}
       </div>
@@ -1812,9 +1877,11 @@ function HeadApproved({ ops }:{ ops:COp[] }) {
 }
 
 function HeadBrands() {
+  const { t, dir } = useCLang();
+  const SAR = t("ر.س","SAR");
   return (
-    <div className="space-y-5" dir="rtl">
-      <div><h2 className="text-xl font-bold text-gray-800">أداء العلامات التجارية</h2></div>
+    <div className="space-y-5" dir={dir}>
+      <div><h2 className="text-xl font-bold text-gray-800">{t("أداء العلامات التجارية","Brand Performance")}</h2></div>
       {BRANDS.map(b=>{
         const allBrs=b.restaurants.flatMap(r=>r.branches);
         const totalS=allBrs.reduce((s,br)=>s+br.salesM,0),totalE=allBrs.reduce((s,br)=>s+br.expM,0),totalT=allBrs.reduce((s,br)=>s+br.target,0);
@@ -1845,17 +1912,21 @@ function HeadBrands() {
 }
 
 function HeadAccountants() {
+  const { t, dir } = useCLang();
   const accs=[{ name:"سارة الشهري",brand:"برغر التاج",ops:47,pending:2},{ name:"محمد الحربي",brand:"بيتزا التاج",ops:38,pending:1},{ name:"هند القحطاني",brand:"مطعم التاج الراقي",ops:52,pending:3}];
   return (
-    <div className="space-y-5" dir="rtl">
-      <div><h2 className="text-xl font-bold text-gray-800">فريق المحاسبين</h2></div>
+    <div className="space-y-5" dir={dir}>
+      <div><h2 className="text-xl font-bold text-gray-800">{t("فريق المحاسبين","Accountants Team")}</h2></div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {accs.map((a,i)=>(
           <div key={i} className="px-5 py-4 flex items-center gap-4 border-b border-gray-50 last:border-0">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-400 to-blue-500 flex items-center justify-center text-white font-bold">{a.name[0]}</div>
-            <div className="flex-1"><p className="font-semibold text-gray-800 text-sm">{a.name}</p><p className="text-xs text-gray-400">مسؤول: {a.brand}</p></div>
-            <div className="flex items-center gap-4 text-center"><div><p className="font-bold text-gray-800">{a.ops}</p><p className="text-[10px] text-gray-400">عملية هذا الشهر</p></div><div><p className={`font-bold ${a.pending>0?"text-amber-600":"text-emerald-600"}`}>{a.pending}</p><p className="text-[10px] text-gray-400">معلقة</p></div></div>
-            <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px]">● نشط</Badge>
+            <div className="flex-1"><p className="font-semibold text-gray-800 text-sm">{a.name}</p><p className="text-xs text-gray-400">{t("مسؤول:","Responsible:")} {a.brand}</p></div>
+            <div className="flex items-center gap-4 text-center">
+              <div><p className="font-bold text-gray-800">{a.ops}</p><p className="text-[10px] text-gray-400">{t("عملية هذا الشهر","ops this month")}</p></div>
+              <div><p className={`font-bold ${a.pending>0?"text-amber-600":"text-emerald-600"}`}>{a.pending}</p><p className="text-[10px] text-gray-400">{t("معلقة","pending")}</p></div>
+            </div>
+            <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px]">● {t("نشط","Active")}</Badge>
           </div>
         ))}
       </div>
@@ -1864,23 +1935,24 @@ function HeadAccountants() {
 }
 
 function HeadReports() {
+  const { t, dir } = useCLang();
   const reports=[
-    {t:"📊 تقرير الأرباح والخسائر",d:"P&L لكل علامة تجارية",   file:"PL_Report_Mar2026.pdf"},
-    {t:"📈 مقارنة الفروع",           d:"أداء كل فرع مقابل الهدف",file:"Branch_Comparison_Mar2026.pdf"},
-    {t:"💰 ملخص المبيعات",           d:"مبيعات شهرية وسنوية",     file:"Sales_Summary_Mar2026.pdf"},
-    {t:"📉 تحليل المصروفات",         d:"تفصيل مصروفات كل علامة", file:"Expenses_Analysis_Mar2026.pdf"},
+    {ar:"📊 تقرير الأرباح والخسائر", en:"📊 P&L Report",       dar:"P&L لكل علامة تجارية",   den:"P&L per brand",      file:"PL_Report_Mar2026.pdf"},
+    {ar:"📈 مقارنة الفروع",          en:"📈 Branch Comparison", dar:"أداء كل فرع مقابل الهدف",den:"Each branch vs target",file:"Branch_Comparison_Mar2026.pdf"},
+    {ar:"💰 ملخص المبيعات",          en:"💰 Sales Summary",     dar:"مبيعات شهرية وسنوية",    den:"Monthly & yearly sales",file:"Sales_Summary_Mar2026.pdf"},
+    {ar:"📉 تحليل المصروفات",        en:"📉 Expenses Analysis", dar:"تفصيل مصروفات كل علامة",den:"Expenses breakdown",   file:"Expenses_Analysis_Mar2026.pdf"},
   ];
   return (
-    <div className="space-y-5" dir="rtl">
-      <div><h2 className="text-xl font-bold text-gray-800">التقارير المالية</h2></div>
+    <div className="space-y-5" dir={dir}>
+      <div><h2 className="text-xl font-bold text-gray-800">{t("التقارير المالية","Financial Reports")}</h2></div>
       <div className="grid grid-cols-2 gap-4">
-        {reports.map(({t,d,file})=>(
-          <div key={t} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 text-right hover:border-purple-200 hover:shadow-md transition-all cursor-default">
-            <p className="font-bold text-gray-800">{t}</p>
-            <p className="text-xs text-gray-400 mt-1">{d}</p>
+        {reports.map(r=>(
+          <div key={r.ar} className={`bg-white rounded-xl border border-gray-100 shadow-sm p-5 hover:border-purple-200 hover:shadow-md transition-all cursor-default ${dir==="rtl"?"text-right":"text-left"}`}>
+            <p className="font-bold text-gray-800">{t(r.ar, r.en)}</p>
+            <p className="text-xs text-gray-400 mt-1">{t(r.dar, r.den)}</p>
             <div className="mt-3">
-              <button onClick={()=>alert(`⬇️ جار تحميل:\n${file}\n\nسيبدأ التحميل خلال ثوانٍ...`)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-purple-100 hover:text-purple-700 transition-colors">
-                <Download size={11}/> تحميل PDF
+              <button onClick={()=>alert(`⬇️ ${t("جار تحميل:","Downloading:")}\n${r.file}\n\n${t("سيبدأ التحميل خلال ثوانٍ...","Download will start in a moment...")}`)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-purple-100 hover:text-purple-700 transition-colors">
+                <Download size={11}/> {t("تحميل PDF","Download PDF")}
               </button>
             </div>
           </div>
@@ -1893,15 +1965,16 @@ function HeadReports() {
 // HEAD — REJECTED
 // ═══════════════════════════════════════════════════
 function HeadRejected({ ops }:{ ops:COp[] }) {
+  const { t, dir } = useCLang();
   const rejected = ops.filter(o=>o.status==="rejected");
   return (
-    <div className="space-y-5" dir="rtl">
-      <div><h2 className="text-xl font-bold text-gray-800">العمليات المرفوضة</h2><p className="text-gray-400 text-sm">{rejected.length} عملية مرفوضة — تحتاج إعادة رفع من الفرع</p></div>
+    <div className="space-y-5" dir={dir}>
+      <div><h2 className="text-xl font-bold text-gray-800">{t("العمليات المرفوضة","Rejected Operations")}</h2><p className="text-gray-400 text-sm">{rejected.length} {t("عملية مرفوضة — تحتاج إعادة رفع من الفرع","rejected operations — need re-upload from branch")}</p></div>
       {rejected.length===0?(
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-12 text-center">
           <div className="text-4xl mb-3">✅</div>
-          <p className="font-bold text-gray-700 text-lg">لا توجد عمليات مرفوضة</p>
-          <p className="text-gray-400 text-sm mt-1">جميع العمليات في مسارها الصحيح</p>
+          <p className="font-bold text-gray-700 text-lg">{t("لا توجد عمليات مرفوضة","No rejected operations")}</p>
+          <p className="text-gray-400 text-sm mt-1">{t("جميع العمليات في مسارها الصحيح","All operations are on the correct pipeline")}</p>
         </div>
       ):(
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -1910,8 +1983,8 @@ function HeadRejected({ ops }:{ ops:COp[] }) {
               <div className="flex items-center gap-3">
                 <div className="w-1 h-10 rounded-full bg-red-400 flex-shrink-0"/>
                 <div className="flex-1"><p className="font-semibold text-gray-800 text-sm">{op.branch}</p><p className="text-xs text-gray-400">{op.moduleLabel} · {op.refNum} · {op.timeAgo}</p></div>
-                <span className="font-mono font-bold text-gray-800">{fmt(op.amount)} ر.س</span>
-                <Badge className="bg-red-50 text-red-700 border border-red-200 text-[10px]">✕ مرفوض</Badge>
+                <span className="font-mono font-bold text-gray-800">{fmt(op.amount)} {t("ر.س","SAR")}</span>
+                <Badge className="bg-red-50 text-red-700 border border-red-200 text-[10px]">✕ {t("مرفوض","Rejected")}</Badge>
               </div>
             </div>
           ))}
@@ -1927,34 +2000,35 @@ function HeadModulePage({ moduleKey, title, ops, finalApprove, reject }:{
   moduleKey:CModKey; title:string; ops:COp[];
   finalApprove:(id:string)=>void; reject:(id:string)=>void;
 }) {
+  const { t, dir } = useCLang();
   const mOps = ops.filter(o=>o.module===moduleKey);
   const awaitingHead = mOps.filter(o=>o.status==="approved");
   const finalApproved = mOps.filter(o=>o.status==="final-approved");
   const rejected = mOps.filter(o=>o.status==="rejected");
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">{title}</h2><p className="text-gray-400 text-sm">{awaitingHead.length} عملية بانتظار اعتمادك النهائي</p></div>
-        {awaitingHead.length>0 && <Btn variant="success" size="sm" onClick={()=>awaitingHead.forEach(o=>finalApprove(o.id))}>🔒 اعتماد الكل ({awaitingHead.length})</Btn>}
+        <div><h2 className="text-xl font-bold text-gray-800">{title}</h2><p className="text-gray-400 text-sm">{awaitingHead.length} {t("عملية بانتظار اعتمادك النهائي","operations awaiting your final approval")}</p></div>
+        {awaitingHead.length>0 && <Btn variant="success" size="sm" onClick={()=>awaitingHead.forEach(o=>finalApprove(o.id))}>🔒 {t("اعتماد الكل","Approve All")} ({awaitingHead.length})</Btn>}
       </div>
       <div className="grid grid-cols-3 gap-4">
-        <KpiCard label="بانتظار اعتمادي" value={String(awaitingHead.length)} sub="موافق عليها من المحاسب" icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
-        <KpiCard label="معتمدة نهائياً"  value={String(finalApproved.length)} sub="اعتماد نهائي" icon={<CheckCircle2 size={18} className="text-emerald-600"/>} accent="emerald"/>
-        <KpiCard label="مرفوضة"           value={String(rejected.length)} sub="تحتاج إعادة رفع" icon={<XCircle size={18} className="text-red-500"/>} accent="red"/>
+        <KpiCard label={t("بانتظار اعتمادي","Awaiting My Approval")} value={String(awaitingHead.length)} sub={t("موافق عليها من المحاسب","Accountant-approved")} icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("معتمدة نهائياً","Final Approved")}        value={String(finalApproved.length)} sub={t("اعتماد نهائي","Final approval done")} icon={<CheckCircle2 size={18} className="text-emerald-600"/>} accent="emerald"/>
+        <KpiCard label={t("مرفوضة","Rejected")}                      value={String(rejected.length)} sub={t("تحتاج إعادة رفع","Needs re-upload")} icon={<XCircle size={18} className="text-red-500"/>} accent="red"/>
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60"><h3 className="font-bold text-gray-900 text-sm">بانتظار الاعتماد النهائي</h3></div>
+        <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60"><h3 className="font-bold text-gray-900 text-sm">{t("بانتظار الاعتماد النهائي","Awaiting Final Approval")}</h3></div>
         {awaitingHead.length===0?(
-          <div className="p-8 text-center text-gray-400 text-sm">✅ لا توجد عمليات معلقة في هذا الموديول</div>
+          <div className="p-8 text-center text-gray-400 text-sm">✅ {t("لا توجد عمليات معلقة في هذا الموديول","No pending operations in this module")}</div>
         ):awaitingHead.map(op=>(
-          <OpRow key={op.id} op={op} forHead onApprove={()=>finalApprove(op.id)} onReject={()=>reject(op.id)} onView={()=>alert(`🔍 تفاصيل:\n${op.refNum}\n${op.branch} · ${fmt(op.amount)} ر.س`)}/>
+          <OpRow key={op.id} op={op} forHead onApprove={()=>finalApprove(op.id)} onReject={()=>reject(op.id)} onView={()=>alert(`🔍 ${t("تفاصيل","Details")}:\n${op.refNum}\n${op.branch} · ${fmt(op.amount)} ${t("ر.س","SAR")}`)}/>
         ))}
       </div>
       {finalApproved.length>0&&(
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60"><h3 className="font-bold text-gray-900 text-sm">معتمدة نهائياً</h3></div>
+          <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60"><h3 className="font-bold text-gray-900 text-sm">{t("معتمدة نهائياً","Final Approved")}</h3></div>
           {finalApproved.map(op=>(
-            <OpRow key={op.id} op={op} forHead onApprove={()=>{}} onReject={()=>{}} onView={()=>alert(`🔍 ${op.refNum}\n${op.branch} · معتمد نهائياً`)}/>
+            <OpRow key={op.id} op={op} forHead onApprove={()=>{}} onReject={()=>{}} onView={()=>alert(`🔍 ${op.refNum}\n${op.branch} · ${t("معتمد نهائياً","Final Approved")}`)}/>
           ))}
         </div>
       )}
@@ -1965,26 +2039,27 @@ function HeadModulePage({ moduleKey, title, ops, finalApprove, reject }:{
 // HEAD — REMINDERS
 // ═══════════════════════════════════════════════════
 function HeadReminders() {
+  const { t, dir } = useCLang();
   const reminders = [
-    { id:1, title:"اعتماد بيانات اليوم",  body:"12 عملية بانتظار اعتمادك النهائي",    time:"الآن",          type:"urgent", done:false },
-    { id:2, title:"مراجعة تقرير أسبوعي",  body:"P&L الأسبوع الثالث — جاهز للمراجعة", time:"منذ 2 ساعة",    type:"report", done:false },
-    { id:3, title:"موافقة ميزانية مشتريات",body:"مدير المشتريات طلب اعتماد ميزانية",  time:"منذ 4 ساعات",   type:"finance",done:false },
-    { id:4, title:"متابعة المحاسب — سارة", body:"لم ترفع بيانات فرع العليا منذ أمس",  time:"أمس",           type:"team",   done:true  },
+    { id:1, titleAr:"اعتماد بيانات اليوم",  titleEn:"Approve today's data",    bodyAr:"12 عملية بانتظار اعتمادك النهائي",    bodyEn:"12 operations awaiting final approval",    timeAr:"الآن",         timeEn:"Now",         type:"urgent", done:false },
+    { id:2, titleAr:"مراجعة تقرير أسبوعي",  titleEn:"Review weekly report",    bodyAr:"P&L الأسبوع الثالث — جاهز للمراجعة", bodyEn:"Week 3 P&L — ready for review",            timeAr:"منذ 2 ساعة",   timeEn:"2 hrs ago",   type:"report", done:false },
+    { id:3, titleAr:"موافقة ميزانية مشتريات",titleEn:"Approve purchase budget", bodyAr:"مدير المشتريات طلب اعتماد ميزانية",  bodyEn:"Procurement mgr requested budget approval", timeAr:"منذ 4 ساعات",  timeEn:"4 hrs ago",   type:"finance",done:false },
+    { id:4, titleAr:"متابعة المحاسب — سارة", titleEn:"Follow up — Sara",        bodyAr:"لم ترفع بيانات فرع العليا منذ أمس",  bodyEn:"Al-Ulia branch data not uploaded since yesterday",timeAr:"أمس",    timeEn:"Yesterday",   type:"team",   done:true  },
   ];
   const [list, setList] = useState(reminders);
   const toggle = (id:number) => setList(p=>p.map(r=>r.id===id?{...r,done:!r.done}:r));
   const ICONS:Record<string,string> = { urgent:"🔴", report:"📊", finance:"💰", team:"👥" };
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">التذكيرات</h2><p className="text-gray-400 text-sm">{list.filter(r=>!r.done).length} تذكيرات نشطة</p></div>
-        <Btn size="sm" onClick={()=>setList(p=>p.map(r=>({...r,done:true})))}>✓ تعليم الكل كمنجز</Btn>
+        <div><h2 className="text-xl font-bold text-gray-800">{t("التذكيرات","Reminders")}</h2><p className="text-gray-400 text-sm">{list.filter(r=>!r.done).length} {t("تذكيرات نشطة","active reminders")}</p></div>
+        <Btn size="sm" onClick={()=>setList(p=>p.map(r=>({...r,done:true})))}>✓ {t("تعليم الكل كمنجز","Mark all done")}</Btn>
       </div>
       <div className="space-y-3">
         {list.map(r=>(
           <div key={r.id} className={`bg-white rounded-xl border shadow-sm p-4 flex items-start gap-3 transition-all ${r.done?"opacity-50 border-gray-100":"border-gray-100 hover:border-blue-100"}`}>
             <span className="text-xl mt-0.5">{ICONS[r.type]}</span>
-            <div className="flex-1"><p className={`font-semibold text-sm ${r.done?"line-through text-gray-400":"text-gray-800"}`}>{r.title}</p><p className="text-xs text-gray-400 mt-0.5">{r.body}</p><p className="text-[10px] text-gray-300 mt-1">{r.time}</p></div>
+            <div className="flex-1"><p className={`font-semibold text-sm ${r.done?"line-through text-gray-400":"text-gray-800"}`}>{t(r.titleAr,r.titleEn)}</p><p className="text-xs text-gray-400 mt-0.5">{t(r.bodyAr,r.bodyEn)}</p><p className="text-[10px] text-gray-300 mt-1">{t(r.timeAr,r.timeEn)}</p></div>
             <button onClick={()=>toggle(r.id)} className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 mt-0.5 ${r.done?"bg-emerald-500 border-emerald-500":"border-gray-300 hover:border-emerald-400"}`}>
               {r.done&&<Check size={10} className="text-white"/>}
             </button>
@@ -1998,35 +2073,36 @@ function HeadReminders() {
 // HEAD — ERP EXPORT
 // ═══════════════════════════════════════════════════
 function HeadERP({ ops }:{ ops:COp[] }) {
+  const { t, dir } = useCLang();
   const [posted, setPosted] = useState<string[]>([]);
   const ready = ops.filter(o=>o.status==="final-approved");
-  const postAll = () => { setPosted(ready.map(o=>o.id)); alert("✅ تم ترحيل جميع العمليات المعتمدة نهائياً إلى ERP\n\nرقم الدفعة: ERP-BATCH-202510-001"); };
+  const postAll = () => { setPosted(ready.map(o=>o.id)); alert(`✅ ${t("تم ترحيل جميع العمليات المعتمدة نهائياً إلى ERP","All final-approved operations posted to ERP")}\n\n${t("رقم الدفعة:","Batch No:")} ERP-BATCH-202510-001`); };
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">التصدير لـ ERP</h2><p className="text-gray-400 text-sm">الترحيل يتم بعد الاعتماد النهائي</p></div>
+        <div><h2 className="text-xl font-bold text-gray-800">{t("التصدير لـ ERP","ERP Export")}</h2><p className="text-gray-400 text-sm">{t("الترحيل يتم بعد الاعتماد النهائي","Posting occurs after final approval")}</p></div>
         {ready.length>0&&posted.length<ready.length&&(
-          <Btn variant="primary" onClick={postAll}><Zap size={13}/> ترحيل الكل ({ready.filter(o=>!posted.includes(o.id)).length})</Btn>
+          <Btn variant="primary" onClick={postAll}><Zap size={13}/> {t("ترحيل الكل","Post All")} ({ready.filter(o=>!posted.includes(o.id)).length})</Btn>
         )}
       </div>
       <div className="grid grid-cols-3 gap-4">
-        <KpiCard label="جاهزة للترحيل"  value={String(ready.filter(o=>!posted.includes(o.id)).length)} sub="معتمدة نهائياً" icon={<CheckCircle2 size={18} className="text-emerald-600"/>} accent="emerald"/>
-        <KpiCard label="تم ترحيلها"      value={String(posted.length)} sub="هذه الجلسة" icon={<Zap size={18} className="text-purple-600"/>} accent="purple"/>
-        <KpiCard label="بانتظار الاعتماد" value={String(ops.filter(o=>o.status==="approved").length)} sub="لم تُعتمد نهائياً بعد" icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("جاهزة للترحيل","Ready to Post")}   value={String(ready.filter(o=>!posted.includes(o.id)).length)} sub={t("معتمدة نهائياً","Final approved")} icon={<CheckCircle2 size={18} className="text-emerald-600"/>} accent="emerald"/>
+        <KpiCard label={t("تم ترحيلها","Posted")}             value={String(posted.length)} sub={t("هذه الجلسة","This session")} icon={<Zap size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label={t("بانتظار الاعتماد","Awaiting Approval")} value={String(ops.filter(o=>o.status==="approved").length)} sub={t("لم تُعتمد نهائياً بعد","Not yet final-approved")} icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60"><h3 className="font-bold text-gray-900 text-sm">العمليات المعتمدة نهائياً</h3></div>
+        <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60"><h3 className="font-bold text-gray-900 text-sm">{t("العمليات المعتمدة نهائياً","Final-Approved Operations")}</h3></div>
         {ready.length===0?(
-          <div className="p-8 text-center text-gray-400 text-sm">لا توجد عمليات معتمدة نهائياً للترحيل حتى الآن</div>
+          <div className="p-8 text-center text-gray-400 text-sm">{t("لا توجد عمليات معتمدة نهائياً للترحيل حتى الآن","No final-approved operations ready to post")}</div>
         ):ready.map(op=>(
           <div key={op.id} className="px-5 py-3.5 flex items-center gap-3 border-b border-gray-50 last:border-0">
             <div className="w-1 h-8 rounded-full flex-shrink-0" style={{background:op.brandColor}}/>
             <div className="flex-1"><p className="font-semibold text-gray-800 text-sm">{op.branch} · {op.moduleLabel}</p><p className="text-xs text-gray-400">{op.refNum}</p></div>
-            <span className="font-mono font-bold text-gray-800">{fmt(op.amount)} ر.س</span>
+            <span className="font-mono font-bold text-gray-800">{fmt(op.amount)} {t("ر.س","SAR")}</span>
             {posted.includes(op.id)?(
-              <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-[10px]">🔗 مُرحَّل</Badge>
+              <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-[10px]">🔗 {t("مُرحَّل","Posted")}</Badge>
             ):(
-              <button onClick={()=>setPosted(p=>[...p,op.id])} className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700"><Zap size={10}/> ترحيل</button>
+              <button onClick={()=>setPosted(p=>[...p,op.id])} className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700"><Zap size={10}/> {t("ترحيل","Post")}</button>
             )}
           </div>
         ))}
@@ -2052,44 +2128,52 @@ function useSharedOps() {
 // ACCOUNTANT DASHBOARD
 // ═══════════════════════════════════════════════════
 function AccDashboard({ navigate, ops }:{ navigate:(p:string)=>void; ops:COp[] }) {
+  const { t, dir } = useCLang();
   const pending      = ops.filter(o=>o.status==="pending");
   const approved     = ops.filter(o=>o.status==="approved");
   const finalApproved= ops.filter(o=>o.status==="final-approved");
   const rejected     = ops.filter(o=>o.status==="rejected");
   const approvalRate = ops.length>0 ? Math.round((approved.length+finalApproved.length)/ops.length*100) : 0;
-  const todaySales   = 18340+22100+15820;
+
+  const modLabels:Record<string,[string,string]> = {
+    sales:["مبيعات","Sales"], expenses:["مصروفات","Expenses"],
+    purchases:["مشتريات","Purchases"], inventory:["مخزون","Inventory"],
+  };
+  const modIcons:Record<string,string> = { sales:"💰", expenses:"💸", purchases:"🛒", inventory:"📦" };
+  const modPages:Record<string,string> = { sales:"acc-sales", expenses:"acc-expenses", purchases:"acc-purchases", inventory:"acc-inventory" };
 
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div>
-        <h2 className="text-xl font-bold text-gray-800">ملخص اليوم — السبت 22 مارس 2026</h2>
-        <p className="text-gray-400 text-sm mt-0.5">{COMPANY.name} · مسؤول عن {ALL_BRANCHES.filter(b=>b.brandName==="برغر التاج"||b.brandName==="بيتزا التاج").length} فروع · الموديولات: الأربعة الرئيسية</p>
+        <h2 className="text-xl font-bold text-gray-800">{t("ملخص اليوم — السبت 22 مارس 2026","Today's Summary — Saturday, March 22, 2026")}</h2>
+        <p className="text-gray-400 text-sm mt-0.5">
+          {COMPANY.name} · {t("مسؤول عن","Responsible for")} {ALL_BRANCHES.filter(b=>b.brandName==="برغر التاج"||b.brandName==="بيتزا التاج").length} {t("فروع · الموديولات: الأربعة الرئيسية","branches · Modules: Main Four")}
+        </p>
       </div>
 
-      {/* KPIs — بنفس ترتيب الداشبورد الرئيسي */}
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label="تنتظر مراجعتي"   value={String(pending.length)} sub="📱 رُفعت من الفروع"          icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
-        <KpiCard label="وافقت عليها"      value={String(approved.length)} sub="بانتظار الاعتماد النهائي"   icon={<CheckCircle2 size={18} className="text-sky-600"/>} accent="blue"/>
-        <KpiCard label="معتمدة نهائياً"  value={String(finalApproved.length)} sub="مُغلقة — بانتظار ERP"   icon={<Lock size={18} className="text-emerald-600"/>} accent="emerald"/>
-        <KpiCard label="معدل الموافقة"   value={`${approvalRate}%`} sub="هذا الشهر"                       icon={<TrendingUp size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label={t("تنتظر مراجعتي","Awaiting My Review")}   value={String(pending.length)}       sub={t("📱 رُفعت من الفروع","📱 Uploaded from branches")}      icon={<Clock size={18} className="text-amber-600"/>}      accent="amber"/>
+        <KpiCard label={t("وافقت عليها","I Approved")}              value={String(approved.length)}      sub={t("بانتظار الاعتماد النهائي","Awaiting final approval")}   icon={<CheckCircle2 size={18} className="text-sky-600"/>}  accent="blue"/>
+        <KpiCard label={t("معتمدة نهائياً","Final Approved")}       value={String(finalApproved.length)} sub={t("مُغلقة — بانتظار ERP","Closed — awaiting ERP")}        icon={<Lock size={18} className="text-emerald-600"/>}     accent="emerald"/>
+        <KpiCard label={t("معدل الموافقة","Approval Rate")}         value={`${approvalRate}%`}           sub={t("هذا الشهر","This month")}                               icon={<TrendingUp size={18} className="text-purple-600"/>} accent="purple"/>
       </div>
 
-      {/* شريط تقدم اليوم — مطابق للداشبورد الرئيسي */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bold text-gray-800 text-sm">🎯 تقدم اليوم</h3>
-          <span className="text-xs text-gray-400">الهدف: مراجعة جميع العمليات المعلقة</span>
+          <h3 className="font-bold text-gray-800 text-sm">🎯 {t("تقدم اليوم","Today's Progress")}</h3>
+          <span className="text-xs text-gray-400">{t("الهدف: مراجعة جميع العمليات المعلقة","Goal: Review all pending operations")}</span>
         </div>
         <div className="grid grid-cols-4 gap-4">
           {[
-            {label:"المراجعة",      done:ops.filter(o=>o.status!=="pending").length,              total:ops.length,                                  color:"bg-purple-500"},
-            {label:"الموافقة",      done:ops.filter(o=>o.status==="approved"||o.status==="final-approved").length, total:ops.length,               color:"bg-emerald-500"},
-            {label:"التوثيق",       done:finalApproved.length,                                    total:ops.filter(o=>o.status!=="pending").length||1, color:"bg-blue-500"},
-            {label:"الفروع المكتملة",done:4,                                                       total:ALL_BRANCHES.length,                           color:"bg-cyan-500"},
-          ].map(({label,done,total,color})=>{
+            {ar:"المراجعة",   en:"Review",            done:ops.filter(o=>o.status!=="pending").length,              total:ops.length,                                    color:"bg-purple-500"},
+            {ar:"الموافقة",   en:"Approval",           done:ops.filter(o=>o.status==="approved"||o.status==="final-approved").length, total:ops.length,               color:"bg-emerald-500"},
+            {ar:"التوثيق",    en:"Documentation",      done:finalApproved.length,                                    total:ops.filter(o=>o.status!=="pending").length||1, color:"bg-blue-500"},
+            {ar:"الفروع المكتملة",en:"Completed Branches",done:4,                                                    total:ALL_BRANCHES.length,                           color:"bg-cyan-500"},
+          ].map(({ar,en,done,total,color})=>{
             const pct = Math.min(100,total>0?Math.round(done/total*100):0);
+            const label = t(ar, en);
             return (
-              <div key={label}>
+              <div key={ar}>
                 <div className="flex justify-between text-[11px] mb-1.5">
                   <span className="font-semibold text-gray-600">{label}</span>
                   <span className={`font-bold ${pct===100?"text-emerald-600":"text-gray-500"}`}>{done}/{total} {pct===100?"✅":""}</span>
@@ -2104,39 +2188,33 @@ function AccDashboard({ navigate, ops }:{ navigate:(p:string)=>void; ops:COp[] }
         </div>
       </div>
 
-      {/* Pipeline Overview — مسار العمليات الكامل */}
       <CPipelineOverview ops={ops}/>
 
       <div className="grid grid-cols-2 gap-4">
-        {/* معلقة بحسب الموديول */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <h3 className="font-bold text-gray-800 text-sm mb-3">⏳ معلقة بحسب الموديول</h3>
+          <h3 className="font-bold text-gray-800 text-sm mb-3">⏳ {t("معلقة بحسب الموديول","Pending by Module")}</h3>
           <div className="space-y-2">
             {(["sales","expenses","purchases","inventory"] as CModKey[]).map(mod=>{
               const count=pending.filter(o=>o.module===mod).length;
               const total=ops.filter(o=>o.module===mod).length;
-              const labels:Record<string,string>={sales:"مبيعات",expenses:"مصروفات",purchases:"مشتريات",inventory:"مخزون"};
-              const icons:Record<string,string>={sales:"💰",expenses:"💸",purchases:"🛒",inventory:"📦"};
-              const pages:Record<string,string>={sales:"acc-sales",expenses:"acc-expenses",purchases:"acc-purchases",inventory:"acc-inventory"};
               return (
                 <div key={mod} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-                  <span className="text-base">{icons[mod]}</span>
-                  <span className="flex-1 text-sm font-medium text-gray-700">{labels[mod]}</span>
-                  <span className="text-[10px] text-gray-400">{total} إجمالي</span>
-                  <Badge className={`text-[10px] ${count>0?"bg-amber-50 text-amber-700 border border-amber-200":"bg-gray-100 text-gray-400"}`}>{count} معلق</Badge>
-                  <button onClick={()=>navigate(pages[mod])} className="text-xs text-purple-600 hover:underline font-semibold">عرض ←</button>
+                  <span className="text-base">{modIcons[mod]}</span>
+                  <span className="flex-1 text-sm font-medium text-gray-700">{t(modLabels[mod][0], modLabels[mod][1])}</span>
+                  <span className="text-[10px] text-gray-400">{total} {t("إجمالي","total")}</span>
+                  <Badge className={`text-[10px] ${count>0?"bg-amber-50 text-amber-700 border border-amber-200":"bg-gray-100 text-gray-400"}`}>{count} {t("معلق","pending")}</Badge>
+                  <button onClick={()=>navigate(modPages[mod])} className="text-xs text-purple-600 hover:underline font-semibold">{t("عرض ←","View →")}</button>
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* يحتاج انتباهاً فورياً */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <h3 className="font-bold text-gray-800 text-sm mb-3">🔴 يحتاج انتباهاً فورياً</h3>
+          <h3 className="font-bold text-gray-800 text-sm mb-3">🔴 {t("يحتاج انتباهاً فورياً","Needs Immediate Attention")}</h3>
           <div className="space-y-2">
             {ops.filter(o=>o.status==="pending"&&o.match==="diff").length===0 && (
-              <p className="text-xs text-gray-400 text-center py-4">✅ لا توجد فروق تحتاج انتباهاً</p>
+              <p className="text-xs text-gray-400 text-center py-4">✅ {t("لا توجد فروق تحتاج انتباهاً","No discrepancies requiring attention")}</p>
             )}
             {ops.filter(o=>o.status==="pending"&&o.match==="diff").map(op=>(
               <div key={op.id} className="flex items-start gap-2 py-2 border-b border-gray-50 last:border-0">
@@ -2147,13 +2225,13 @@ function AccDashboard({ navigate, ops }:{ navigate:(p:string)=>void; ops:COp[] }
                 </div>
                 <Badge className={`text-[10px] border ${MATCH_CFG[op.match].cls}`}>
                   <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${MATCH_CFG[op.match].dot}`}/>
-                  {MATCH_CFG[op.match].label}
+                  {t(MATCH_CFG[op.match].label, EN_MATCH_CD[op.match])}
                 </Badge>
               </div>
             ))}
             {rejected.length>0 && (
               <div className="pt-2 border-t border-gray-50 mt-1">
-                <p className="text-[11px] text-red-500 font-semibold">{rejected.length} عملية مرفوضة — تحتاج إعادة رفع من الفرع</p>
+                <p className="text-[11px] text-red-500 font-semibold">{rejected.length} {t("عملية مرفوضة — تحتاج إعادة رفع من الفرع","rejected operations — need re-upload from branch")}</p>
               </div>
             )}
           </div>
@@ -2167,6 +2245,7 @@ function AccDashboard({ navigate, ops }:{ navigate:(p:string)=>void; ops:COp[] }
 // ACCOUNTANT — SALES MODULE (Full Featured)
 // ═══════════════════════════════════════════════════
 function AccCompanySales({ ops, approve, reject, bulkApprove }:{ ops:COp[]; approve:(id:string)=>void; reject:(id:string)=>void; bulkApprove:(ids:string[])=>void }) {
+  const { t, dir } = useCLang();
   const [branchFilter, setBranchFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<""|COpStatus>("");
   const [matchFilter,  setMatchFilter]  = useState<""|CMatch>("");
@@ -2179,11 +2258,11 @@ function AccCompanySales({ ops, approve, reject, bulkApprove }:{ ops:COp[]; appr
   const pending = mOps.filter(o=>o.status==="pending");
 
   const DATE_OPTIONS = [
-    { label:"الكل",         val:"الكل",    count:mOps.length, done:mOps.filter(o=>o.status!=="pending").length },
-    { label:"اليوم",        val:"today",   count:4,  done:1 },
-    { label:"أمس",          val:"d1",      count:3,  done:3 },
-    { label:"قبل يومين",   val:"d2",      count:2,  done:1 },
-    { label:"الأسبوع الماضي",val:"week",  count:12, done:10 },
+    { label:t("الكل","All"),            val:"الكل",  count:mOps.length, done:mOps.filter(o=>o.status!=="pending").length },
+    { label:t("اليوم","Today"),          val:"today", count:4,  done:1 },
+    { label:t("أمس","Yesterday"),        val:"d1",    count:3,  done:3 },
+    { label:t("قبل يومين","2 days ago"), val:"d2",    count:2,  done:1 },
+    { label:t("الأسبوع الماضي","Last week"),val:"week",count:12,done:10 },
   ];
 
   const shown = mOps.filter(op=>{
@@ -2199,19 +2278,18 @@ function AccCompanySales({ ops, approve, reject, bulkApprove }:{ ops:COp[]; appr
   const totalShown = shown.filter(o=>o.status!=="rejected").reduce((s,o)=>s+o.amount,0);
 
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">موديول المبيعات</h2><p className="text-gray-400 text-sm mt-0.5">{pending.length} بيان معلق بانتظار مراجعتك</p></div>
-        {pending.length>0 && <Btn variant="success" size="sm" onClick={()=>bulkApprove(pending.map(o=>o.id))}>✓ موافقة على الكل ({pending.length})</Btn>}
+        <div><h2 className="text-xl font-bold text-gray-800">{t("موديول المبيعات","Sales Module")}</h2><p className="text-gray-400 text-sm mt-0.5">{pending.length} {t("بيان معلق بانتظار مراجعتك","pending statements awaiting your review")}</p></div>
+        {pending.length>0 && <Btn variant="success" size="sm" onClick={()=>bulkApprove(pending.map(o=>o.id))}>✓ {t("موافقة على الكل","Approve All")} ({pending.length})</Btn>}
       </div>
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label="إجمالي البيانات المرفوعة" value={String(mOps.length)} sub="كل الحالات"          icon={<FileText size={18} className="text-purple-600"/>} accent="purple"/>
-        <KpiCard label="قيد المراجعة"              value={String(pending.length)} sub="رُفعت من الفروع"  icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
-        <KpiCard label="تمت الموافقة"              value={String(mOps.filter(o=>o.status==="approved"||o.status==="final-approved").length)} sub="موافق + معتمد نهائياً" icon={<CheckCircle2 size={18} className="text-sky-600"/>} accent="blue"/>
-        <KpiCard label="مرفوضة"                    value={String(mOps.filter(o=>o.status==="rejected").length)} sub="تحتاج إعادة رفع" icon={<XCircle size={18} className="text-red-600"/>} accent="red"/>
+        <KpiCard label={t("إجمالي البيانات المرفوعة","Total Uploaded")} value={String(mOps.length)} sub={t("كل الحالات","All statuses")}          icon={<FileText size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label={t("قيد المراجعة","Under Review")}               value={String(pending.length)} sub={t("رُفعت من الفروع","Uploaded from branches")} icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("تمت الموافقة","Approved")}                   value={String(mOps.filter(o=>o.status==="approved"||o.status==="final-approved").length)} sub={t("موافق + معتمد نهائياً","Approved + Final")} icon={<CheckCircle2 size={18} className="text-sky-600"/>} accent="blue"/>
+        <KpiCard label={t("مرفوضة","Rejected")}                         value={String(mOps.filter(o=>o.status==="rejected").length)} sub={t("تحتاج إعادة رفع","Needs re-upload")} icon={<XCircle size={18} className="text-red-600"/>} accent="red"/>
       </div>
-      {/* Date quick-pick */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3" dir="rtl">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3" dir={dir}>
         <div className="flex items-center gap-2 flex-wrap">
           {DATE_OPTIONS.map(d=>(
             <button key={d.val} onClick={()=>setDateFilter(d.val)}
@@ -2222,64 +2300,62 @@ function AccCompanySales({ ops, approve, reject, bulkApprove }:{ ops:COp[]; appr
           ))}
         </div>
         <div className="grid grid-cols-5 gap-3">
-          <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">الفرع</label>
+          <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("الفرع","Branch")}</label>
             <select value={branchFilter} onChange={e=>setBranchFilter(e.target.value)} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2">
-              <option value="">الكل</option>
+              <option value="">{t("الكل","All")}</option>
               {ALL_BRANCHES.map(b=><option key={b.id} value={b.name}>{b.name}</option>)}
             </select>
           </div>
-          <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">الحالة</label>
+          <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("الحالة","Status")}</label>
             <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value as any)} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2">
-              <option value="">الكل</option>
-              {(Object.entries(STATUS_CFG) as [COpStatus,any][]).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+              <option value="">{t("الكل","All")}</option>
+              {(Object.entries(STATUS_CFG) as [COpStatus,any][]).map(([k,v])=><option key={k} value={k}>{t(v.label, EN_STATUS_CD[k].label)}</option>)}
             </select>
           </div>
-          <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">المطابقة</label>
+          <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("المطابقة","Match")}</label>
             <select value={matchFilter} onChange={e=>setMatchFilter(e.target.value as any)} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2">
-              <option value="">الكل</option>
-              {(Object.entries(MATCH_CFG) as [CMatch,any][]).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+              <option value="">{t("الكل","All")}</option>
+              {(Object.entries(MATCH_CFG) as [CMatch,any][]).map(([k,v])=><option key={k} value={k}>{t(v.label, EN_MATCH_CD[k])}</option>)}
             </select>
           </div>
-          <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">العلامة التجارية</label>
+          <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("العلامة التجارية","Brand")}</label>
             <select value={brandFilter} onChange={e=>setBrandFilter(e.target.value)} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2">
-              <option>الكل</option>
+              <option>{t("الكل","All")}</option>
               {BRANDS.map(b=><option key={b.id}>{b.name}</option>)}
             </select>
           </div>
-          <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">بحث</label>
+          <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("بحث","Search")}</label>
             <div className="flex items-center gap-1 border border-gray-200 rounded-lg px-2 py-2">
               <Search size={11} className="text-gray-400 flex-shrink-0"/>
-              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="بحث..." className="flex-1 text-xs outline-none"/>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder={t("بحث...","Search...")} className="flex-1 text-xs outline-none"/>
             </div>
           </div>
         </div>
-        {hasFilters && <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-purple-600 hover:underline"><RotateCcw size={10}/> مسح الفلاتر</button>}
+        {hasFilters && <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-purple-600 hover:underline"><RotateCcw size={10}/> {t("مسح الفلاتر","Clear filters")}</button>}
       </div>
 
-      {/* Day-level summary banner — identical to main dashboard */}
       {dateFilter!=="الكل" && (()=>{ const d=DATE_OPTIONS.find(x=>x.val===dateFilter)!; return (
-        <div className={`rounded-xl border p-4 flex items-center gap-4 ${d.count>d.done?"bg-amber-50 border-amber-200":"bg-emerald-50 border-emerald-200"}`} dir="rtl">
+        <div className={`rounded-xl border p-4 flex items-center gap-4 ${d.count>d.done?"bg-amber-50 border-amber-200":"bg-emerald-50 border-emerald-200"}`} dir={dir}>
           <div className="flex-1">
             <p className="text-sm font-bold text-gray-800">{d.label}</p>
             <p className="text-xs text-gray-500 mt-0.5">
-              {d.count} عملية مطلوبة — {d.done} مكتملة
-              {d.count>d.done && <span className="text-amber-700 font-semibold"> · {d.count-d.done} ناقصة</span>}
+              {d.count} {t("عملية مطلوبة —","required operations —")} {d.done} {t("مكتملة","completed")}
+              {d.count>d.done && <span className="text-amber-700 font-semibold"> · {d.count-d.done} {t("ناقصة","missing")}</span>}
             </p>
           </div>
           <div className="flex gap-6 text-center">
-            <div><p className="text-lg font-black text-gray-800">{d.count}</p><p className="text-[10px] text-gray-500">إجمالي</p></div>
-            <div><p className="text-lg font-black text-emerald-600">{d.done}</p><p className="text-[10px] text-gray-500">مكتملة</p></div>
-            <div><p className={`text-lg font-black ${d.count-d.done>0?"text-amber-600":"text-gray-300"}`}>{d.count-d.done}</p><p className="text-[10px] text-gray-500">ناقص</p></div>
+            <div><p className="text-lg font-black text-gray-800">{d.count}</p><p className="text-[10px] text-gray-500">{t("إجمالي","Total")}</p></div>
+            <div><p className="text-lg font-black text-emerald-600">{d.done}</p><p className="text-[10px] text-gray-500">{t("مكتملة","Done")}</p></div>
+            <div><p className={`text-lg font-black ${d.count-d.done>0?"text-amber-600":"text-gray-300"}`}>{d.count-d.done}</p><p className="text-[10px] text-gray-500">{t("ناقص","Missing")}</p></div>
           </div>
         </div>
       ); })()}
 
-      {/* Table */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
-          <div><h3 className="font-bold text-gray-900 text-sm">بيانات المبيعات</h3><p className="text-[11px] text-gray-400 mt-0.5">{shown.length} بيان · إجمالي {fmt(totalShown)} ر.س</p></div>
+          <div><h3 className="font-bold text-gray-900 text-sm">{t("بيانات المبيعات","Sales Statements")}</h3><p className="text-[11px] text-gray-400 mt-0.5">{shown.length} {t("بيان · إجمالي","statements · total")} {fmt(totalShown)} {t("ر.س","SAR")}</p></div>
           <div className="flex gap-2">
-            <button onClick={()=>alert("جارٍ تصدير بيانات المبيعات إلى Excel...")} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><Download size={11}/> Excel</button>
+            <button onClick={()=>alert(t("جارٍ تصدير بيانات المبيعات إلى Excel...","Exporting sales data to Excel..."))} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><Download size={11}/> Excel</button>
             {pending.length>0 && <Btn size="sm" variant="success" onClick={()=>bulkApprove(pending.map(o=>o.id))}>✓ موافقة جماعية ({pending.length})</Btn>}
           </div>
         </div>
@@ -2323,41 +2399,43 @@ function AccCompanyExpenses({ ops, approve, reject, bulkApprove }:{ ops:COp[]; a
   const toggleVerify = (key:string) => setVerifiedInvoices(p=>({...p,[key]:!p[key]}));
   const totalShown = shown.reduce((s,o)=>s+o.amount,0);
 
+  const { t, dir } = useCLang();
+  const SAR = t("ر.س","SAR");
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">موديول المصروفات</h2><p className="text-gray-400 text-sm mt-0.5">{pending.length} بيان معلق — كل بيان قد يحتوي فواتير متعددة</p></div>
-        {pending.length>0 && <Btn variant="success" size="sm" onClick={()=>bulkApprove(pending.map(o=>o.id))}>✓ موافقة على الكل ({pending.length})</Btn>}
+        <div><h2 className="text-xl font-bold text-gray-800">{t("موديول المصروفات","Expenses Module")}</h2><p className="text-gray-400 text-sm mt-0.5">{pending.length} {t("بيان معلق — كل بيان قد يحتوي فواتير متعددة","pending entries — each may contain multiple invoices")}</p></div>
+        {pending.length>0 && <Btn variant="success" size="sm" onClick={()=>bulkApprove(pending.map(o=>o.id))}>✓ {t("موافقة على الكل","Approve All")} ({pending.length})</Btn>}
       </div>
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label="إجمالي البيانات المرفوعة" value={String(mOps.length)}                               sub="كل الحالات"          icon={<FileText size={18} className="text-purple-600"/>} accent="purple"/>
-        <KpiCard label="قيد المراجعة"              value={String(pending.length)}                          sub="رُفعت من الفروع"    icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
-        <KpiCard label="تمت الموافقة"              value={String(mOps.filter(o=>o.status==="approved"||o.status==="final-approved").length)} sub="موافق + معتمد نهائياً" icon={<CheckCircle2 size={18} className="text-sky-600"/>} accent="blue"/>
-        <KpiCard label="مرفوضة"                    value={String(mOps.filter(o=>o.status==="rejected").length)} sub="تحتاج إعادة رفع" icon={<XCircle size={18} className="text-red-600"/>} accent="red"/>
+        <KpiCard label={t("إجمالي البيانات المرفوعة","Total Entries")}  value={String(mOps.length)} sub={t("كل الحالات","all statuses")} icon={<FileText size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label={t("قيد المراجعة","Under Review")}               value={String(pending.length)} sub={t("رُفعت من الفروع","Uploaded from branches")} icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("تمت الموافقة","Approved")}                   value={String(mOps.filter(o=>o.status==="approved"||o.status==="final-approved").length)} sub={t("موافق + معتمد نهائياً","approved + final")} icon={<CheckCircle2 size={18} className="text-sky-600"/>} accent="blue"/>
+        <KpiCard label={t("مرفوضة","Rejected")}                         value={String(mOps.filter(o=>o.status==="rejected").length)} sub={t("تحتاج إعادة رفع","needs re-upload")} icon={<XCircle size={18} className="text-red-600"/>} accent="red"/>
       </div>
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3" dir="rtl">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
         <div className="grid grid-cols-3 gap-3">
-          <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">العلامة التجارية</label>
-            <select value={brandFilter} onChange={e=>setBrandFilter(e.target.value)} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2"><option>الكل</option>{BRANDS.map(b=><option key={b.id}>{b.name}</option>)}</select>
+          <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("العلامة التجارية","Brand")}</label>
+            <select value={brandFilter} onChange={e=>setBrandFilter(e.target.value)} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2"><option>{t("الكل","All")}</option>{BRANDS.map(b=><option key={b.id}>{b.name}</option>)}</select>
           </div>
-          <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">الحالة</label>
-            <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value as any)} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2"><option value="">الكل</option>{(Object.entries(STATUS_CFG) as [COpStatus,any][]).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}</select>
+          <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("الحالة","Status")}</label>
+            <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value as any)} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2"><option value="">{t("الكل","All")}</option>{(Object.entries(STATUS_CFG) as [COpStatus,any][]).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}</select>
           </div>
-          <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">بحث</label>
-            <div className="flex items-center gap-1 border border-gray-200 rounded-lg px-2 py-2"><Search size={11} className="text-gray-400"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="بحث..." className="flex-1 text-xs outline-none"/></div>
+          <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("بحث","Search")}</label>
+            <div className="flex items-center gap-1 border border-gray-200 rounded-lg px-2 py-2"><Search size={11} className="text-gray-400"/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={t("بحث...","Search...")} className="flex-1 text-xs outline-none"/></div>
           </div>
         </div>
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
-          <h3 className="font-bold text-gray-900 text-sm">بيانات المصروفات</h3>
+          <h3 className="font-bold text-gray-900 text-sm">{t("بيانات المصروفات","Expense Entries")}</h3>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400">{shown.length} بيان · {fmt(totalShown)} ر.س</span>
-            <button onClick={()=>alert("جارٍ تصدير...")} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><Download size={11}/> Excel</button>
+            <span className="text-xs text-gray-400">{shown.length} {t("بيان","entries")} · {fmt(totalShown)} {SAR}</span>
+            <button onClick={()=>alert(t("جارٍ تصدير...","Exporting..."))} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><Download size={11}/> Excel</button>
           </div>
         </div>
         {shown.length===0
-          ? <div className="py-10 text-center text-gray-400 text-sm">✅ لا توجد بيانات</div>
+          ? <div className="py-10 text-center text-gray-400 text-sm">✅ {t("لا توجد بيانات","No data")}</div>
           : shown.map(op=>{
             const isExpanded = expandedId===op.id;
             const invs = op.invoices||[];
@@ -2378,7 +2456,7 @@ function AccCompanyExpenses({ ops, approve, reject, bulkApprove }:{ ops:COp[]; a
                     </div>
                     {invs.length>0 ? (
                       <div className="overflow-x-auto">
-                        <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden" dir="rtl">
+                        <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
                           <thead>
                             <tr className="bg-gray-100 text-gray-600 font-semibold">
                               <th className="px-3 py-2 text-right">رقم الفاتورة</th>
@@ -2539,19 +2617,21 @@ function AccCompanyPurchases({ ops, approve, reject, bulkApprove }:{ ops:COp[]; 
     { name:"شركة الخليج للمواد",    items:"توابل · زيوت · صوصات",  rating:4.2 },
   ];
 
+  const { t, dir } = useCLang();
+  const SAR = t("ر.س","SAR");
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">موديول المشتريات</h2><p className="text-gray-400 text-sm mt-0.5">مطابقة الفواتير بالمنتجات والموردين — عرض حسب المورد أو الفرع</p></div>
-        {pending.length>0 && <Btn variant="success" size="sm" onClick={()=>bulkApprove(pending.map(o=>o.id))}>✓ موافقة على الكل ({pending.length})</Btn>}
+        <div><h2 className="text-xl font-bold text-gray-800">{t("موديول المشتريات","Purchases Module")}</h2><p className="text-gray-400 text-sm mt-0.5">{t("مطابقة الفواتير بالمنتجات والموردين — عرض حسب المورد أو الفرع","Match invoices with products and suppliers — view by supplier or branch")}</p></div>
+        {pending.length>0 && <Btn variant="success" size="sm" onClick={()=>bulkApprove(pending.map(o=>o.id))}>✓ {t("موافقة على الكل","Approve All")} ({pending.length})</Btn>}
       </div>
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label="إجمالي البيانات المرفوعة" value={String(mOps.length)} sub="كل الحالات"     icon={<ShoppingCart size={18} className="text-purple-600"/>} accent="purple"/>
-        <KpiCard label="قيد المراجعة"              value={String(pending.length)} sub="رُفعت من الفروع"  icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
-        <KpiCard label="تمت الموافقة"              value={String(mOps.filter(o=>o.status==="approved"||o.status==="final-approved").length)} sub="موافق + معتمد نهائياً" icon={<CheckCircle2 size={18} className="text-sky-600"/>} accent="blue"/>
-        <KpiCard label="مرفوضة"                    value={String(mOps.filter(o=>o.status==="rejected").length)} sub="تحتاج إعادة رفع" icon={<XCircle size={18} className="text-red-600"/>} accent="red"/>
+        <KpiCard label={t("إجمالي البيانات المرفوعة","Total Entries")} value={String(mOps.length)} sub={t("كل الحالات","all statuses")} icon={<ShoppingCart size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label={t("قيد المراجعة","Under Review")}              value={String(pending.length)} sub={t("رُفعت من الفروع","Uploaded from branches")} icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("تمت الموافقة","Approved")}                  value={String(mOps.filter(o=>o.status==="approved"||o.status==="final-approved").length)} sub={t("موافق + معتمد نهائياً","approved + final")} icon={<CheckCircle2 size={18} className="text-sky-600"/>} accent="blue"/>
+        <KpiCard label={t("مرفوضة","Rejected")}                        value={String(mOps.filter(o=>o.status==="rejected").length)} sub={t("تحتاج إعادة رفع","needs re-upload")} icon={<XCircle size={18} className="text-red-600"/>} accent="red"/>
       </div>
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4" dir="rtl">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div className="grid grid-cols-3 gap-3">
           <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">العلامة التجارية</label><select value={brandFilter} onChange={e=>setBrandFilter(e.target.value)} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2"><option>الكل</option>{BRANDS.map(b=><option key={b.id}>{b.name}</option>)}</select></div>
           <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">المطابقة</label><select value={matchFilter} onChange={e=>setMatchFilter(e.target.value as any)} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2"><option value="">الكل</option>{(Object.entries(MATCH_CFG) as [CMatch,any][]).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}</select></div>
@@ -2642,13 +2722,15 @@ function AccCompanyInventory({ navigate, ops, approve, reject }:{ navigate:(p:st
 
   if(showItemPage) return <AccInventoryItemsPage onBack={()=>setShowItemPage(false)}/>;
 
+  const { t, dir } = useCLang();
+  const SAR = t("ر.س","SAR");
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">موديول المخزون</h2><p className="text-gray-400 text-sm mt-0.5">مراجعة الجرد اليومي والشهري لكل فرع — مقارنة ومعادلة</p></div>
+        <div><h2 className="text-xl font-bold text-gray-800">{t("موديول المخزون","Inventory Module")}</h2><p className="text-gray-400 text-sm mt-0.5">{t("مراجعة الجرد اليومي والشهري لكل فرع — مقارنة ومعادلة","Review daily and monthly stock counts per branch — compare and reconcile")}</p></div>
         <div className="flex gap-2">
-          <button onClick={()=>alert("تحميل Excel — كل الفروع")} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><Download size={12}/> Excel — كل الفروع</button>
-          <Btn variant="primary" size="sm" onClick={()=>setShowItemPage(true)}><Package size={13}/> تحديد أصناف الجرد</Btn>
+          <button onClick={()=>alert(t("تحميل Excel — كل الفروع","Download Excel — all branches"))} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><Download size={12}/> {t("Excel — كل الفروع","Excel — all branches")}</button>
+          <Btn variant="primary" size="sm" onClick={()=>setShowItemPage(true)}><Package size={13}/> {t("تحديد أصناف الجرد","Set Inventory Items")}</Btn>
         </div>
       </div>
       <div className="grid grid-cols-4 gap-4">
@@ -2658,7 +2740,7 @@ function AccCompanyInventory({ navigate, ops, approve, reject }:{ navigate:(p:st
         <KpiCard label="فروع مكتملة" value={String(mOps.length)} sub={`من ${branchKeys.length} فروع`} icon={<CheckCircle2 size={18} className="text-emerald-600"/>} accent="emerald"/>
       </div>
       {/* Controls */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4" dir="rtl">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div className="grid grid-cols-2 gap-3">
           <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">العلامة التجارية</label>
             <select value={brandFilter} onChange={e=>setBrandFilter(e.target.value)} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2"><option>الكل</option>{BRANDS.map(b=><option key={b.id}>{b.name}</option>)}</select>
@@ -2835,16 +2917,17 @@ function AccInventoryItemsPage({ onBack }:{ onBack:()=>void }) {
   const branchList=lists[selBranch]||[];
   const toggle=(name:string)=>{setSaved(null);setLists(p=>({...p,[selBranch]:p[selBranch]?.includes(name)?p[selBranch].filter(x=>x!==name):[...(p[selBranch]||[]),name]}));};
   const save=()=>{setSaved(selBranch);setTimeout(()=>setSaved(null),2000);};
+  const { t, dir } = useCLang();
   return (
-    <div className="space-y-5" dir="rtl">
-      <div className="flex items-center gap-3"><button onClick={onBack} className="flex items-center gap-1.5 text-purple-600 hover:underline text-sm font-semibold"><ChevronRight size={14}/> المخزون</button></div>
+    <div className="space-y-5" dir={dir}>
+      <div className="flex items-center gap-3"><button onClick={onBack} className="flex items-center gap-1.5 text-purple-600 hover:underline text-sm font-semibold"><ChevronRight size={14}/> {t("المخزون","Inventory")}</button></div>
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">تحديد أصناف الجرد اليومي — حسب الفرع</h2><p className="text-gray-400 text-sm mt-0.5">كل فرع له قائمة أصناف مستقلة · الأصناف المحددة تُرسل لتطبيق مدير الفرع</p></div>
+        <div><h2 className="text-xl font-bold text-gray-800">{t("تحديد أصناف الجرد اليومي — حسب الفرع","Set Daily Inventory Items — by Branch")}</h2><p className="text-gray-400 text-sm mt-0.5">{t("كل فرع له قائمة أصناف مستقلة · الأصناف المحددة تُرسل لتطبيق مدير الفرع","Each branch has its own item list · Selected items are sent to the branch manager app")}</p></div>
         <button onClick={save} className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-bold text-sm transition-all ${saved?"bg-emerald-500 text-white":"bg-purple-600 text-white hover:bg-purple-700"}`}>
-          {saved?<><Check size={14}/> تم الحفظ!</>:<><RefreshCw size={14}/> حفظ وإرسال للفرع</>}
+          {saved?<><Check size={14}/> {t("تم الحفظ!","Saved!")}</>:<><RefreshCw size={14}/> {t("حفظ وإرسال للفرع","Save & Send to Branch")}</>}
         </button>
       </div>
-      {saved&&<div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3"><CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0"/><p className="text-emerald-800 font-semibold text-sm">تم الحفظ! أُرسل {branchList.length} صنف لتطبيق مدير {saved} مع إشعار فوري.</p></div>}
+      {saved&&<div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3"><CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0"/><p className="text-emerald-800 font-semibold text-sm">{t("تم الحفظ! أُرسل","Saved!")} {branchList.length} {t("صنف لتطبيق مدير","items sent to branch manager")} {saved} {t("مع إشعار فوري.","with instant notification.")}</p></div>}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-4">
         <div><p className="text-[11px] font-semibold text-gray-500 mb-2">العلامة التجارية</p>
           <div className="flex gap-2 flex-wrap">
@@ -2915,11 +2998,13 @@ function AccCompanyAssets() {
   const totalDep=shown.reduce((s,a)=>s+a.dep,0);
   const SC:Record<string,string>={active:"bg-emerald-50 text-emerald-700 border border-emerald-200",maintenance:"bg-amber-50 text-amber-700 border border-amber-200"};
   const SL:Record<string,string>={active:"نشط",maintenance:"صيانة"};
+  const { t, dir } = useCLang();
+  const SAR = t("ر.س","SAR");
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div className="flex items-start justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">الأصول الثابتة</h2><p className="text-gray-400 text-sm">{assets.length} أصل مسجل{draftAssets.length>0?` + ${draftAssets.length} مسودة`:""} — جميع العلامات والفروع</p></div>
-        <div className="flex gap-2"><Btn size="sm" onClick={()=>alert("📂 استيراد Excel")}><Upload size={12}/> استيراد Excel</Btn><Btn variant="primary" onClick={()=>alert("➕ إضافة أصل جديد")}><Plus size={13}/> أصل جديد</Btn></div>
+        <div><h2 className="text-xl font-bold text-gray-800">{t("الأصول الثابتة","Fixed Assets")}</h2><p className="text-gray-400 text-sm">{assets.length} {t("أصل مسجل","registered assets")}{draftAssets.length>0?` + ${draftAssets.length} ${t("مسودة","draft")}`:""} — {t("جميع العلامات والفروع","all brands and branches")}</p></div>
+        <div className="flex gap-2"><Btn size="sm" onClick={()=>alert(t("📂 استيراد Excel","📂 Import Excel"))}><Upload size={12}/> {t("استيراد Excel","Import Excel")}</Btn><Btn variant="primary" onClick={()=>alert(t("➕ إضافة أصل جديد","➕ Add new asset"))}><Plus size={13}/> {t("أصل جديد","New Asset")}</Btn></div>
       </div>
 
       {/* مسودات الأصول المحوّلة من مصروفات */}
@@ -3036,24 +3121,26 @@ function AccCompanyShifts({ ops }:{ ops:COp[] }) {
     { key:"history", label:"سجل",     icon:<BarChart3 size={13}/> },
   ];
 
+  const { t, dir } = useCLang();
+  const SAR = t("ر.س","SAR");
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">موديول الشفتات</h2><p className="text-gray-400 text-sm mt-0.5">متابعة فتح وإغلاق الشفتات — جميع العلامات والفروع</p></div>
+        <div><h2 className="text-xl font-bold text-gray-800">{t("موديول الشفتات","Shifts Module")}</h2><p className="text-gray-400 text-sm mt-0.5">{t("متابعة فتح وإغلاق الشفتات — جميع العلامات والفروع","Track shift openings and closings — all brands and branches")}</p></div>
       </div>
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label="مفتوح الآن"      value={String(LIVE_SHIFTS.length)}     sub="فروع نشطة"            icon={<Activity size={18} className="text-amber-600"/>}      accent="amber"/>
-        <KpiCard label="مغلقة اليوم"     value={String(HISTORY_SHIFTS.filter(s=>s.date==="اليوم").length)} sub="شفت مغلق" icon={<CheckCircle2 size={18} className="text-emerald-600"/>} accent="emerald"/>
-        <KpiCard label="مبيعات اليوم"    value={fmt(todaySales)}                 sub="ر.س"                   icon={<Wallet size={18} className="text-purple-600"/>}      accent="purple"/>
-        <KpiCard label="فروق في الكاش"   value={String(HISTORY_SHIFTS.filter(s=>s.diff!==0).length)} sub="تحتاج مراجعة" icon={<AlertTriangle size={18} className="text-red-500"/>} accent="red"/>
+        <KpiCard label={t("مفتوح الآن","Open Now")}        value={String(LIVE_SHIFTS.length)} sub={t("فروع نشطة","active branches")} icon={<Activity size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("مغلقة اليوم","Closed Today")}   value={String(HISTORY_SHIFTS.filter(s=>s.date==="اليوم").length)} sub={t("شفت مغلق","closed shift")} icon={<CheckCircle2 size={18} className="text-emerald-600"/>} accent="emerald"/>
+        <KpiCard label={t("مبيعات اليوم","Today's Sales")} value={fmt(todaySales)} sub={SAR} icon={<Wallet size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label={t("فروق في الكاش","Cash Gaps")}    value={String(HISTORY_SHIFTS.filter(s=>s.diff!==0).length)} sub={t("تحتاج مراجعة","needs review")} icon={<AlertTriangle size={18} className="text-red-500"/>} accent="red"/>
       </div>
 
       {/* Tabs */}
       <div className="flex items-center gap-2 bg-gray-100 rounded-xl p-1 w-fit">
-        {TABS.map(t=>(
-          <button key={t.key} onClick={()=>setTab(t.key)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${tab===t.key?"bg-white text-gray-800 shadow-sm":"text-gray-500 hover:text-gray-700"}`}>
-            {t.icon}{t.label}
+        {TABS.map(tb=>(
+          <button key={tb.key} onClick={()=>setTab(tb.key)}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${tab===tb.key?"bg-white text-gray-800 shadow-sm":"text-gray-500 hover:text-gray-700"}`}>
+            {tb.icon}{tb.label}
           </button>
         ))}
         <select value={brandFilter} onChange={e=>setBrandFilter(e.target.value)} className="mr-auto text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white">
@@ -3206,11 +3293,11 @@ function AccCompanyShifts({ ops }:{ ops:COp[] }) {
             <p className="font-bold text-gray-900 text-sm">سجل الشفتات المغلقة</p>
             <button onClick={()=>alert("جارٍ تصدير السجل...")} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> Excel</button>
           </div>
-          <table className="w-full text-xs" dir="rtl">
+          <table className="w-full text-xs">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-right font-semibold text-gray-600">الفرع / العلامة</th>
-                <th className="px-4 py-3 text-right font-semibold text-gray-600">الكاشير</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-600">{t("الفرع / العلامة","Branch / Brand")}</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-600">{t("الكاشير","Cashier")}</th>
                 <th className="px-4 py-3 text-center font-semibold text-gray-600">التاريخ</th>
                 <th className="px-4 py-3 text-center font-semibold text-gray-600">نوع الشفت</th>
                 <th className="px-4 py-3 text-center font-semibold text-gray-600">المبيعات</th>
@@ -3258,10 +3345,11 @@ function AccCompanyReminders() {
   const P:Record<string,string>={high:"bg-red-50 text-red-700 border border-red-200",medium:"bg-amber-50 text-amber-700 border border-amber-200",low:"bg-gray-100 text-gray-600 border border-gray-200"};
   const PL:Record<string,string>={high:"عالية",medium:"متوسطة",low:"منخفضة"};
   const pending=reminders.filter(r=>!r.done);
+  const { t, dir } = useCLang();
   return (
-    <div className="space-y-5" dir="rtl">
-      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">التذكيرات والمهام</h2><p className="text-gray-400 text-sm">{pending.length} مهمة معلقة</p></div><Btn variant="primary" onClick={()=>setShowAdd(true)}><Plus size={13}/> تذكير جديد</Btn></div>
-      {pending.length>0&&<div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3"><AlertTriangle size={16} className="text-amber-600 flex-shrink-0"/><p className="text-amber-800 text-sm font-semibold">{pending.filter(r=>r.priority==="high").length} مهام عالية الأولوية تحتاج إنجازاً اليوم</p></div>}
+    <div className="space-y-5" dir={dir}>
+      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("التذكيرات والمهام","Reminders & Tasks")}</h2><p className="text-gray-400 text-sm">{pending.length} {t("مهمة معلقة","pending tasks")}</p></div><Btn variant="primary" onClick={()=>setShowAdd(true)}><Plus size={13}/> {t("تذكير جديد","New Reminder")}</Btn></div>
+      {pending.length>0&&<div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3"><AlertTriangle size={16} className="text-amber-600 flex-shrink-0"/><p className="text-amber-800 text-sm font-semibold">{pending.filter(r=>r.priority==="high").length} {t("مهام عالية الأولوية تحتاج إنجازاً اليوم","high-priority tasks need completion today")}</p></div>}
       <div className="space-y-2">
         {reminders.map(r=>(
           <div key={r.id} className={`bg-white rounded-xl border shadow-sm p-4 flex items-center gap-4 transition-all ${r.done?"border-gray-100 opacity-70":"border-gray-100 hover:border-purple-100"}`}>
@@ -3280,7 +3368,7 @@ function AccCompanyReminders() {
       </div>
       {showAdd&&(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setShowAdd(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e=>e.stopPropagation()} dir="rtl">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e=>e.stopPropagation()} dir={dir}>
             <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">تذكير جديد</h3><button onClick={()=>setShowAdd(false)} className="text-gray-400 hover:text-gray-600"><X size={18}/></button></div>
             <div className="space-y-3">
               <div><label className="text-xs font-semibold text-gray-600 block mb-1">العنوان</label><input placeholder="عنوان التذكير..." className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
@@ -3357,13 +3445,14 @@ function AccCompanyWaste() {
   const totalWasteAmt  = entries.flatMap(e=>e.products).reduce((s,p)=>s+p.qty*p.unitPrice,0);
   const empChargedAmt  = entries.flatMap(e=>e.products).filter(p=>p.resp==="موظف").flatMap(p=>p.empAllocs).reduce((s,a)=>s+(parseFloat(a.amount)||0),0);
 
+  const { t, dir } = useCLang();
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">موديول الهدر والتالف</h2><p className="text-gray-400 text-sm mt-0.5">مراجعة الهدر — تعديل التصنيف والقيمة المالية وتوزيع التحميل على الموظفين</p></div>
+        <div><h2 className="text-xl font-bold text-gray-800">{t("موديول الهدر والتالف","Waste & Spoilage Module")}</h2><p className="text-gray-400 text-sm mt-0.5">{t("مراجعة الهدر — تعديل التصنيف والقيمة المالية وتوزيع التحميل على الموظفين","Review waste — adjust classification, financial value and employee allocations")}</p></div>
         {displayedPending.length>0 && (
           <Btn variant="success" size="sm" onClick={()=>setEntries(p=>p.map(e=>(filterBranch==="الكل"||e.branch===filterBranch)?{...e,status:"approved" as const}:e))}>
-            <CheckCircle2 size={12}/> موافقة على الكل ({displayedPending.length})
+            <CheckCircle2 size={12}/> {t("موافقة على الكل","Approve All")} ({displayedPending.length})
           </Btn>
         )}
       </div>
@@ -3585,17 +3674,19 @@ function AccCompanyEmployees() {
   const totalAdvances  = employees.reduce((s,e)=>s+e.advances,0);
   const totalDeductions= employees.reduce((s,e)=>s+e.deductions,0);
 
+  const { t, dir } = useCLang();
+  const SAR = t("ر.س","SAR");
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">كشف حساب الموظفين</h2><p className="text-gray-400 text-sm mt-0.5">الرواتب والحركات المالية لموظفي مجموعة التاج</p></div>
-        <button onClick={()=>alert("تصدير كشف الرواتب...")} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><Download size={12}/> تصدير Excel</button>
+        <div><h2 className="text-xl font-bold text-gray-800">{t("كشف حساب الموظفين","Employee Accounts")}</h2><p className="text-gray-400 text-sm mt-0.5">{t("الرواتب والحركات المالية لموظفي مجموعة التاج","Salaries and financial movements for Al-Taj Group employees")}</p></div>
+        <button onClick={()=>alert(t("تصدير كشف الرواتب...","Exporting payroll..."))} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><Download size={12}/> {t("تصدير Excel","Export Excel")}</button>
       </div>
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label="إجمالي الرواتب"  value={fmt(totalSalaries)}    sub="ر.س صافي هذا الشهر" icon={<Users size={18} className="text-blue-600"/>}    accent="blue"/>
-        <KpiCard label="إجمالي السلف"    value={fmt(totalAdvances)}    sub="ر.س"                  icon={<Wallet size={18} className="text-amber-600"/>}   accent="amber"/>
-        <KpiCard label="إجمالي الخصومات" value={fmt(totalDeductions)}  sub="ر.س"                  icon={<AlertTriangle size={18} className="text-red-500"/>} accent="red"/>
-        <KpiCard label="موظفون نشطون"    value={String(employees.filter(e=>e.status==="نشط").length)} sub={`من ${employees.length} موظف`} icon={<CheckCircle2 size={18} className="text-emerald-600"/>} accent="emerald"/>
+        <KpiCard label={t("إجمالي الرواتب","Total Salaries")}    value={fmt(totalSalaries)}    sub={t("ر.س صافي هذا الشهر","SAR net this month")} icon={<Users size={18} className="text-blue-600"/>} accent="blue"/>
+        <KpiCard label={t("إجمالي السلف","Total Advances")}      value={fmt(totalAdvances)}    sub={SAR} icon={<Wallet size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("إجمالي الخصومات","Total Deductions")} value={fmt(totalDeductions)}  sub={SAR} icon={<AlertTriangle size={18} className="text-red-500"/>} accent="red"/>
+        <KpiCard label={t("موظفون نشطون","Active Employees")}    value={String(employees.filter(e=>e.status==="نشط").length)} sub={`${t("من","of")} ${employees.length} ${t("موظف","employee")}`} icon={<CheckCircle2 size={18} className="text-emerald-600"/>} accent="emerald"/>
       </div>
       {/* فلاتر */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
@@ -3673,7 +3764,7 @@ function AccCompanyEmployees() {
                 <p className="font-bold text-gray-700 text-xs">سجل الحركات المالية</p>
               </div>
               <div className="overflow-hidden">
-                <table className="w-full text-xs" dir="rtl">
+                <table className="w-full text-xs">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-2.5 text-right font-semibold text-gray-600">التاريخ</th>
@@ -3774,17 +3865,19 @@ function AccCompanyCash() {
   const totalPending = branches.reduce((s,b)=>s+b.pendingTxns,0);
   const lowCount     = branches.filter(b=>b.amount-b.used<500).length;
 
+  const { t, dir } = useCLang();
+  const SAR = t("ر.س","SAR");
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">إدارة العهد النقدية</h2><p className="text-gray-400 text-sm mt-0.5">متابعة صناديق النقد لفروع مجموعة التاج</p></div>
+        <div><h2 className="text-xl font-bold text-gray-800">{t("إدارة العهد النقدية","Petty Cash Management")}</h2><p className="text-gray-400 text-sm mt-0.5">{t("متابعة صناديق النقد لفروع مجموعة التاج","Track petty cash for Al-Taj Group branches")}</p></div>
       </div>
       <div className="grid grid-cols-3 gap-4">
-        <KpiCard label="عدد العهود النشطة"  value={String(branches.length)} sub="فروع لديها عهدة مفتوحة" icon={<ArrowLeftRight size={18} className="text-orange-600"/>} accent="orange"/>
-        <KpiCard label="طلبات صرف معلقة"   value={String(totalPending)}    sub="بانتظار المراجعة"       icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
-        <KpiCard label="عهود قريبة من النفاد" value={String(lowCount)}    sub="أقل من 500 ر.س متبقٍ"  icon={<AlertTriangle size={18} className="text-red-600"/>} accent="red"/>
+        <KpiCard label={t("عدد العهود النشطة","Active Custodies")}    value={String(branches.length)} sub={t("فروع لديها عهدة مفتوحة","branches with open custody")} icon={<ArrowLeftRight size={18} className="text-orange-600"/>} accent="orange"/>
+        <KpiCard label={t("طلبات صرف معلقة","Pending Requests")}     value={String(totalPending)}    sub={t("بانتظار المراجعة","awaiting review")} icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("عهود قريبة من النفاد","Near Depletion")}   value={String(lowCount)}        sub={t("أقل من 500 ر.س متبقٍ","less than 500 SAR remaining")} icon={<AlertTriangle size={18} className="text-red-600"/>} accent="red"/>
       </div>
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4" dir="rtl">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div className="grid grid-cols-3 gap-3 mb-3">
           <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">بحث — الفرع أو المسؤول</label>
@@ -3846,7 +3939,7 @@ function AccCompanyCash() {
                 <div className="px-5 pb-4 bg-gray-50/30">
                   <p className="text-[11px] font-bold text-gray-500 mb-2 pt-2">سجل معاملات العهدة — {b.custodian}</p>
                   <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                    <table className="w-full text-xs" dir="rtl">
+                    <table className="w-full text-xs">
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="px-3 py-2 text-right font-semibold text-gray-600">التاريخ</th>
@@ -3893,16 +3986,17 @@ function AccCompanyCash() {
 // ACCOUNTANT — REPORTS
 // ═══════════════════════════════════════════════════
 function AccCompanyReports() {
+  const { t, dir } = useCLang();
   const reports = [
-    { title:"تقرير P&L الشهري",      date:"أكتوبر 2025", type:"مالي",     size:"2.4 MB" },
-    { title:"ملخص المبيعات اليومية", date:"14 أكت 2025", type:"مبيعات",   size:"1.1 MB" },
-    { title:"تقرير المصروفات",       date:"14 أكت 2025", type:"مصروفات",  size:"0.9 MB" },
-    { title:"تقرير المخزون",         date:"13 أكت 2025", type:"مخزون",    size:"1.7 MB" },
-    { title:"كشف الرواتب الشهري",   date:"30 سبت 2025", type:"موظفون",   size:"0.5 MB" },
+    { title:t("تقرير P&L الشهري","Monthly P&L Report"),           date:"أكتوبر 2025", type:t("مالي","Financial"),    size:"2.4 MB" },
+    { title:t("ملخص المبيعات اليومية","Daily Sales Summary"),      date:"14 أكت 2025", type:t("مبيعات","Sales"),      size:"1.1 MB" },
+    { title:t("تقرير المصروفات","Expenses Report"),                date:"14 أكت 2025", type:t("مصروفات","Expenses"),  size:"0.9 MB" },
+    { title:t("تقرير المخزون","Inventory Report"),                 date:"13 أكت 2025", type:t("مخزون","Inventory"),   size:"1.7 MB" },
+    { title:t("كشف الرواتب الشهري","Monthly Payroll Statement"),  date:"30 سبت 2025", type:t("موظفون","Employees"),  size:"0.5 MB" },
   ];
   return (
-    <div className="space-y-5" dir="rtl">
-      <div><h2 className="text-xl font-bold text-gray-800">التقارير</h2><p className="text-gray-400 text-sm">تقارير مجموعة التاج</p></div>
+    <div className="space-y-5" dir={dir}>
+      <div><h2 className="text-xl font-bold text-gray-800">{t("التقارير","Reports")}</h2><p className="text-gray-400 text-sm">{t("تقارير مجموعة التاج","Al-Taj Group reports")}</p></div>
       <div className="grid grid-cols-2 gap-4">
         {reports.map((r,i)=>(
           <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 hover:border-purple-200 transition-colors">
@@ -3949,43 +4043,57 @@ function AccountantRoot({ page, navigate, ops, approve, reject, bulkApprove }:{ 
 const MY_BRANCH = { name:"فرع العليا", brand:"برغر التاج", city:"الرياض", target:130000, salesM:128000, expM:41000 };
 
 function BranchOverview() {
+  const { t, dir } = useCLang();
+  const SAR = t("ر.س","SAR");
   const pct=Math.round((MY_BRANCH.salesM/MY_BRANCH.target)*100);
   const todaySales=18340;
+  const tasks=[
+    [t("رفع مبيعات الشفت الصباحي","Upload morning shift sales"),t("مكتمل","Done"),"done"],
+    [t("رفع مصروفات اليوم","Upload today's expenses"),t("مكتمل","Done"),"done"],
+    [t("جرد المخزون اليومي","Daily inventory count"),t("معلق","Pending"),"pending"],
+    [t("إغلاق شفت المساء","Close evening shift"),t("لاحقاً","Later"),"later"],
+  ];
+  const crew=[
+    ["أنس محمد",t("كاشير","Cashier"),t("صباحي","Morning"),t("نشط","Active")],
+    ["ليلى سالم",t("كاشير","Cashier"),t("مسائي","Evening"),t("قادم","Incoming")],
+    ["فهد العمري",t("طاهٍ","Chef"),t("صباحي","Morning"),t("نشط","Active")],
+    ["سارة الغامدي",t("خدمة","Service"),t("مسائي","Evening"),t("نشط","Active")],
+  ];
   return (
-    <div className="space-y-5" dir="rtl">
-      <div><h2 className="text-xl font-bold text-gray-800">لوحة فرع العليا</h2><p className="text-gray-400 text-sm">{MY_BRANCH.brand} · {MY_BRANCH.city}</p></div>
+    <div className="space-y-5" dir={dir}>
+      <div><h2 className="text-xl font-bold text-gray-800">{t("لوحة فرع العليا","Al-Ulia Branch Dashboard")}</h2><p className="text-gray-400 text-sm">{MY_BRANCH.brand} · {MY_BRANCH.city}</p></div>
       <div className="bg-gradient-to-l from-emerald-600 to-teal-700 rounded-2xl p-5 text-white">
-        <div className="flex items-center justify-between mb-3"><div><p className="font-black text-xl">إنجاز الشهر</p><p className="text-white/70 text-sm mt-0.5">الهدف: {fmt(MY_BRANCH.target)} ر.س</p></div><div className="text-left"><p className="text-3xl font-black">{pct}%</p><p className="text-white/60 text-xs">من الهدف</p></div></div>
+        <div className="flex items-center justify-between mb-3"><div><p className="font-black text-xl">{t("إنجاز الشهر","Monthly Achievement")}</p><p className="text-white/70 text-sm mt-0.5">{t("الهدف:","Target:")} {fmt(MY_BRANCH.target)} {SAR}</p></div><div className={dir==="rtl"?"text-left":"text-right"}><p className="text-3xl font-black">{pct}%</p><p className="text-white/60 text-xs">{t("من الهدف","of target")}</p></div></div>
         <div className="w-full h-3 bg-white/20 rounded-full"><div className="h-3 bg-white rounded-full" style={{width:`${Math.min(100,pct)}%`}}/></div>
         <div className="flex justify-between mt-2 text-xs text-white/60"><span>0</span><span>{fmt(MY_BRANCH.target)}</span></div>
       </div>
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label="مبيعات اليوم"   value={fmt(todaySales)} sub="ر.س" icon={<TrendingUp size={18} className="text-emerald-600"/>} accent="emerald" delta="+5.2%"/>
-        <KpiCard label="مبيعات الشهر"   value={`${fmt(Math.round(MY_BRANCH.salesM/1000))}K`} sub="ر.س" icon={<BarChart3 size={18} className="text-blue-600"/>} accent="blue"/>
-        <KpiCard label="مصروفات الشهر"  value={`${fmt(Math.round(MY_BRANCH.expM/1000))}K`} sub="ر.س" icon={<Wallet size={18} className="text-amber-600"/>} accent="amber"/>
-        <KpiCard label="صافي الربح"      value={`${fmt(Math.round((MY_BRANCH.salesM-MY_BRANCH.expM)/1000))}K`} sub="ر.س" icon={<CheckCircle2 size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label={t("مبيعات اليوم","Today's Sales")}   value={fmt(todaySales)} sub={SAR} icon={<TrendingUp size={18} className="text-emerald-600"/>} accent="emerald" delta="+5.2%"/>
+        <KpiCard label={t("مبيعات الشهر","Monthly Sales")}   value={`${fmt(Math.round(MY_BRANCH.salesM/1000))}K`} sub={SAR} icon={<BarChart3 size={18} className="text-blue-600"/>} accent="blue"/>
+        <KpiCard label={t("مصروفات الشهر","Monthly Expenses")} value={`${fmt(Math.round(MY_BRANCH.expM/1000))}K`} sub={SAR} icon={<Wallet size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("صافي الربح","Net Profit")}         value={`${fmt(Math.round((MY_BRANCH.salesM-MY_BRANCH.expM)/1000))}K`} sub={SAR} icon={<CheckCircle2 size={18} className="text-purple-600"/>} accent="purple"/>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <h3 className="font-bold text-gray-800 text-sm mb-3">📋 مهام اليوم</h3>
+          <h3 className="font-bold text-gray-800 text-sm mb-3">📋 {t("مهام اليوم","Today's Tasks")}</h3>
           <div className="space-y-2">
-            {[["رفع مبيعات الشفت الصباحي","مكتمل","done"],["رفع مصروفات اليوم","مكتمل","done"],["جرد المخزون اليومي","معلق","pending"],["إغلاق شفت المساء","لاحقاً","later"]].map(([t,s,c])=>(
-              <div key={t} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0">
+            {tasks.map(([task,status,c])=>(
+              <div key={task} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0">
                 <div className={`w-4 h-4 rounded-md flex items-center justify-center flex-shrink-0 ${c==="done"?"bg-emerald-500":"bg-gray-200"}`}>{c==="done"&&<Check size={9} className="text-white"/>}</div>
-                <p className={`text-sm flex-1 ${c==="done"?"line-through text-gray-400":"text-gray-700"}`}>{t}</p>
-                <Badge className={`text-[10px] ${c==="done"?"bg-emerald-50 text-emerald-700":c==="pending"?"bg-amber-50 text-amber-700":"bg-gray-100 text-gray-500"}`}>{s}</Badge>
+                <p className={`text-sm flex-1 ${c==="done"?"line-through text-gray-400":"text-gray-700"}`}>{task}</p>
+                <Badge className={`text-[10px] ${c==="done"?"bg-emerald-50 text-emerald-700":c==="pending"?"bg-amber-50 text-amber-700":"bg-gray-100 text-gray-500"}`}>{status}</Badge>
               </div>
             ))}
           </div>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <h3 className="font-bold text-gray-800 text-sm mb-3">👥 طاقم اليوم</h3>
+          <h3 className="font-bold text-gray-800 text-sm mb-3">👥 {t("طاقم اليوم","Today's Crew")}</h3>
           <div className="space-y-2">
-            {[["أنس محمد","كاشير","صباحي","نشط"],["ليلى سالم","كاشير","مسائي","قادم"],["فهد العمري","طاهٍ","صباحي","نشط"],["سارة الغامدي","خدمة","مسائي","نشط"]].map(([n,r,s,st])=>(
+            {crew.map(([n,r,s,st])=>(
               <div key={n} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0">
                 <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-400 to-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{n[0]}</div>
                 <div className="flex-1"><p className="text-sm font-semibold text-gray-700">{n}</p><p className="text-[10px] text-gray-400">{r} · {s}</p></div>
-                <Badge className={`text-[10px] ${st==="نشط"?"bg-emerald-50 text-emerald-700":"bg-gray-100 text-gray-500"}`}>{st}</Badge>
+                <Badge className={`text-[10px] ${st===t("نشط","Active")?"bg-emerald-50 text-emerald-700":"bg-gray-100 text-gray-500"}`}>{st}</Badge>
               </div>
             ))}
           </div>
@@ -3996,72 +4104,75 @@ function BranchOverview() {
 }
 
 function BranchUpload() {
+  const { t, dir } = useCLang();
+  const SAR = t("ر.س","SAR");
   const [salesAmt,setSalesAmt]=useState("");
   const [expAmt,setExpAmt]=useState("");
   const [submitted,setSubmitted]=useState(false);
-  const submit=()=>{if(!salesAmt){alert("أدخل قيمة المبيعات");return;}setSubmitted(true);};
+  const submit=()=>{if(!salesAmt){alert(t("أدخل قيمة المبيعات","Enter sales amount"));return;}setSubmitted(true);};
   if(submitted) return (
-    <div className="flex flex-col items-center justify-center h-64 space-y-4 text-center" dir="rtl">
+    <div className="flex flex-col items-center justify-center h-64 space-y-4 text-center" dir={dir}>
       <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center"><CheckCircle2 size={40} className="text-emerald-600"/></div>
-      <h3 className="text-xl font-bold text-gray-800">تم رفع البيانات بنجاح!</h3>
-      <p className="text-gray-500 text-sm">سيقوم المحاسب بمراجعة البيانات وإعادة الإبلاغ</p>
-      <button onClick={()=>setSubmitted(false)} className="px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-bold hover:bg-purple-700">رفع جديد</button>
+      <h3 className="text-xl font-bold text-gray-800">{t("تم رفع البيانات بنجاح!","Data submitted successfully!")}</h3>
+      <p className="text-gray-500 text-sm">{t("سيقوم المحاسب بمراجعة البيانات وإعادة الإبلاغ","The accountant will review and respond")}</p>
+      <button onClick={()=>setSubmitted(false)} className="px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-bold hover:bg-purple-700">{t("رفع جديد","Upload New")}</button>
     </div>
   );
   return (
-    <div className="space-y-5" dir="rtl">
-      <div><h2 className="text-xl font-bold text-gray-800">الرفع اليومي</h2><p className="text-gray-400 text-sm">{MY_BRANCH.name} · {new Date().toLocaleDateString("ar-SA")}</p></div>
+    <div className="space-y-5" dir={dir}>
+      <div><h2 className="text-xl font-bold text-gray-800">{t("الرفع اليومي","Daily Upload")}</h2><p className="text-gray-400 text-sm">{MY_BRANCH.name} · {new Date().toLocaleDateString("ar-SA")}</p></div>
       <div className="grid grid-cols-2 gap-5">
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <h3 className="font-bold text-gray-800">💰 المبيعات</h3>
-          <div><label className="text-xs font-semibold text-gray-600 block mb-1">إجمالي المبيعات (ر.س) *</label><input type="number" value={salesAmt} onChange={e=>setSalesAmt(e.target.value)} placeholder="0.00" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-emerald-400"/></div>
-          <div><label className="text-xs font-semibold text-gray-600 block mb-1">الشفت</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>صباحي</option><option>مسائي</option><option>كامل اليوم</option></select></div>
-          <div><label className="text-xs font-semibold text-gray-600 block mb-1">مرفق (صورة / PDF)</label><div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center cursor-pointer hover:border-purple-300"><Upload size={20} className="text-gray-400 mx-auto mb-1"/><p className="text-xs text-gray-400">رفع مرفق</p></div></div>
+          <h3 className="font-bold text-gray-800">💰 {t("المبيعات","Sales")}</h3>
+          <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t(`إجمالي المبيعات (${SAR}) *`,`Total Sales (${SAR}) *`)}</label><input type="number" value={salesAmt} onChange={e=>setSalesAmt(e.target.value)} placeholder="0.00" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-emerald-400"/></div>
+          <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الشفت","Shift")}</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>{t("صباحي","Morning")}</option><option>{t("مسائي","Evening")}</option><option>{t("كامل اليوم","Full Day")}</option></select></div>
+          <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("مرفق (صورة / PDF)","Attachment (image / PDF)")}</label><div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center cursor-pointer hover:border-purple-300"><Upload size={20} className="text-gray-400 mx-auto mb-1"/><p className="text-xs text-gray-400">{t("رفع مرفق","Upload attachment")}</p></div></div>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
-          <h3 className="font-bold text-gray-800">💸 المصروفات</h3>
-          <div><label className="text-xs font-semibold text-gray-600 block mb-1">إجمالي المصروفات (ر.س)</label><input type="number" value={expAmt} onChange={e=>setExpAmt(e.target.value)} placeholder="0.00" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-red-400"/></div>
-          <div><label className="text-xs font-semibold text-gray-600 block mb-1">تفصيل المصروفات</label><textarea rows={3} placeholder="وصف مختصر..." className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none resize-none"/></div>
-          <div><label className="text-xs font-semibold text-gray-600 block mb-1">الفاتورة</label><div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center cursor-pointer hover:border-red-300"><Paperclip size={20} className="text-gray-400 mx-auto mb-1"/><p className="text-xs text-gray-400">رفع الفاتورة</p></div></div>
+          <h3 className="font-bold text-gray-800">💸 {t("المصروفات","Expenses")}</h3>
+          <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t(`إجمالي المصروفات (${SAR})`,`Total Expenses (${SAR})`)}</label><input type="number" value={expAmt} onChange={e=>setExpAmt(e.target.value)} placeholder="0.00" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-red-400"/></div>
+          <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("تفصيل المصروفات","Expense breakdown")}</label><textarea rows={3} placeholder={t("وصف مختصر...","Brief description...")} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none resize-none"/></div>
+          <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الفاتورة","Invoice")}</label><div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center cursor-pointer hover:border-red-300"><Paperclip size={20} className="text-gray-400 mx-auto mb-1"/><p className="text-xs text-gray-400">{t("رفع الفاتورة","Upload invoice")}</p></div></div>
         </div>
       </div>
-      <button onClick={submit} className="w-full py-3 rounded-xl bg-purple-600 text-white font-bold text-base hover:bg-purple-700 shadow-sm flex items-center justify-center gap-2"><Send size={16}/>رفع البيانات للمحاسب</button>
+      <button onClick={submit} className="w-full py-3 rounded-xl bg-purple-600 text-white font-bold text-base hover:bg-purple-700 shadow-sm flex items-center justify-center gap-2"><Send size={16}/>{t("رفع البيانات للمحاسب","Submit Data to Accountant")}</button>
     </div>
   );
 }
 
 function BranchRequests() {
+  const { t, dir } = useCLang();
   const [requests,setRequests]=useState([
-    { id:"R001",item:"زيت طهي 10 كجم", qty:20,unit:"كرتون",status:"approved",date:"اليوم",urgency:"عادي"  },
-    { id:"R002",item:"خبز برجر",         qty:50,unit:"كيس",  status:"pending", date:"اليوم",urgency:"عاجل" },
-    { id:"R003",item:"لحم مفروم",        qty:30,unit:"كجم",  status:"pending", date:"أمس",  urgency:"عادي" },
-    { id:"R004",item:"صلصة كاتشب",      qty:10,unit:"كرتون",status:"delivered",date:"أمس",  urgency:"عادي" },
+    { id:"R001",item:"زيت طهي 10 كجم", qty:20,unit:"كرتون",status:"approved", date:t("اليوم","Today"),urgency:"normal" },
+    { id:"R002",item:"خبز برجر",         qty:50,unit:"كيس",  status:"pending",  date:t("اليوم","Today"),urgency:"urgent" },
+    { id:"R003",item:"لحم مفروم",        qty:30,unit:"كجم",  status:"pending",  date:t("أمس","Yesterday"),urgency:"normal" },
+    { id:"R004",item:"صلصة كاتشب",      qty:10,unit:"كرتون",status:"delivered",date:t("أمس","Yesterday"),urgency:"normal" },
   ]);
   const [showAdd,setShowAdd]=useState(false);
   const SC:Record<string,string>={pending:"bg-amber-50 text-amber-700 border-amber-200",approved:"bg-blue-50 text-blue-700 border-blue-200",delivered:"bg-emerald-50 text-emerald-700 border-emerald-200"};
-  const SL:Record<string,string>={pending:"معلق",approved:"معتمد",delivered:"تم التسليم"};
+  const SL:Record<string,string>={pending:t("معلق","Pending"),approved:t("معتمد","Approved"),delivered:t("تم التسليم","Delivered")};
   return (
-    <div className="space-y-5" dir="rtl">
-      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">طلبات الشراء</h2><p className="text-gray-400 text-sm">{requests.filter(r=>r.status==="pending").length} طلب معلق</p></div><Btn variant="primary" onClick={()=>setShowAdd(true)}><Plus size={13}/> طلب جديد</Btn></div>
+    <div className="space-y-5" dir={dir}>
+      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("طلبات الشراء","Purchase Requests")}</h2><p className="text-gray-400 text-sm">{requests.filter(r=>r.status==="pending").length} {t("طلب معلق","pending requests")}</p></div><Btn variant="primary" onClick={()=>setShowAdd(true)}><Plus size={13}/> {t("طلب جديد","New Request")}</Btn></div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {requests.map(r=>(
           <div key={r.id} className="px-5 py-4 flex items-center gap-4 border-b border-gray-50 last:border-0">
             <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-lg flex-shrink-0">📦</div>
             <div className="flex-1"><p className="font-semibold text-gray-800 text-sm">{r.item}</p><p className="text-xs text-gray-400">{r.qty} {r.unit} · {r.date}</p></div>
-            {r.urgency==="عاجل"&&<Badge className="bg-red-50 text-red-700 border border-red-200 text-[10px]">⚡ عاجل</Badge>}
+            {r.urgency==="urgent"&&<Badge className="bg-red-50 text-red-700 border border-red-200 text-[10px]">⚡ {t("عاجل","Urgent")}</Badge>}
             <Badge className={`text-[10px] border ${SC[r.status]}`}>{SL[r.status]}</Badge>
           </div>
         ))}
       </div>
       {showAdd&&(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setShowAdd(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e=>e.stopPropagation()} dir="rtl">
-            <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">طلب شراء جديد</h3><button onClick={()=>setShowAdd(false)} className="text-gray-400 hover:text-gray-600"><X size={18}/></button></div>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e=>e.stopPropagation()} dir={dir}>
+            <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">{t("طلب شراء جديد","New Purchase Request")}</h3><button onClick={()=>setShowAdd(false)} className="text-gray-400 hover:text-gray-600"><X size={18}/></button></div>
             <div className="space-y-3">
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1">الصنف</label><input placeholder="اسم الصنف" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>
-              <div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-semibold text-gray-600 block mb-1">الكمية</label><input type="number" placeholder="0" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div><div><label className="text-xs font-semibold text-gray-600 block mb-1">الوحدة</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>كجم</option><option>كرتون</option><option>قطعة</option><option>لتر</option></select></div></div>
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1">الأولوية</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>عادي</option><option>عاجل</option></select></div>
-              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>إلغاء</Btn><Btn variant="primary" onClick={()=>{setShowAdd(false);setRequests(p=>[...p,{id:`R${p.length+1}`,item:"صنف جديد",qty:0,unit:"كجم",status:"pending",date:"اليوم",urgency:"عادي"}]);}}><Send size={13}/> إرسال</Btn></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الصنف","Item")}</label><input placeholder={t("اسم الصنف","Item name")} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>
+              <div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الكمية","Quantity")}</label><input type="number" placeholder="0" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div><div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الوحدة","Unit")}</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>{t("كجم","kg")}</option><option>{t("كرتون","carton")}</option><option>{t("قطعة","piece")}</option><option>{t("لتر","liter")}</option></select></div></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الأولوية","Priority")}</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>{t("عادي","Normal")}</option><option>{t("عاجل","Urgent")}</option></select></div>
+              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={()=>{setShowAdd(false);setRequests(p=>[...p,{id:`R${p.length+1}`,item:t("صنف جديد","New Item"),qty:0,unit:t("كجم","kg"),status:"pending",date:t("اليوم","Today"),urgency:"normal"}]);}}><Send size={13}/> {t("إرسال","Send")}</Btn></div>
             </div>
           </div>
         </div>
@@ -4071,56 +4182,57 @@ function BranchRequests() {
 }
 
 function BranchItems() {
+  const { t, dir } = useCLang();
   const [showInvForm,setShowInvForm]=useState(false);
   const [invCounts,setInvCounts]=useState<Record<string,string>>({});
   const [invSubmitted,setInvSubmitted]=useState(false);
   const items=[
-    { name:"دقيق أبيض",        qty:120,unit:"كجم", min:50, status:"ok"       },
-    { name:"زيت طهي",          qty:18, unit:"لتر", min:20, status:"low"      },
-    { name:"لحم مفروم (مجمد)", qty:45, unit:"كجم", min:30, status:"ok"       },
-    { name:"خبز برجر",          qty:8,  unit:"كيس", min:15, status:"critical" },
-    { name:"صلصة كاتشب",       qty:24, unit:"عبوة",min:10, status:"ok"       },
-    { name:"جبن شيدر",         qty:12, unit:"كجم", min:8,  status:"ok"       },
+    { name:t("دقيق أبيض","White Flour"),        qty:120,unit:t("كجم","kg"), min:50, status:"ok"       },
+    { name:t("زيت طهي","Cooking Oil"),            qty:18, unit:t("لتر","L"),  min:20, status:"low"      },
+    { name:t("لحم مفروم (مجمد)","Minced Meat (frozen)"),qty:45,unit:t("كجم","kg"),min:30,status:"ok"  },
+    { name:t("خبز برجر","Burger Buns"),           qty:8,  unit:t("كيس","bag"),min:15, status:"critical" },
+    { name:t("صلصة كاتشب","Ketchup"),             qty:24, unit:t("عبوة","pack"),min:10,status:"ok"      },
+    { name:t("جبن شيدر","Cheddar Cheese"),        qty:12, unit:t("كجم","kg"), min:8,  status:"ok"       },
   ];
   const SC:Record<string,string>={ok:"bg-emerald-50 text-emerald-700",low:"bg-amber-50 text-amber-700",critical:"bg-red-50 text-red-700"};
   return (
-    <div className="space-y-5" dir="rtl">
-      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">الجرد اليومي</h2><p className="text-gray-400 text-sm">{MY_BRANCH.name} · {new Date().toLocaleDateString("ar-SA")}</p></div><Btn variant="primary" onClick={()=>setShowInvForm(true)}><Clipboard size={13}/> تسجيل جرد</Btn></div>
+    <div className="space-y-5" dir={dir}>
+      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("الجرد اليومي","Daily Inventory")}</h2><p className="text-gray-400 text-sm">{MY_BRANCH.name} · {new Date().toLocaleDateString("ar-SA")}</p></div><Btn variant="primary" onClick={()=>setShowInvForm(true)}><Clipboard size={13}/> {t("تسجيل جرد","Record Count")}</Btn></div>
       {showInvForm&&(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setShowInvForm(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-5" onClick={e=>e.stopPropagation()} dir="rtl">
-            <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">تسجيل جرد يومي</h3><button onClick={()=>setShowInvForm(false)} className="text-gray-400 hover:text-gray-600"><X size={18}/></button></div>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-5" onClick={e=>e.stopPropagation()} dir={dir}>
+            <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">{t("تسجيل جرد يومي","Daily Inventory Count")}</h3><button onClick={()=>setShowInvForm(false)} className="text-gray-400 hover:text-gray-600"><X size={18}/></button></div>
             {invSubmitted?(
-              <div className="text-center py-6"><div className="text-4xl mb-3">✅</div><p className="font-bold text-gray-800">تم إرسال الجرد للمحاسب</p><p className="text-sm text-gray-400 mt-1">سيتم مراجعته خلال 24 ساعة</p><Btn onClick={()=>{setInvSubmitted(false);setInvCounts({});setShowInvForm(false);}}>إغلاق</Btn></div>
+              <div className="text-center py-6"><div className="text-4xl mb-3">✅</div><p className="font-bold text-gray-800">{t("تم إرسال الجرد للمحاسب","Inventory sent to accountant")}</p><p className="text-sm text-gray-400 mt-1">{t("سيتم مراجعته خلال 24 ساعة","Will be reviewed within 24 hours")}</p><Btn onClick={()=>{setInvSubmitted(false);setInvCounts({});setShowInvForm(false);}}>{t("إغلاق","Close")}</Btn></div>
             ):(
               <div className="space-y-2 max-h-80 overflow-y-auto">
                 {items.map(item=>(
                   <div key={item.name} className="flex items-center gap-3 p-2.5 bg-gray-50 rounded-xl">
-                    <div className="flex-1"><p className="text-sm font-semibold text-gray-800">{item.name}</p><p className="text-[11px] text-gray-400">المتوقع: {item.qty} {item.unit}</p></div>
+                    <div className="flex-1"><p className="text-sm font-semibold text-gray-800">{item.name}</p><p className="text-[11px] text-gray-400">{t("المتوقع:","Expected:")} {item.qty} {item.unit}</p></div>
                     <input type="number" value={invCounts[item.name]??""} onChange={e=>setInvCounts(p=>({...p,[item.name]:e.target.value}))} placeholder={String(item.qty)} className="w-20 text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none text-center focus:border-purple-400"/>
                     <span className="text-xs text-gray-400 w-8">{item.unit}</span>
                   </div>
                 ))}
-                <div className="flex gap-2 justify-end pt-2"><Btn onClick={()=>setShowInvForm(false)}>إلغاء</Btn><Btn variant="primary" onClick={()=>setInvSubmitted(true)}><Send size={13}/> إرسال الجرد</Btn></div>
+                <div className="flex gap-2 justify-end pt-2"><Btn onClick={()=>setShowInvForm(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={()=>setInvSubmitted(true)}><Send size={13}/> {t("إرسال الجرد","Submit Count")}</Btn></div>
               </div>
             )}
           </div>
         </div>
       )}
       <div className="grid grid-cols-3 gap-4">
-        <KpiCard label="أصناف كافية" value={String(items.filter(i=>i.status==="ok").length)} sub="من إجمالي الأصناف" icon={<CheckCircle2 size={18} className="text-emerald-600"/>} accent="emerald"/>
-        <KpiCard label="منخفض" value={String(items.filter(i=>i.status==="low").length)} sub="يحتاج طلب شراء" icon={<AlertTriangle size={18} className="text-amber-600"/>} accent="amber"/>
-        <KpiCard label="حرج" value={String(items.filter(i=>i.status==="critical").length)} sub="طلب عاجل!" icon={<XCircle size={18} className="text-red-500"/>} accent="red"/>
+        <KpiCard label={t("أصناف كافية","Sufficient")} value={String(items.filter(i=>i.status==="ok").length)} sub={t("من إجمالي الأصناف","of total items")} icon={<CheckCircle2 size={18} className="text-emerald-600"/>} accent="emerald"/>
+        <KpiCard label={t("منخفض","Low")} value={String(items.filter(i=>i.status==="low").length)} sub={t("يحتاج طلب شراء","needs purchase order")} icon={<AlertTriangle size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("حرج","Critical")} value={String(items.filter(i=>i.status==="critical").length)} sub={t("طلب عاجل!","urgent order!")} icon={<XCircle size={18} className="text-red-500"/>} accent="red"/>
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="grid grid-cols-4 gap-4 px-5 py-3 border-b border-gray-100 bg-gray-50 text-[10px] font-semibold text-gray-500">
-          <span className="col-span-2">الصنف</span><span>الكمية الفعلية</span><span>الحالة</span>
+          <span className="col-span-2">{t("الصنف","Item")}</span><span>{t("الكمية الفعلية","Actual Qty")}</span><span>{t("الحالة","Status")}</span>
         </div>
         {items.map(item=>(
           <div key={item.name} className="grid grid-cols-4 gap-4 px-5 py-4 border-b border-gray-50 last:border-0 items-center">
-            <div className="col-span-2"><p className="font-semibold text-gray-800 text-sm">{item.name}</p><p className="text-xs text-gray-400">الحد الأدنى: {item.min} {item.unit}</p></div>
+            <div className="col-span-2"><p className="font-semibold text-gray-800 text-sm">{item.name}</p><p className="text-xs text-gray-400">{t("الحد الأدنى:","Min:")} {item.min} {item.unit}</p></div>
             <div className="flex items-center gap-2"><span className="font-mono font-bold text-gray-800">{item.qty}</span><span className="text-gray-400 text-sm">{item.unit}</span></div>
-            <Badge className={`text-[10px] ${SC[item.status]}`}>{item.status==="ok"?"✓ كافٍ":item.status==="low"?"⚠ منخفض":"🔴 حرج"}</Badge>
+            <Badge className={`text-[10px] ${SC[item.status]}`}>{item.status==="ok"?`✓ ${t("كافٍ","OK")}`:item.status==="low"?`⚠ ${t("منخفض","Low")}`:`🔴 ${t("حرج","Critical")}`}</Badge>
           </div>
         ))}
       </div>
@@ -4129,17 +4241,24 @@ function BranchItems() {
 }
 
 function BranchEmployees() {
-  const staff=[{ name:"أنس محمد",   role:"كاشير", shift:"صباحي", status:"present",  phone:"+966 50 111 2222" },{ name:"ليلى سالم",  role:"كاشير", shift:"مسائي", status:"upcoming", phone:"+966 55 222 3333" },{ name:"فهد العمري", role:"طاهٍ",  shift:"صباحي", status:"present",  phone:"+966 53 333 4444" },{ name:"سارة الغامدي",role:"خدمة", shift:"مسائي", status:"upcoming", phone:"+966 56 444 5555" },{ name:"عمر الحربي", role:"مساعد", shift:"صباحي", status:"absent",   phone:"+966 58 555 6666" }];
+  const { t, dir } = useCLang();
+  const staff=[
+    { name:"أنس محمد",     role:t("كاشير","Cashier"), shift:t("صباحي","Morning"), status:"present",  phone:"+966 50 111 2222" },
+    { name:"ليلى سالم",    role:t("كاشير","Cashier"), shift:t("مسائي","Evening"), status:"upcoming", phone:"+966 55 222 3333" },
+    { name:"فهد العمري",   role:t("طاهٍ","Chef"),     shift:t("صباحي","Morning"), status:"present",  phone:"+966 53 333 4444" },
+    { name:"سارة الغامدي", role:t("خدمة","Service"),  shift:t("مسائي","Evening"), status:"upcoming", phone:"+966 56 444 5555" },
+    { name:"عمر الحربي",   role:t("مساعد","Assistant"),shift:t("صباحي","Morning"),status:"absent",   phone:"+966 58 555 6666" },
+  ];
   return (
-    <div className="space-y-5" dir="rtl">
-      <div><h2 className="text-xl font-bold text-gray-800">طاقم الموظفين</h2><p className="text-gray-400 text-sm">{staff.filter(s=>s.status==="present").length} حاضر اليوم</p></div>
+    <div className="space-y-5" dir={dir}>
+      <div><h2 className="text-xl font-bold text-gray-800">{t("طاقم الموظفين","Staff")}</h2><p className="text-gray-400 text-sm">{staff.filter(s=>s.status==="present").length} {t("حاضر اليوم","present today")}</p></div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {staff.map(s=>(
           <div key={s.name} className="px-5 py-4 flex items-center gap-4 border-b border-gray-50 last:border-0">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold flex-shrink-0">{s.name[0]}</div>
-            <div className="flex-1"><p className="font-semibold text-gray-800 text-sm">{s.name}</p><p className="text-xs text-gray-400">{s.role} · شفت {s.shift}</p></div>
+            <div className="flex-1"><p className="font-semibold text-gray-800 text-sm">{s.name}</p><p className="text-xs text-gray-400">{s.role} · {t("شفت","shift")} {s.shift}</p></div>
             <span className="text-xs text-gray-400" dir="ltr">{s.phone}</span>
-            <Badge className={`text-[10px] ${s.status==="present"?"bg-emerald-50 text-emerald-700 border border-emerald-100":s.status==="upcoming"?"bg-blue-50 text-blue-700 border border-blue-100":"bg-red-50 text-red-700 border border-red-200"}`}>{s.status==="present"?"● حاضر":s.status==="upcoming"?"قادم":"غائب"}</Badge>
+            <Badge className={`text-[10px] ${s.status==="present"?"bg-emerald-50 text-emerald-700 border border-emerald-100":s.status==="upcoming"?"bg-blue-50 text-blue-700 border border-blue-100":"bg-red-50 text-red-700 border border-red-200"}`}>{s.status==="present"?`● ${t("حاضر","Present")}`:s.status==="upcoming"?t("قادم","Incoming"):t("غائب","Absent")}</Badge>
           </div>
         ))}
       </div>
@@ -4148,22 +4267,24 @@ function BranchEmployees() {
 }
 
 function BranchShifts() {
+  const { t, dir } = useCLang();
+  const SAR = t("ر.س","SAR");
   return (
-    <div className="space-y-5" dir="rtl">
-      <div><h2 className="text-xl font-bold text-gray-800">شفتات الفرع</h2></div>
+    <div className="space-y-5" dir={dir}>
+      <div><h2 className="text-xl font-bold text-gray-800">{t("شفتات الفرع","Branch Shifts")}</h2></div>
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white rounded-xl border-2 border-amber-200 shadow-sm p-5">
-          <div className="flex items-center gap-2 mb-4"><div className="w-3 h-3 rounded-full bg-amber-400 animate-pulse"/><h3 className="font-bold text-amber-800">شفت مفتوح الآن</h3></div>
-          <p className="text-gray-700 font-semibold">شفت مسائي — ليلى سالم</p>
-          <p className="text-xs text-gray-400 mt-1">فتح: 4:00 م · مبلغ الصندوق: 500 ر.س</p>
-          <div className="mt-4"><Btn variant="danger" onClick={()=>alert("✅ تم إغلاق الشفت وإرساله للمحاسب")}><X size={12}/> إغلاق الشفت</Btn></div>
+          <div className="flex items-center gap-2 mb-4"><div className="w-3 h-3 rounded-full bg-amber-400 animate-pulse"/><h3 className="font-bold text-amber-800">{t("شفت مفتوح الآن","Shift Open Now")}</h3></div>
+          <p className="text-gray-700 font-semibold">{t("شفت مسائي — ليلى سالم","Evening shift — Layla Salem")}</p>
+          <p className="text-xs text-gray-400 mt-1">{t("فتح: 4:00 م · مبلغ الصندوق:","Opened: 4:00 PM · Cash amount:")} 500 {SAR}</p>
+          <div className="mt-4"><Btn variant="danger" onClick={()=>alert(`✅ ${t("تم إغلاق الشفت وإرساله للمحاسب","Shift closed and sent to accountant")}`)}><X size={12}/> {t("إغلاق الشفت","Close Shift")}</Btn></div>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-          <h3 className="font-bold text-gray-800 mb-4">فتح شفت جديد</h3>
+          <h3 className="font-bold text-gray-800 mb-4">{t("فتح شفت جديد","Open New Shift")}</h3>
           <div className="space-y-3">
-            <div><label className="text-xs font-semibold text-gray-600 block mb-1">الكاشير</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>أنس محمد</option><option>ليلى سالم</option></select></div>
-            <div><label className="text-xs font-semibold text-gray-600 block mb-1">مبلغ افتتاح الصندوق (ر.س)</label><input type="number" defaultValue="500" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>
-            <Btn variant="success" onClick={()=>alert("✅ تم فتح الشفت")}><CheckCircle2 size={12}/> فتح شفت</Btn>
+            <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الكاشير","Cashier")}</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>أنس محمد</option><option>ليلى سالم</option></select></div>
+            <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t(`مبلغ افتتاح الصندوق (${SAR})`,`Opening Cash Amount (${SAR})`)}</label><input type="number" defaultValue="500" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>
+            <Btn variant="success" onClick={()=>alert(`✅ ${t("تم فتح الشفت","Shift opened")}`)}><CheckCircle2 size={12}/> {t("فتح شفت","Open Shift")}</Btn>
           </div>
         </div>
       </div>
@@ -4172,25 +4293,26 @@ function BranchShifts() {
 }
 
 function BranchSuppliers() {
+  const { t, dir } = useCLang();
   const suppliers = [
-    { name:"شركة الدواجن الوطنية",   category:"دواجن ولحوم",  contact:"0501234567", status:"معتمد",  lastOrder:"اليوم" },
-    { name:"مؤسسة النخيل للأغذية",   category:"مواد غذائية",  contact:"0557654321", status:"معتمد",  lastOrder:"أمس"   },
-    { name:"شركة الخليج للمواد",      category:"بهارات وتوابل",contact:"0532345678", status:"معتمد",  lastOrder:"3 أيام"},
-    { name:"مجموعة الوفاء للتوزيع",   category:"مشروبات",     contact:"0569876543", status:"قيد المراجعة",lastOrder:"أسبوع"},
+    { name:"شركة الدواجن الوطنية",  category:t("دواجن ولحوم","Poultry & Meat"),   contact:"0501234567", approved:true,  lastOrder:t("اليوم","Today")     },
+    { name:"مؤسسة النخيل للأغذية",  category:t("مواد غذائية","Food Supplies"),    contact:"0557654321", approved:true,  lastOrder:t("أمس","Yesterday")   },
+    { name:"شركة الخليج للمواد",     category:t("بهارات وتوابل","Spices"),         contact:"0532345678", approved:true,  lastOrder:t("3 أيام","3 days")   },
+    { name:"مجموعة الوفاء للتوزيع",  category:t("مشروبات","Beverages"),           contact:"0569876543", approved:false, lastOrder:t("أسبوع","1 week")    },
   ];
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">الموردون</h2><p className="text-gray-400 text-sm">موردو {MY_BRANCH.name}</p></div>
-        <Btn variant="primary" size="sm" onClick={()=>alert("📋 طلب مورد جديد أُرسل لمدير المشتريات")}><Plus size={12}/> طلب مورد جديد</Btn>
+        <div><h2 className="text-xl font-bold text-gray-800">{t("الموردون","Suppliers")}</h2><p className="text-gray-400 text-sm">{t("موردو","Suppliers of")} {MY_BRANCH.name}</p></div>
+        <Btn variant="primary" size="sm" onClick={()=>alert(`📋 ${t("طلب مورد جديد أُرسل لمدير المشتريات","New supplier request sent to procurement manager")}`)}><Plus size={12}/> {t("طلب مورد جديد","Request New Supplier")}</Btn>
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {suppliers.map((s,i)=>(
           <div key={i} className="px-5 py-4 flex items-center gap-4 border-b border-gray-50 last:border-0">
             <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center flex-shrink-0 text-lg">🏭</div>
-            <div className="flex-1"><p className="font-semibold text-gray-800 text-sm">{s.name}</p><p className="text-xs text-gray-400">{s.category} · آخر طلب: {s.lastOrder}</p></div>
+            <div className="flex-1"><p className="font-semibold text-gray-800 text-sm">{s.name}</p><p className="text-xs text-gray-400">{s.category} · {t("آخر طلب:","Last order:")} {s.lastOrder}</p></div>
             <span className="text-xs text-gray-400" dir="ltr">{s.contact}</span>
-            <Badge className={`text-[10px] ${s.status==="معتمد"?"bg-emerald-50 text-emerald-700 border border-emerald-200":"bg-amber-50 text-amber-700 border border-amber-200"}`}>{s.status}</Badge>
+            <Badge className={`text-[10px] ${s.approved?"bg-emerald-50 text-emerald-700 border border-emerald-200":"bg-amber-50 text-amber-700 border border-amber-200"}`}>{s.approved?t("معتمد","Approved"):t("قيد المراجعة","Under Review")}</Badge>
           </div>
         ))}
       </div>
@@ -4199,21 +4321,22 @@ function BranchSuppliers() {
 }
 
 function BranchSettings() {
+  const { t, dir } = useCLang();
   const [branchName, setBranchName] = useState(MY_BRANCH.name);
   const [manager,    setManager]    = useState("فاطمة السالم");
   const [phone,      setPhone]      = useState("+966 11 234 5678");
   return (
-    <div className="space-y-5" dir="rtl">
-      <div><h2 className="text-xl font-bold text-gray-800">إعدادات الفرع</h2><p className="text-gray-400 text-sm">{MY_BRANCH.brand}</p></div>
+    <div className="space-y-5" dir={dir}>
+      <div><h2 className="text-xl font-bold text-gray-800">{t("إعدادات الفرع","Branch Settings")}</h2><p className="text-gray-400 text-sm">{MY_BRANCH.brand}</p></div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
-        <h3 className="font-bold text-gray-800 text-sm border-b border-gray-100 pb-2">بيانات الفرع الأساسية</h3>
+        <h3 className="font-bold text-gray-800 text-sm border-b border-gray-100 pb-2">{t("بيانات الفرع الأساسية","Basic Branch Info")}</h3>
         <div className="grid grid-cols-2 gap-4">
-          <div><label className="text-xs font-semibold text-gray-600 block mb-1">اسم الفرع</label><input value={branchName} onChange={e=>setBranchName(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
-          <div><label className="text-xs font-semibold text-gray-600 block mb-1">مدير الفرع</label><input value={manager} onChange={e=>setManager(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
-          <div><label className="text-xs font-semibold text-gray-600 block mb-1">رقم الهاتف</label><input value={phone} onChange={e=>setPhone(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400" dir="ltr"/></div>
-          <div><label className="text-xs font-semibold text-gray-600 block mb-1">المدينة</label><input value={MY_BRANCH.city} readOnly className="w-full text-sm border border-gray-100 rounded-xl px-3 py-2.5 bg-gray-50 text-gray-400"/></div>
+          <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("اسم الفرع","Branch Name")}</label><input value={branchName} onChange={e=>setBranchName(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+          <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("مدير الفرع","Branch Manager")}</label><input value={manager} onChange={e=>setManager(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+          <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("رقم الهاتف","Phone")}</label><input value={phone} onChange={e=>setPhone(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400" dir="ltr"/></div>
+          <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("المدينة","City")}</label><input value={MY_BRANCH.city} readOnly className="w-full text-sm border border-gray-100 rounded-xl px-3 py-2.5 bg-gray-50 text-gray-400"/></div>
         </div>
-        <div className="flex justify-end pt-2"><Btn variant="primary" onClick={()=>alert("✅ تم حفظ إعدادات الفرع")}><Check size={13}/> حفظ التغييرات</Btn></div>
+        <div className="flex justify-end pt-2"><Btn variant="primary" onClick={()=>alert(`✅ ${t("تم حفظ إعدادات الفرع","Branch settings saved")}`)}><Check size={13}/> {t("حفظ التغييرات","Save Changes")}</Btn></div>
       </div>
     </div>
   );
@@ -4223,31 +4346,33 @@ function BranchSettings() {
 // PROCUREMENT PAGES
 // ═══════════════════════════════════════════════════
 function ProcOverview({ navigate }:{ navigate:(p:string)=>void }) {
+  const { t, dir } = useCLang();
+  const SAR = t("ر.س","SAR");
   const orders=[
-    { id:"PO-001",supplier:"شركة المروج للتوريد", items:3,total:12400,status:"pending",  date:"اليوم" },
-    { id:"PO-002",supplier:"مؤسسة النخيل للأغذية",items:5,total:8200, status:"approved", date:"أمس"   },
-    { id:"PO-003",supplier:"شركة الخليج للمواد",  items:2,total:3600, status:"delivered",date:"أمس"   },
-    { id:"PO-004",supplier:"مجموعة الوفاء",         items:8,total:22800,status:"pending",  date:"أسبوع" },
+    { id:"PO-001",supplier:"شركة المروج للتوريد", items:3,total:12400,status:"pending",  date:t("اليوم","Today")     },
+    { id:"PO-002",supplier:"مؤسسة النخيل للأغذية",items:5,total:8200, status:"approved", date:t("أمس","Yesterday")   },
+    { id:"PO-003",supplier:"شركة الخليج للمواد",  items:2,total:3600, status:"delivered",date:t("أمس","Yesterday")   },
+    { id:"PO-004",supplier:"مجموعة الوفاء",         items:8,total:22800,status:"pending",  date:t("أسبوع","1 week")   },
   ];
   const SC:Record<string,string>={pending:"bg-amber-50 text-amber-700 border-amber-200",approved:"bg-blue-50 text-blue-700 border-blue-200",delivered:"bg-emerald-50 text-emerald-700 border-emerald-200"};
-  const SL:Record<string,string>={pending:"معلق",approved:"معتمد",delivered:"تم التسليم"};
+  const SL:Record<string,string>={pending:t("معلق","Pending"),approved:t("معتمد","Approved"),delivered:t("تم التسليم","Delivered")};
   const totalPending=orders.filter(o=>o.status==="pending").reduce((s,o)=>s+o.total,0);
   return (
-    <div className="space-y-5" dir="rtl">
-      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">لوحة المشتريات</h2></div><button onClick={()=>navigate("proc-new")} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-bold hover:bg-amber-600"><Plus size={14}/> أمر شراء جديد</button></div>
+    <div className="space-y-5" dir={dir}>
+      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("لوحة المشتريات","Procurement Dashboard")}</h2></div><button onClick={()=>navigate("proc-new")} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-bold hover:bg-amber-600"><Plus size={14}/> {t("أمر شراء جديد","New Purchase Order")}</button></div>
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label="أوامر معلقة" value={String(orders.filter(o=>o.status==="pending").length)} sub="تنتظر الاعتماد" icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
-        <KpiCard label="قيمة المعلقة" value={fmt(totalPending)} sub="ر.س" icon={<Wallet size={18} className="text-red-500"/>} accent="red"/>
-        <KpiCard label="موردون نشطون" value="8" sub="مورد معتمد" icon={<Building2 size={18} className="text-blue-600"/>} accent="blue"/>
-        <KpiCard label="مشتريات الشهر" value="187K" sub="ر.س إجمالي" icon={<ShoppingCart size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label={t("أوامر معلقة","Pending Orders")} value={String(orders.filter(o=>o.status==="pending").length)} sub={t("تنتظر الاعتماد","awaiting approval")} icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("قيمة المعلقة","Pending Value")} value={fmt(totalPending)} sub={SAR} icon={<Wallet size={18} className="text-red-500"/>} accent="red"/>
+        <KpiCard label={t("موردون نشطون","Active Suppliers")} value="8" sub={t("مورد معتمد","approved suppliers")} icon={<Building2 size={18} className="text-blue-600"/>} accent="blue"/>
+        <KpiCard label={t("مشتريات الشهر","Monthly Purchases")} value="187K" sub={`${SAR} ${t("إجمالي","total")}`} icon={<ShoppingCart size={18} className="text-purple-600"/>} accent="purple"/>
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60"><h3 className="font-bold text-gray-900 text-sm">أحدث أوامر الشراء</h3></div>
+        <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60"><h3 className="font-bold text-gray-900 text-sm">{t("أحدث أوامر الشراء","Latest Purchase Orders")}</h3></div>
         {orders.map(o=>(
           <div key={o.id} className="px-5 py-4 flex items-center gap-4 border-b border-gray-50 last:border-0">
             <div className="text-left flex-shrink-0"><p className="text-xs font-bold text-gray-400" dir="ltr">{o.id}</p></div>
-            <div className="flex-1"><p className="font-semibold text-gray-800 text-sm">{o.supplier}</p><p className="text-xs text-gray-400">{o.items} أصناف · {o.date}</p></div>
-            <span className="font-mono font-bold text-gray-800">{fmt(o.total)} ر.س</span>
+            <div className="flex-1"><p className="font-semibold text-gray-800 text-sm">{o.supplier}</p><p className="text-xs text-gray-400">{o.items} {t("أصناف","items")} · {o.date}</p></div>
+            <span className="font-mono font-bold text-gray-800">{fmt(o.total)} {SAR}</span>
             <Badge className={`text-[10px] border ${SC[o.status]}`}>{SL[o.status]}</Badge>
           </div>
         ))}
@@ -4257,42 +4382,44 @@ function ProcOverview({ navigate }:{ navigate:(p:string)=>void }) {
 }
 
 function ProcNew() {
+  const { t, dir } = useCLang();
+  const SAR = t("ر.س","SAR");
   const [orders,setOrders]=useState([
-    { id:"PO-001",supplier:"شركة المروج",       brand:"برغر التاج",       items:3,total:12400,status:"pending",  date:"اليوم" },
-    { id:"PO-002",supplier:"مؤسسة النخيل",      brand:"بيتزا التاج",      items:5,total:8200, status:"approved", date:"أمس"   },
-    { id:"PO-003",supplier:"شركة الخليج",        brand:"مطعم التاج الراقي",items:2,total:3600, status:"delivered",date:"أمس"   },
-    { id:"PO-004",supplier:"مجموعة الوفاء",      brand:"برغر التاج",       items:8,total:22800,status:"pending",  date:"أسبوع" },
-    { id:"PO-005",supplier:"شركة المروج",        brand:"بيتزا التاج",      items:4,total:9100, status:"approved", date:"أسبوع" },
+    { id:"PO-001",supplier:"شركة المروج",       brand:"برغر التاج",       items:3,total:12400,status:"pending",  date:t("اليوم","Today")     },
+    { id:"PO-002",supplier:"مؤسسة النخيل",      brand:"بيتزا التاج",      items:5,total:8200, status:"approved", date:t("أمس","Yesterday")   },
+    { id:"PO-003",supplier:"شركة الخليج",        brand:"مطعم التاج الراقي",items:2,total:3600, status:"delivered",date:t("أمس","Yesterday")   },
+    { id:"PO-004",supplier:"مجموعة الوفاء",      brand:"برغر التاج",       items:8,total:22800,status:"pending",  date:t("أسبوع","1 week")    },
+    { id:"PO-005",supplier:"شركة المروج",        brand:"بيتزا التاج",      items:4,total:9100, status:"approved", date:t("أسبوع","1 week")    },
   ]);
   const [showAdd,setShowAdd]=useState(false);
   const SC:Record<string,string>={pending:"bg-amber-50 text-amber-700 border-amber-200",approved:"bg-blue-50 text-blue-700 border-blue-200",delivered:"bg-emerald-50 text-emerald-700 border-emerald-200"};
-  const SL:Record<string,string>={pending:"معلق",approved:"معتمد",delivered:"تم التسليم"};
+  const SL:Record<string,string>={pending:t("معلق","Pending"),approved:t("معتمد","Approved"),delivered:t("تم التسليم","Delivered")};
   return (
-    <div className="space-y-5" dir="rtl">
-      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">أوامر الشراء</h2><p className="text-gray-400 text-sm">{orders.filter(o=>o.status==="pending").length} معلق</p></div><Btn variant="primary" onClick={()=>setShowAdd(true)}><Plus size={13}/> أمر جديد</Btn></div>
+    <div className="space-y-5" dir={dir}>
+      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("أوامر الشراء","Purchase Orders")}</h2><p className="text-gray-400 text-sm">{orders.filter(o=>o.status==="pending").length} {t("معلق","pending")}</p></div><Btn variant="primary" onClick={()=>setShowAdd(true)}><Plus size={13}/> {t("أمر جديد","New Order")}</Btn></div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="grid grid-cols-6 gap-3 px-5 py-3 border-b border-gray-100 bg-gray-50 text-[10px] font-semibold text-gray-500">
-          <span>رقم الأمر</span><span className="col-span-2">المورد</span><span>العلامة</span><span>الإجمالي</span><span>الحالة</span>
+          <span>{t("رقم الأمر","Order #")}</span><span className="col-span-2">{t("المورد","Supplier")}</span><span>{t("العلامة","Brand")}</span><span>{t("الإجمالي","Total")}</span><span>{t("الحالة","Status")}</span>
         </div>
         {orders.map(o=>(
           <div key={o.id} className="grid grid-cols-6 gap-3 px-5 py-4 border-b border-gray-50 last:border-0 items-center hover:bg-gray-50/50">
             <span className="font-mono text-xs text-gray-500" dir="ltr">{o.id}</span>
-            <div className="col-span-2"><p className="font-semibold text-gray-800 text-sm">{o.supplier}</p><p className="text-[10px] text-gray-400">{o.items} أصناف · {o.date}</p></div>
+            <div className="col-span-2"><p className="font-semibold text-gray-800 text-sm">{o.supplier}</p><p className="text-[10px] text-gray-400">{o.items} {t("أصناف","items")} · {o.date}</p></div>
             <span className="text-xs text-gray-600">{o.brand}</span>
-            <span className="font-mono font-bold text-gray-800 text-sm">{fmt(o.total)} ر.س</span>
-            <div className="flex items-center gap-1.5"><Badge className={`text-[10px] border ${SC[o.status]}`}>{SL[o.status]}</Badge><button onClick={()=>alert(`✏️ تعديل أمر الشراء\n${o.id}\n\nيمكن تعديل:\n• الأصناف والكميات\n• المورد\n• ملاحظات`)} className="p-1 rounded text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"><Edit2 size={11}/></button></div>
+            <span className="font-mono font-bold text-gray-800 text-sm">{fmt(o.total)} {SAR}</span>
+            <div className="flex items-center gap-1.5"><Badge className={`text-[10px] border ${SC[o.status]}`}>{SL[o.status]}</Badge><button onClick={()=>alert(`✏️ ${t("تعديل أمر الشراء","Edit Purchase Order")}\n${o.id}`)} className="p-1 rounded text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"><Edit2 size={11}/></button></div>
           </div>
         ))}
       </div>
       {showAdd&&(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setShowAdd(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e=>e.stopPropagation()} dir="rtl">
-            <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">أمر شراء جديد</h3><button onClick={()=>setShowAdd(false)} className="text-gray-400"><X size={18}/></button></div>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e=>e.stopPropagation()} dir={dir}>
+            <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">{t("أمر شراء جديد","New Purchase Order")}</h3><button onClick={()=>setShowAdd(false)} className="text-gray-400"><X size={18}/></button></div>
             <div className="space-y-3">
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1">المورد</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>شركة المروج</option><option>مؤسسة النخيل</option><option>شركة الخليج</option></select></div>
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1">العلامة التجارية</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none">{BRANDS.map(b=><option key={b.id}>{b.name}</option>)}</select></div>
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1">وصف الطلب</label><textarea rows={3} placeholder="الأصناف والكميات..." className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none resize-none"/></div>
-              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>إلغاء</Btn><Btn variant="primary" onClick={()=>{setShowAdd(false);alert("✅ تم إنشاء أمر الشراء");}}><Send size={13}/> إنشاء</Btn></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("المورد","Supplier")}</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>شركة المروج</option><option>مؤسسة النخيل</option><option>شركة الخليج</option></select></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("العلامة التجارية","Brand")}</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none">{BRANDS.map(b=><option key={b.id}>{b.name}</option>)}</select></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("وصف الطلب","Order Description")}</label><textarea rows={3} placeholder={t("الأصناف والكميات...","Items and quantities...")} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none resize-none"/></div>
+              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={()=>{setShowAdd(false);alert(`✅ ${t("تم إنشاء أمر الشراء","Purchase order created")}`);}}><Send size={13}/> {t("إنشاء","Create")}</Btn></div>
             </div>
           </div>
         </div>
@@ -4302,28 +4429,30 @@ function ProcNew() {
 }
 
 function ProcSuppliers() {
+  const { t, dir } = useCLang();
+  const SAR = t("ر.س","SAR");
   const suppliers=[
-    { id:"S1",name:"شركة المروج للتوريد",   category:"مواد خام",      contact:"سليمان المروج",phone:"+966 50 111 1111",rating:4.8,orders:24,totalSpent:187000,status:"active"   },
-    { id:"S2",name:"مؤسسة النخيل للأغذية",  category:"خضروات وفاكهة", contact:"منى النخيل",   phone:"+966 55 222 2222",rating:4.5,orders:18,totalSpent:92000, status:"active"   },
-    { id:"S3",name:"شركة الخليج للمواد",     category:"بهارات وتوابل", contact:"كريم الخليج",  phone:"+966 53 333 3333",rating:4.2,orders:31,totalSpent:45000, status:"active"   },
-    { id:"S4",name:"مجموعة الوفاء",          category:"مشروبات",       contact:"ناصر الوفاء",  phone:"+966 56 444 4444",rating:3.9,orders:12,totalSpent:68000, status:"active"   },
-    { id:"S5",name:"شركة الأمانة للتغليف",  category:"تغليف وعبوات",  contact:"هدى الأمانة",  phone:"+966 58 555 5555",rating:4.6,orders:8, totalSpent:22000, status:"inactive" },
+    { id:"S1",name:"شركة المروج للتوريد",  category:t("مواد خام","Raw Materials"),     contact:"سليمان المروج",phone:"+966 50 111 1111",rating:4.8,orders:24,totalSpent:187000,active:true  },
+    { id:"S2",name:"مؤسسة النخيل للأغذية", category:t("خضروات وفاكهة","Vegetables"),   contact:"منى النخيل",   phone:"+966 55 222 2222",rating:4.5,orders:18,totalSpent:92000, active:true  },
+    { id:"S3",name:"شركة الخليج للمواد",    category:t("بهارات وتوابل","Spices"),       contact:"كريم الخليج",  phone:"+966 53 333 3333",rating:4.2,orders:31,totalSpent:45000, active:true  },
+    { id:"S4",name:"مجموعة الوفاء",         category:t("مشروبات","Beverages"),          contact:"ناصر الوفاء",  phone:"+966 56 444 4444",rating:3.9,orders:12,totalSpent:68000, active:true  },
+    { id:"S5",name:"شركة الأمانة للتغليف", category:t("تغليف وعبوات","Packaging"),     contact:"هدى الأمانة",  phone:"+966 58 555 5555",rating:4.6,orders:8, totalSpent:22000, active:false },
   ];
   return (
-    <div className="space-y-5" dir="rtl">
-      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">الموردون</h2><p className="text-gray-400 text-sm">{suppliers.filter(s=>s.status==="active").length} مورد نشط</p></div><Btn variant="primary" onClick={()=>alert("➕ إضافة مورد جديد\n\nالبيانات المطلوبة:\n• اسم الشركة ونوع الأصناف\n• بيانات التواصل\n• الوثائق التجارية\n\nسيتم مراجعة الطلب خلال 48 ساعة.")}><Plus size={13}/> إضافة مورد</Btn></div>
+    <div className="space-y-5" dir={dir}>
+      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("الموردون","Suppliers")}</h2><p className="text-gray-400 text-sm">{suppliers.filter(s=>s.active).length} {t("مورد نشط","active suppliers")}</p></div><Btn variant="primary" onClick={()=>alert(`➕ ${t("إضافة مورد جديد","Add New Supplier")}`)}><Plus size={13}/> {t("إضافة مورد","Add Supplier")}</Btn></div>
       <div className="grid grid-cols-3 gap-4">
-        <KpiCard label="موردون نشطون" value={String(suppliers.filter(s=>s.status==="active").length)} sub="مورد معتمد" icon={<Building2 size={18} className="text-blue-600"/>} accent="blue"/>
-        <KpiCard label="إجمالي المشتريات" value={`${fmt(Math.round(suppliers.reduce((s,x)=>s+x.totalSpent,0)/1000))}K`} sub="ر.س" icon={<Wallet size={18} className="text-purple-600"/>} accent="purple"/>
-        <KpiCard label="متوسط التقييم" value="4.4" sub="من 5 نجوم" icon={<Star size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("موردون نشطون","Active Suppliers")} value={String(suppliers.filter(s=>s.active).length)} sub={t("مورد معتمد","approved")} icon={<Building2 size={18} className="text-blue-600"/>} accent="blue"/>
+        <KpiCard label={t("إجمالي المشتريات","Total Purchases")} value={`${fmt(Math.round(suppliers.reduce((s,x)=>s+x.totalSpent,0)/1000))}K`} sub={SAR} icon={<Wallet size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label={t("متوسط التقييم","Avg Rating")} value="4.4" sub={t("من 5 نجوم","/ 5 stars")} icon={<Star size={18} className="text-amber-600"/>} accent="amber"/>
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {suppliers.map(s=>(
           <div key={s.id} className="px-5 py-4 flex items-center gap-4 border-b border-gray-50 last:border-0 hover:bg-gray-50/50">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{s.name[0]}</div>
             <div className="flex-1 min-w-0"><div className="flex items-center gap-2"><span className="font-bold text-gray-800 text-sm">{s.name}</span><Badge className="bg-gray-100 text-gray-600 text-[10px]">{s.category}</Badge></div><div className="flex gap-3 mt-0.5"><span className="text-xs text-gray-400">{s.contact}</span><span className="text-xs text-gray-400" dir="ltr">{s.phone}</span></div></div>
-            <div className="text-left flex-shrink-0"><div className="flex items-center gap-0.5">{[1,2,3,4,5].map(i=><span key={i} className={`text-sm ${i<=Math.floor(s.rating)?"text-amber-400":"text-gray-200"}`}>★</span>)}<span className="text-xs text-gray-500 mr-1">{s.rating}</span></div><p className="text-[10px] text-gray-400">{s.orders} طلب · {fmt(s.totalSpent)} ر.س</p></div>
-            <Badge className={`text-[10px] ${s.status==="active"?"bg-emerald-50 text-emerald-700 border border-emerald-100":"bg-gray-100 text-gray-500"}`}>{s.status==="active"?"● نشط":"○ موقوف"}</Badge>
+            <div className={`${dir==="rtl"?"text-left":"text-right"} flex-shrink-0`}><div className="flex items-center gap-0.5">{[1,2,3,4,5].map(i=><span key={i} className={`text-sm ${i<=Math.floor(s.rating)?"text-amber-400":"text-gray-200"}`}>★</span>)}<span className="text-xs text-gray-500 mr-1">{s.rating}</span></div><p className="text-[10px] text-gray-400">{s.orders} {t("طلب","orders")} · {fmt(s.totalSpent)} {SAR}</p></div>
+            <Badge className={`text-[10px] ${s.active?"bg-emerald-50 text-emerald-700 border border-emerald-100":"bg-gray-100 text-gray-500"}`}>{s.active?`● ${t("نشط","Active")}`:`○ ${t("موقوف","Inactive")}`}</Badge>
           </div>
         ))}
       </div>
@@ -4332,20 +4461,28 @@ function ProcSuppliers() {
 }
 
 function ProcItems() {
-  const items=[{ name:"لحم بقري مفروم",unit:"كجم", lastPrice:42,brand:"برغر التاج",       suppliers:2},{ name:"دقيق أبيض",unit:"كيس", lastPrice:18,brand:"بيتزا التاج",      suppliers:3},{ name:"زيت طهي 10L",unit:"عبوة",lastPrice:85,brand:"جميع العلامات",    suppliers:2},{ name:"جبن موزاريلا",unit:"كجم", lastPrice:38,brand:"بيتزا التاج",      suppliers:1},{ name:"خبز برجر",unit:"كيس", lastPrice:12,brand:"برغر التاج",       suppliers:2}];
+  const { t, dir } = useCLang();
+  const SAR = t("ر.س","SAR");
+  const items=[
+    { name:t("لحم بقري مفروم","Ground Beef"),   unit:t("كجم","kg"),  lastPrice:42,brand:"برغر التاج",        suppliers:2 },
+    { name:t("دقيق أبيض","White Flour"),          unit:t("كيس","bag"), lastPrice:18,brand:"بيتزا التاج",       suppliers:3 },
+    { name:t("زيت طهي 10L","Cooking Oil 10L"),    unit:t("عبوة","pack"),lastPrice:85,brand:t("جميع العلامات","All Brands"), suppliers:2 },
+    { name:t("جبن موزاريلا","Mozzarella"),         unit:t("كجم","kg"),  lastPrice:38,brand:"بيتزا التاج",       suppliers:1 },
+    { name:t("خبز برجر","Burger Buns"),            unit:t("كيس","bag"), lastPrice:12,brand:"برغر التاج",        suppliers:2 },
+  ];
   return (
-    <div className="space-y-5" dir="rtl">
-      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">الأصناف والأسعار</h2><p className="text-gray-400 text-sm">{items.length} صنف</p></div><Btn variant="primary" onClick={()=>alert("➕ إضافة صنف جديد\n\nأدخل:\n• اسم الصنف والوحدة\n• العلامة التجارية\n• السعر المرجعي\n• ربط الموردين")}><Plus size={13}/> صنف جديد</Btn></div>
+    <div className="space-y-5" dir={dir}>
+      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("الأصناف والأسعار","Items & Prices")}</h2><p className="text-gray-400 text-sm">{items.length} {t("صنف","items")}</p></div><Btn variant="primary" onClick={()=>alert(`➕ ${t("إضافة صنف جديد","Add new item")}`)}><Plus size={13}/> {t("صنف جديد","New Item")}</Btn></div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="grid grid-cols-5 gap-4 px-5 py-3 border-b border-gray-100 bg-gray-50 text-[10px] font-semibold text-gray-500">
-          <span className="col-span-2">الصنف</span><span>الوحدة</span><span>آخر سعر</span><span>الموردون</span>
+          <span className="col-span-2">{t("الصنف","Item")}</span><span>{t("الوحدة","Unit")}</span><span>{t("آخر سعر","Last Price")}</span><span>{t("الموردون","Suppliers")}</span>
         </div>
         {items.map(i=>(
           <div key={i.name} className="grid grid-cols-5 gap-4 px-5 py-4 border-b border-gray-50 last:border-0 items-center hover:bg-gray-50/50">
             <div className="col-span-2"><p className="font-semibold text-gray-800 text-sm">{i.name}</p><p className="text-[10px] text-gray-400">{i.brand}</p></div>
             <span className="text-gray-500 text-sm">{i.unit}</span>
-            <span className="font-mono font-bold text-gray-800 text-sm">{i.lastPrice} ر.س</span>
-            <div className="flex items-center gap-1"><span className="font-bold text-purple-700">{i.suppliers}</span><span className="text-xs text-gray-400">مورد</span></div>
+            <span className="font-mono font-bold text-gray-800 text-sm">{i.lastPrice} {SAR}</span>
+            <div className="flex items-center gap-1"><span className="font-bold text-purple-700">{i.suppliers}</span><span className="text-xs text-gray-400">{t("مورد","suppliers")}</span></div>
           </div>
         ))}
       </div>
@@ -4354,17 +4491,24 @@ function ProcItems() {
 }
 
 function ProcReports() {
+  const { t, dir } = useCLang();
+  const reports=[
+    [t("📊 تقرير المشتريات الشهري","📊 Monthly Purchases Report"),t("إجمالي مصنّف حسب المورد","Total classified by supplier"),"Purchases_Monthly_Mar2026.pdf"],
+    [t("📈 مقارنة الأسعار","📈 Price Comparison"),t("متابعة تغيرات أسعار الموردين","Track supplier price changes"),"Price_Comparison_Mar2026.pdf"],
+    [t("🏭 أداء الموردين","🏭 Supplier Performance"),t("تقييم والتزام المواعيد","Rating and on-time delivery"),"Supplier_Performance_Mar2026.pdf"],
+    [t("🛒 أوامر معلقة","🛒 Pending Orders"),t("الأوامر التي تحتاج اعتماد","Orders requiring approval"),"Pending_Orders_Mar2026.pdf"],
+  ];
   return (
-    <div className="space-y-5" dir="rtl">
-      <div><h2 className="text-xl font-bold text-gray-800">تقارير المشتريات</h2></div>
+    <div className="space-y-5" dir={dir}>
+      <div><h2 className="text-xl font-bold text-gray-800">{t("تقارير المشتريات","Procurement Reports")}</h2></div>
       <div className="grid grid-cols-2 gap-4">
-        {[["📊 تقرير المشتريات الشهري","إجمالي مصنّف حسب المورد","Purchases_Monthly_Mar2026.pdf"],["📈 مقارنة الأسعار","متابعة تغيرات أسعار الموردين","Price_Comparison_Mar2026.pdf"],["🏭 أداء الموردين","تقييم والتزام المواعيد","Supplier_Performance_Mar2026.pdf"],["🛒 أوامر معلقة","الأوامر التي تحتاج اعتماد","Pending_Orders_Mar2026.pdf"]].map(([t,d,file])=>(
-          <div key={t} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 text-right hover:border-amber-200 hover:shadow-md transition-all">
-            <p className="font-bold text-gray-800">{t}</p>
-            <p className="text-xs text-gray-400 mt-1">{d}</p>
+        {reports.map(([title,desc,file])=>(
+          <div key={title} className={`bg-white rounded-xl border border-gray-100 shadow-sm p-5 ${dir==="rtl"?"text-right":"text-left"} hover:border-amber-200 hover:shadow-md transition-all`}>
+            <p className="font-bold text-gray-800">{title}</p>
+            <p className="text-xs text-gray-400 mt-1">{desc}</p>
             <div className="mt-3">
-              <button onClick={()=>alert(`⬇️ جار تحميل:\n${file}`)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-amber-100 hover:text-amber-700 transition-colors">
-                <Download size={11}/> تحميل
+              <button onClick={()=>alert(`⬇️ ${t("جار تحميل:","Downloading:")} ${file}`)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-amber-100 hover:text-amber-700 transition-colors">
+                <Download size={11}/> {t("تحميل","Download")}
               </button>
             </div>
           </div>
@@ -4375,25 +4519,27 @@ function ProcReports() {
 }
 
 function ProcGrouped() {
+  const { t, dir } = useCLang();
+  const SAR = t("ر.س","SAR");
   const groups = [
-    { supplier:"شركة الدواجن الوطنية", orders:3, total:24800, branches:["فرع العليا","فرع النرجس","فرع الملقا"], status:"pending"  },
-    { supplier:"مؤسسة النخيل للأغذية", orders:2, total:16400, branches:["فرع حراء","فرع طويق"],               status:"approved" },
-    { supplier:"شركة الخليج للمواد",   orders:4, total:31200, branches:["فرع العليا","فرع النرجس","فرع إشبيلية","فرع ابن بجاد"], status:"pending"  },
+    { supplier:"شركة الدواجن الوطنية", orders:3, total:24800, branches:["فرع العليا","فرع النرجس","فرع الملقا"], pending:true  },
+    { supplier:"مؤسسة النخيل للأغذية", orders:2, total:16400, branches:["فرع حراء","فرع طويق"],               pending:false },
+    { supplier:"شركة الخليج للمواد",   orders:4, total:31200, branches:["فرع العليا","فرع النرجس","فرع إشبيلية","فرع ابن بجاد"], pending:true },
   ];
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">الأوامر المجمّعة</h2><p className="text-gray-400 text-sm">تجميع أوامر الشراء حسب المورد عبر كل الفروع</p></div>
-        <Btn variant="primary" size="sm" onClick={()=>alert("📦 تم إرسال الأمر المجمّع للموردين")}><Send size={13}/> إرسال المجمّعة</Btn>
+        <div><h2 className="text-xl font-bold text-gray-800">{t("الأوامر المجمّعة","Grouped Orders")}</h2><p className="text-gray-400 text-sm">{t("تجميع أوامر الشراء حسب المورد عبر كل الفروع","Group purchase orders by supplier across all branches")}</p></div>
+        <Btn variant="primary" size="sm" onClick={()=>alert(`📦 ${t("تم إرسال الأمر المجمّع للموردين","Grouped order sent to suppliers")}`)}><Send size={13}/> {t("إرسال المجمّعة","Send Grouped")}</Btn>
       </div>
       <div className="space-y-4">
         {groups.map((g,i)=>(
           <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-lg">🏭</div>
-              <div className="flex-1"><p className="font-bold text-gray-800">{g.supplier}</p><p className="text-xs text-gray-400">{g.orders} أوامر · {g.branches.length} فروع</p></div>
-              <span className="font-mono font-bold text-gray-800">{fmt(g.total)} ر.س</span>
-              <Badge className={`text-[10px] ${g.status==="pending"?"bg-amber-50 text-amber-700 border border-amber-200":"bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>{g.status==="pending"?"معلق":"معتمد"}</Badge>
+              <div className="flex-1"><p className="font-bold text-gray-800">{g.supplier}</p><p className="text-xs text-gray-400">{g.orders} {t("أوامر","orders")} · {g.branches.length} {t("فروع","branches")}</p></div>
+              <span className="font-mono font-bold text-gray-800">{fmt(g.total)} {SAR}</span>
+              <Badge className={`text-[10px] ${g.pending?"bg-amber-50 text-amber-700 border border-amber-200":"bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>{g.pending?t("معلق","Pending"):t("معتمد","Approved")}</Badge>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {g.branches.map(b=><span key={b} className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-[10px] font-medium">{b}</span>)}
@@ -4406,15 +4552,17 @@ function ProcGrouped() {
 }
 
 function ProcSent() {
+  const { t, dir } = useCLang();
+  const SAR = t("ر.س","SAR");
   const sent = [
-    { id:"PO-BATCH-001", supplier:"شركة الدواجن الوطنية",   sentDate:"اليوم 10:24 ص",   total:24800, status:"قيد التسليم", eta:"غداً"      },
-    { id:"PO-BATCH-002", supplier:"مؤسسة النخيل للأغذية",   sentDate:"أمس 2:30 م",       total:16400, status:"تم التسليم",  eta:"تم"        },
-    { id:"PO-BATCH-003", supplier:"شركة الخليج للمواد",      sentDate:"قبل يومين 9:15 ص", total:31200, status:"تم التسليم",  eta:"تم"        },
-    { id:"PO-SINGLE-004",supplier:"مجموعة الوفاء للتوزيع",  sentDate:"منذ 3 أيام",       total:8700,  status:"تم التسليم",  eta:"تم"        },
+    { id:"PO-BATCH-001", supplier:"شركة الدواجن الوطنية",  sentDate:t("اليوم 10:24 ص","Today 10:24 AM"),    total:24800, inTransit:true,  eta:t("غداً","Tomorrow")  },
+    { id:"PO-BATCH-002", supplier:"مؤسسة النخيل للأغذية",  sentDate:t("أمس 2:30 م","Yesterday 2:30 PM"),    total:16400, inTransit:false, eta:t("تم","Done")        },
+    { id:"PO-BATCH-003", supplier:"شركة الخليج للمواد",     sentDate:t("قبل يومين 9:15 ص","2 days ago 9:15 AM"),total:31200, inTransit:false, eta:t("تم","Done")     },
+    { id:"PO-SINGLE-004",supplier:"مجموعة الوفاء للتوزيع", sentDate:t("منذ 3 أيام","3 days ago"),            total:8700,  inTransit:false, eta:t("تم","Done")        },
   ];
   return (
-    <div className="space-y-5" dir="rtl">
-      <div><h2 className="text-xl font-bold text-gray-800">الأوامر المُرسَلة</h2><p className="text-gray-400 text-sm">{sent.length} أوامر مُرسَلة</p></div>
+    <div className="space-y-5" dir={dir}>
+      <div><h2 className="text-xl font-bold text-gray-800">{t("الأوامر المُرسَلة","Sent Orders")}</h2><p className="text-gray-400 text-sm">{sent.length} {t("أوامر مُرسَلة","sent orders")}</p></div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {sent.map(s=>(
           <div key={s.id} className="px-5 py-4 flex items-center gap-4 border-b border-gray-50 last:border-0">
@@ -4422,9 +4570,9 @@ function ProcSent() {
               <p className="font-semibold text-gray-800 text-sm">{s.supplier}</p>
               <p className="text-xs text-gray-400">{s.id} · {s.sentDate}</p>
             </div>
-            <span className="font-mono font-bold text-gray-800">{fmt(s.total)} ر.س</span>
+            <span className="font-mono font-bold text-gray-800">{fmt(s.total)} {SAR}</span>
             <span className="text-xs text-gray-400">ETA: {s.eta}</span>
-            <Badge className={`text-[10px] ${s.status==="قيد التسليم"?"bg-sky-50 text-sky-700 border border-sky-200":"bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>{s.status}</Badge>
+            <Badge className={`text-[10px] ${s.inTransit?"bg-sky-50 text-sky-700 border border-sky-200":"bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>{s.inTransit?t("قيد التسليم","In Transit"):t("تم التسليم","Delivered")}</Badge>
           </div>
         ))}
       </div>
