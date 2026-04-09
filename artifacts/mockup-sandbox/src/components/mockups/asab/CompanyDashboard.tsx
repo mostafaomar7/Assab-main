@@ -121,6 +121,8 @@ type COp = {
   attachments:number; match:CMatch; diff?:string;
   submittedBy:string; date:string; refNum:string;
   invoices?:{ invNum:string; vendor:string; desc:string; amount:number; date:string; verified:boolean }[];
+  channels?:{ name:string; icon:string; pos:number; actual:number }[];
+  purchaseItems?:{ item:string; unit:string; ordQty:number; rcvQty:number; unitPrice:number }[];
 };
 
 const STATUS_CFG:Record<COpStatus,{label:string;cls:string;short:string}> = {
@@ -263,13 +265,69 @@ function CPipelineOverview({ ops }: { ops: COp[] }) {
 
 const INITIAL_OPS:COp[] = [
   // Sales
-  { id:"O-2401",branch:"فرع العليا",   brandName:"برغر التاج",      brandColor:"#E53E3E",module:"sales",   moduleLabel:"مبيعات",  amount:18340,timeAgo:"قبل ساعة",   status:"pending",       attachments:3,match:"exact",  submittedBy:"فاطمة السالم", date:"21 مارس",refNum:"SL-2401" },
-  { id:"O-2400",branch:"فرع الحمراء", brandName:"برغر التاج",       brandColor:"#E53E3E",module:"sales",   moduleLabel:"مبيعات",  amount:22100,timeAgo:"قبل 2 ساعة",status:"pending",       attachments:2,match:"review", submittedBy:"خالد العتيبي",  date:"21 مارس",refNum:"SL-2400", diff:"فارق بسيط في الكاش" },
-  { id:"O-2399",branch:"فرع الملقا",  brandName:"بيتزا التاج",      brandColor:"#2B6CB0",module:"sales",   moduleLabel:"مبيعات",  amount:15820,timeAgo:"قبل 4 ساعات",status:"pending",       attachments:1,match:"exact",  submittedBy:"أحمد الحربي",  date:"21 مارس",refNum:"SL-2399" },
-  { id:"O-2398",branch:"فرع الورود",  brandName:"مطعم التاج الراقي",brandColor:"#805AD5",module:"sales",   moduleLabel:"مبيعات",  amount:31500,timeAgo:"قبل 5 ساعات",status:"pending",       attachments:3,match:"diff",   submittedBy:"منى الزهراني", date:"21 مارس",refNum:"SL-2398", diff:"الكاش يختلف بـ 350 ر.س" },
-  { id:"O-2397",branch:"فرع الكورنيش",brandName:"بيتزا التاج",      brandColor:"#2B6CB0",module:"sales",   moduleLabel:"مبيعات",  amount:12400,timeAgo:"أمس",         status:"approved",      attachments:2,match:"exact",  submittedBy:"عبدالله الدوسري",date:"20 مارس",refNum:"SL-2397" },
-  { id:"O-2396",branch:"فرع الملك فهد",brandName:"مطعم التاج الراقي",brandColor:"#805AD5",module:"sales",  moduleLabel:"مبيعات",  amount:28900,timeAgo:"أمس",         status:"final-approved",attachments:3,match:"exact",  submittedBy:"وليد السبيعي", date:"20 مارس",refNum:"SL-2396" },
-  { id:"O-2395",branch:"فرع النزهة",  brandName:"برغر التاج",       brandColor:"#E53E3E",module:"sales",   moduleLabel:"مبيعات",  amount:9800, timeAgo:"قبل يومين", status:"rejected",       attachments:1,match:"diff",   submittedBy:"سامي الغامدي", date:"19 مارس",refNum:"SL-2395", diff:"فاتورة الكاشير مفقودة" },
+  { id:"O-2401",branch:"فرع العليا",   brandName:"برغر التاج",      brandColor:"#E53E3E",module:"sales",   moduleLabel:"مبيعات",  amount:18340,timeAgo:"قبل ساعة",   status:"pending",       attachments:3,match:"exact",  submittedBy:"فاطمة السالم", date:"21 مارس",refNum:"SL-2401",
+    channels:[
+      { name:"كاشير (POS)",    icon:"🖥️", pos:4200,  actual:4200  },
+      { name:"نقل بنكي (Mada)",icon:"💳", pos:8500,  actual:8500  },
+      { name:"طلبات",          icon:"🔴", pos:980,   actual:980   },
+      { name:"هنقرستيشن",      icon:"🟠", pos:2800,  actual:2800  },
+      { name:"جاهز",           icon:"🟡", pos:1200,  actual:1200  },
+      { name:"نينجا",          icon:"⚫", pos:660,   actual:660   },
+    ]},
+  { id:"O-2400",branch:"فرع الحمراء", brandName:"برغر التاج",       brandColor:"#E53E3E",module:"sales",   moduleLabel:"مبيعات",  amount:22100,timeAgo:"قبل 2 ساعة",status:"pending",       attachments:2,match:"review", submittedBy:"خالد العتيبي",  date:"21 مارس",refNum:"SL-2400", diff:"فارق بسيط في الكاش",
+    channels:[
+      { name:"كاشير (POS)",    icon:"🖥️", pos:5200,  actual:4850  },
+      { name:"نقل بنكي (Mada)",icon:"💳", pos:9800,  actual:9800  },
+      { name:"طلبات",          icon:"🔴", pos:1400,  actual:1400  },
+      { name:"هنقرستيشن",      icon:"🟠", pos:3800,  actual:3800  },
+      { name:"جاهز",           icon:"🟡", pos:1650,  actual:1650  },
+      { name:"نينجا",          icon:"⚫", pos:600,   actual:600   },
+    ]},
+  { id:"O-2399",branch:"فرع الملقا",  brandName:"بيتزا التاج",      brandColor:"#2B6CB0",module:"sales",   moduleLabel:"مبيعات",  amount:15820,timeAgo:"قبل 4 ساعات",status:"pending",       attachments:1,match:"exact",  submittedBy:"أحمد الحربي",  date:"21 مارس",refNum:"SL-2399",
+    channels:[
+      { name:"كاشير (POS)",    icon:"🖥️", pos:3400,  actual:3400  },
+      { name:"نقل بنكي (Mada)",icon:"💳", pos:6200,  actual:6200  },
+      { name:"طلبات",          icon:"🔴", pos:1800,  actual:1800  },
+      { name:"هنقرستيشن",      icon:"🟠", pos:2420,  actual:2420  },
+      { name:"جاهز",           icon:"🟡", pos:1300,  actual:1300  },
+      { name:"نينجا",          icon:"⚫", pos:700,   actual:700   },
+    ]},
+  { id:"O-2398",branch:"فرع الورود",  brandName:"مطعم التاج الراقي",brandColor:"#805AD5",module:"sales",   moduleLabel:"مبيعات",  amount:31500,timeAgo:"قبل 5 ساعات",status:"pending",       attachments:3,match:"diff",   submittedBy:"منى الزهراني", date:"21 مارس",refNum:"SL-2398", diff:"الكاش يختلف بـ 350 ر.س",
+    channels:[
+      { name:"كاشير (POS)",    icon:"🖥️", pos:7500,  actual:7150  },
+      { name:"نقل بنكي (Mada)",icon:"💳", pos:12000, actual:12000 },
+      { name:"طلبات",          icon:"🔴", pos:3200,  actual:3200  },
+      { name:"هنقرستيشن",      icon:"🟠", pos:4800,  actual:4800  },
+      { name:"جاهز",           icon:"🟡", pos:2500,  actual:2500  },
+      { name:"نينجا",          icon:"⚫", pos:1500,  actual:1500  },
+    ]},
+  { id:"O-2397",branch:"فرع الكورنيش",brandName:"بيتزا التاج",      brandColor:"#2B6CB0",module:"sales",   moduleLabel:"مبيعات",  amount:12400,timeAgo:"أمس",         status:"approved",      attachments:2,match:"exact",  submittedBy:"عبدالله الدوسري",date:"20 مارس",refNum:"SL-2397",
+    channels:[
+      { name:"كاشير (POS)",    icon:"🖥️", pos:2800,  actual:2800  },
+      { name:"نقل بنكي (Mada)",icon:"💳", pos:5200,  actual:5200  },
+      { name:"طلبات",          icon:"🔴", pos:1100,  actual:1100  },
+      { name:"هنقرستيشن",      icon:"🟠", pos:1800,  actual:1800  },
+      { name:"جاهز",           icon:"🟡", pos:900,   actual:900   },
+      { name:"نينجا",          icon:"⚫", pos:600,   actual:600   },
+    ]},
+  { id:"O-2396",branch:"فرع الملك فهد",brandName:"مطعم التاج الراقي",brandColor:"#805AD5",module:"sales",  moduleLabel:"مبيعات",  amount:28900,timeAgo:"أمس",         status:"final-approved",attachments:3,match:"exact",  submittedBy:"وليد السبيعي", date:"20 مارس",refNum:"SL-2396",
+    channels:[
+      { name:"كاشير (POS)",    icon:"🖥️", pos:6500,  actual:6500  },
+      { name:"نقل بنكي (Mada)",icon:"💳", pos:11000, actual:11000 },
+      { name:"طلبات",          icon:"🔴", pos:2800,  actual:2800  },
+      { name:"هنقرستيشن",      icon:"🟠", pos:4800,  actual:4800  },
+      { name:"جاهز",           icon:"🟡", pos:2200,  actual:2200  },
+      { name:"نينجا",          icon:"⚫", pos:1600,  actual:1600  },
+    ]},
+  { id:"O-2395",branch:"فرع النزهة",  brandName:"برغر التاج",       brandColor:"#E53E3E",module:"sales",   moduleLabel:"مبيعات",  amount:9800, timeAgo:"قبل يومين", status:"rejected",       attachments:1,match:"diff",   submittedBy:"سامي الغامدي", date:"19 مارس",refNum:"SL-2395", diff:"فاتورة الكاشير مفقودة",
+    channels:[
+      { name:"كاشير (POS)",    icon:"🖥️", pos:0,     actual:0     },
+      { name:"نقل بنكي (Mada)",icon:"💳", pos:4200,  actual:4200  },
+      { name:"طلبات",          icon:"🔴", pos:1800,  actual:1800  },
+      { name:"هنقرستيشن",      icon:"🟠", pos:2200,  actual:2200  },
+      { name:"جاهز",           icon:"🟡", pos:1100,  actual:1100  },
+      { name:"نينجا",          icon:"⚫", pos:500,   actual:500   },
+    ]},
   // Expenses
   { id:"E-1201",branch:"فرع العليا",  brandName:"برغر التاج",       brandColor:"#E53E3E",module:"expenses",moduleLabel:"مصروفات", amount:4850, timeAgo:"قبل 3 ساعات",status:"pending",       attachments:3,match:"review", submittedBy:"فاطمة السالم", date:"21 مارس",refNum:"EX-1201",
     invoices:[
@@ -287,10 +345,31 @@ const INITIAL_OPS:COp[] = [
       { invNum:"INV-861",vendor:"شركة الديكور",  desc:"ديكور مطعم",  amount:3500,date:"20 مارس",verified:true  },
       { invNum:"INV-862",vendor:"مكتب الخدمات", desc:"نظافة شهرية", amount:2700,date:"20 مارس",verified:true  },
     ]},
+  { id:"E-1198",branch:"فرع الملقا",  brandName:"بيتزا التاج",      brandColor:"#2B6CB0",module:"expenses",moduleLabel:"مصروفات", amount:3400, timeAgo:"قبل يومين",status:"rejected",       attachments:2,match:"diff",   submittedBy:"أحمد الحربي",  date:"19 مارس",refNum:"EX-1198", diff:"فاتورة غير مختومة",
+    invoices:[
+      { invNum:"INV-851",vendor:"مستلزمات الطباعة",desc:"مطبوعات قوائم",amount:1400,date:"19 مارس",verified:false },
+      { invNum:"INV-852",vendor:"خدمات النظافة",   desc:"تنظيف أسبوعي", amount:2000,date:"19 مارس",verified:false },
+    ]},
   // Purchases
-  { id:"P-0801",branch:"فرع الملقا",  brandName:"بيتزا التاج",      brandColor:"#2B6CB0",module:"purchases",moduleLabel:"مشتريات",amount:8200, timeAgo:"قبل 2 ساعة", status:"pending",       attachments:4,match:"diff",   submittedBy:"أحمد الحربي",  date:"21 مارس",refNum:"PO-0801", diff:"فرق كمية 5 كجم جبن" },
-  { id:"P-0800",branch:"فرع الكورنيش",brandName:"بيتزا التاج",      brandColor:"#2B6CB0",module:"purchases",moduleLabel:"مشتريات",amount:5600, timeAgo:"قبل 6 ساعات",status:"pending",       attachments:2,match:"exact",  submittedBy:"عبدالله الدوسري",date:"21 مارس",refNum:"PO-0800" },
-  { id:"P-0799",branch:"فرع المحطة",  brandName:"مطعم التاج الراقي",brandColor:"#805AD5",module:"purchases",moduleLabel:"مشتريات",amount:3900, timeAgo:"أمس",         status:"approved",      attachments:3,match:"review", submittedBy:"سلطان العمري", date:"20 مارس",refNum:"PO-0799" },
+  { id:"P-0801",branch:"فرع الملقا",  brandName:"بيتزا التاج",      brandColor:"#2B6CB0",module:"purchases",moduleLabel:"مشتريات",amount:8200, timeAgo:"قبل 2 ساعة", status:"pending",       attachments:4,match:"diff",   submittedBy:"أحمد الحربي",  date:"21 مارس",refNum:"PO-0801", diff:"فرق كمية 5 كجم جبن",
+    purchaseItems:[
+      { item:"عجينة البيتزا",   unit:"كجم",  ordQty:60, rcvQty:60, unitPrice:28 },
+      { item:"جبنة موزاريلا",   unit:"كجم",  ordQty:30, rcvQty:25, unitPrice:85 },
+      { item:"صوص الطماطم",    unit:"كجم",  ordQty:20, rcvQty:20, unitPrice:32 },
+      { item:"دجاج مشوي",      unit:"كجم",  ordQty:40, rcvQty:40, unitPrice:48 },
+    ]},
+  { id:"P-0800",branch:"فرع الكورنيش",brandName:"بيتزا التاج",      brandColor:"#2B6CB0",module:"purchases",moduleLabel:"مشتريات",amount:5600, timeAgo:"قبل 6 ساعات",status:"pending",       attachments:2,match:"exact",  submittedBy:"عبدالله الدوسري",date:"21 مارس",refNum:"PO-0800",
+    purchaseItems:[
+      { item:"دجاج طازج",      unit:"كجم",  ordQty:80, rcvQty:80, unitPrice:38 },
+      { item:"بطاطس",          unit:"كجم",  ordQty:60, rcvQty:60, unitPrice:18 },
+      { item:"زيت قلي",        unit:"لتر",  ordQty:30, rcvQty:30, unitPrice:22 },
+    ]},
+  { id:"P-0799",branch:"فرع المحطة",  brandName:"مطعم التاج الراقي",brandColor:"#805AD5",module:"purchases",moduleLabel:"مشتريات",amount:3900, timeAgo:"أمس",         status:"approved",      attachments:3,match:"review", submittedBy:"سلطان العمري", date:"20 مارس",refNum:"PO-0799",
+    purchaseItems:[
+      { item:"أرز بسمتي",      unit:"كجم",  ordQty:50, rcvQty:45, unitPrice:32 },
+      { item:"لحم ضأن",        unit:"كجم",  ordQty:30, rcvQty:30, unitPrice:65 },
+      { item:"بهارات مشكلة",   unit:"كجم",  ordQty:10, rcvQty:10, unitPrice:90 },
+    ]},
   // Inventory
   { id:"I-0601",branch:"فرع العليا",  brandName:"برغر التاج",       brandColor:"#E53E3E",module:"inventory",moduleLabel:"مخزون",  amount:0,    timeAgo:"قبل ساعة",   status:"pending",       attachments:1,match:"review", submittedBy:"فاطمة السالم", date:"21 مارس",refNum:"INV-0601" },
   { id:"I-0600",branch:"فرع الملقا",  brandName:"بيتزا التاج",      brandColor:"#2B6CB0",module:"inventory",moduleLabel:"مخزون",  amount:0,    timeAgo:"قبل 3 ساعات",status:"pending",       attachments:1,match:"diff",   submittedBy:"أحمد الحربي",  date:"21 مارس",refNum:"INV-0600", diff:"فرق 12 كجم لحم" },
@@ -589,7 +668,7 @@ function OpRow({ op, onApprove, onReject, onView, expanded, onToggle, forHead=fa
       ${op.match==="diff"?"border-r-4 border-r-red-400":op.match==="review"?"border-r-4 border-r-amber-400":""}
       ${isLocked?"bg-slate-50/50":isRejected?"opacity-60":""}
       ${expanded?"bg-purple-50/20":""}`}>
-      <div className="px-5 py-3.5 flex items-center gap-3 hover:bg-gray-50/50 transition-colors">
+      <div className="px-5 py-3.5 flex items-center gap-3 hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={onToggle}>
         <div className="w-1 h-10 rounded-full flex-shrink-0" style={{background:op.brandColor}}/>
         <div className="flex-shrink-0 text-left">
           <p className="text-[10px] font-bold text-gray-400" dir="ltr">{op.refNum}</p>
@@ -614,44 +693,165 @@ function OpRow({ op, onApprove, onReject, onView, expanded, onToggle, forHead=fa
           <div className="flex items-center gap-3 mt-0.5">
             <span className="text-[11px] text-gray-400">{op.submittedBy}</span>
             <span className="text-[11px] text-gray-400">⏰ {op.timeAgo}</span>
-            <span className="text-[11px] text-gray-400 flex items-center gap-0.5"><Paperclip size={9}/> {op.attachments}</span>
+            <span className="text-[11px] text-gray-400 flex items-center gap-0.5"><Paperclip size={9}/> {op.attachments} مرفق</span>
           </div>
         </div>
         <div className="text-left flex-shrink-0">
           {op.amount>0 && <p className="font-mono font-bold text-gray-800 text-sm">{fmt(op.amount)} ر.س</p>}
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {/* محاسب: يوافق على المعلقة فقط */}
+        <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e=>e.stopPropagation()}>
           {!forHead && isPending && <>
-            <button onClick={onApprove} title="موافقة" className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 flex items-center justify-center transition-all">
-              <ThumbsUp size={13}/>
-            </button>
-            <button onClick={onReject} title="رفض" className="w-8 h-8 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 flex items-center justify-center transition-all">
-              <ThumbsDown size={13}/>
-            </button>
+            <button onClick={onApprove} title="موافقة" className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 flex items-center justify-center transition-all"><ThumbsUp size={13}/></button>
+            <button onClick={onReject} title="رفض" className="w-8 h-8 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 flex items-center justify-center transition-all"><ThumbsDown size={13}/></button>
           </>}
-          {/* رئيس الحسابات: يعتمد نهائياً العمليات المقبولة من المحاسب */}
           {forHead && isApproved && <>
-            <button onClick={onApprove} title="اعتماد نهائي" className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 flex items-center justify-center transition-all">
-              <ThumbsUp size={13}/>
-            </button>
-            <button onClick={onReject} title="رفض" className="w-8 h-8 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 flex items-center justify-center transition-all">
-              <ThumbsDown size={13}/>
-            </button>
+            <button onClick={onApprove} title="اعتماد نهائي" className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 flex items-center justify-center transition-all"><ThumbsUp size={13}/></button>
+            <button onClick={onReject} title="رفض" className="w-8 h-8 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 flex items-center justify-center transition-all"><ThumbsDown size={13}/></button>
           </>}
-          {isLocked && (
-            <span className="flex items-center gap-1 text-xs text-slate-400 bg-slate-100 border border-slate-200 px-2 py-1.5 rounded-lg">
-              <Lock size={11}/> مُغلق
-            </span>
-          )}
-          <button onClick={onView} title="عرض" className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-200 text-gray-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 flex items-center justify-center transition-all">
-            <Eye size={13}/>
-          </button>
-          {onToggle && <button onClick={onToggle} className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-200 text-gray-500 hover:bg-gray-100 flex items-center justify-center transition-all">
+          {isLocked && <span className="flex items-center gap-1 text-xs text-slate-400 bg-slate-100 border border-slate-200 px-2 py-1.5 rounded-lg"><Lock size={11}/> مُغلق</span>}
+          <button className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-200 text-gray-500 hover:bg-gray-100 flex items-center justify-center transition-all" onClick={onToggle}>
             {expanded?<ChevronUp size={13}/>:<ChevronDown size={13}/>}
-          </button>}
+          </button>
         </div>
       </div>
+      {/* ═══ EXPANDED DETAIL PANEL ═══ */}
+      {expanded && (
+        <div className="border-t border-gray-100 bg-gray-50/60 px-5 py-4 space-y-4">
+          {/* SALES: channel breakdown */}
+          {op.module==="sales" && op.channels && (
+            <div>
+              <p className="text-xs font-bold text-gray-600 mb-2">تفصيل قنوات التحصيل</p>
+              <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                <div className="grid grid-cols-4 px-4 py-2 bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-gray-500">
+                  <span>القناة</span><span className="text-center">نظام POS</span><span className="text-center">التحصيل الفعلي</span><span className="text-center">الفرق</span>
+                </div>
+                {op.channels.map(ch=>{
+                  const diff = ch.actual - ch.pos;
+                  return (
+                    <div key={ch.name} className={`grid grid-cols-4 px-4 py-2.5 border-b border-gray-50 last:border-0 text-xs items-center ${diff!==0?"bg-red-50/40":""}`}>
+                      <span className="font-medium text-gray-700 flex items-center gap-1.5"><span>{ch.icon}</span>{ch.name}</span>
+                      <span className="text-center font-mono text-gray-600">{fmt(ch.pos)}</span>
+                      <span className="text-center font-mono font-bold text-gray-800">{fmt(ch.actual)}</span>
+                      <span className={`text-center font-mono font-bold ${diff===0?"text-emerald-600":"text-red-600"}`}>
+                        {diff===0?"✓ 0":diff>0?`+${fmt(diff)}`:fmt(diff)}
+                      </span>
+                    </div>
+                  );
+                })}
+                <div className="grid grid-cols-4 px-4 py-2.5 bg-gray-100 text-xs font-bold border-t border-gray-200">
+                  <span className="text-gray-700">الإجمالي</span>
+                  <span className="text-center font-mono">{fmt(op.channels.reduce((s,c)=>s+c.pos,0))}</span>
+                  <span className="text-center font-mono text-purple-700">{fmt(op.channels.reduce((s,c)=>s+c.actual,0))}</span>
+                  <span className={`text-center font-mono ${op.match==="exact"?"text-emerald-600":"text-red-600"}`}>
+                    {op.match==="exact"?"✓ متطابق":`${fmt(op.channels.reduce((s,c)=>s+c.actual-c.pos,0))} ر.س`}
+                  </span>
+                </div>
+              </div>
+              {(isPending||isApproved) && !forHead && isPending && (
+                <div className="flex gap-2 mt-3 justify-end">
+                  <button onClick={e=>{e.stopPropagation();onReject();}} className="px-4 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold hover:bg-red-100">✕ رفض</button>
+                  <button onClick={e=>{e.stopPropagation();onApprove();}} className="px-4 py-2 rounded-xl bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600">✓ موافقة</button>
+                </div>
+              )}
+            </div>
+          )}
+          {/* EXPENSES: invoice table */}
+          {op.module==="expenses" && op.invoices && (
+            <div>
+              <p className="text-xs font-bold text-gray-600 mb-2">فواتير المصروفات ({op.invoices.length})</p>
+              <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                <div className="grid grid-cols-5 px-4 py-2 bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-gray-500">
+                  <span>رقم الفاتورة</span><span>المورد</span><span>الوصف</span><span className="text-center">المبلغ</span><span className="text-center">التحقق</span>
+                </div>
+                {op.invoices.map(inv=>(
+                  <div key={inv.invNum} className="grid grid-cols-5 px-4 py-3 border-b border-gray-50 last:border-0 text-xs items-center">
+                    <span className="font-mono font-bold text-blue-700">{inv.invNum}</span>
+                    <span className="text-gray-700 font-medium">{inv.vendor}</span>
+                    <span className="text-gray-500">{inv.desc}</span>
+                    <span className="text-center font-mono font-bold text-gray-800">{fmt(inv.amount)} ر.س</span>
+                    <span className={`text-center text-xs font-bold ${inv.verified?"text-emerald-600":"text-amber-600"}`}>
+                      {inv.verified?"✓ مُحقق":"○ بانتظار"}
+                    </span>
+                  </div>
+                ))}
+                <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-200 flex items-center justify-between text-xs">
+                  <span className="text-gray-500">{op.invoices.filter(i=>i.verified).length} من {op.invoices.length} فواتير مُحققة</span>
+                  <span className="font-mono font-bold text-purple-700">{fmt(op.invoices.reduce((s,i)=>s+i.amount,0))} ر.س</span>
+                </div>
+              </div>
+              {isPending && !forHead && (
+                <div className="flex gap-2 mt-3 justify-end">
+                  <button onClick={e=>{e.stopPropagation();onReject();}} className="px-4 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold hover:bg-red-100">✕ رفض</button>
+                  <button onClick={e=>{e.stopPropagation();onApprove();}} className="px-4 py-2 rounded-xl bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600">✓ موافقة</button>
+                </div>
+              )}
+            </div>
+          )}
+          {/* PURCHASES: items table */}
+          {op.module==="purchases" && op.purchaseItems && (
+            <div>
+              <p className="text-xs font-bold text-gray-600 mb-2">أصناف المشتريات ({op.purchaseItems.length})</p>
+              <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                <div className="grid grid-cols-5 px-4 py-2 bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-gray-500">
+                  <span>الصنف</span><span className="text-center">الوحدة</span><span className="text-center">مطلوب</span><span className="text-center">مُستلم</span><span className="text-center">الإجمالي</span>
+                </div>
+                {op.purchaseItems.map((it,i)=>{
+                  const diff = it.rcvQty - it.ordQty;
+                  return (
+                    <div key={i} className={`grid grid-cols-5 px-4 py-3 border-b border-gray-50 last:border-0 text-xs items-center ${diff<0?"bg-red-50/40":""}`}>
+                      <span className="font-medium text-gray-800">{it.item}</span>
+                      <span className="text-center text-gray-500">{it.unit}</span>
+                      <span className="text-center font-mono text-gray-600">{it.ordQty}</span>
+                      <span className={`text-center font-mono font-bold ${diff<0?"text-red-600":"text-emerald-600"}`}>{it.rcvQty}</span>
+                      <span className="text-center font-mono font-bold text-gray-800">{fmt(it.rcvQty*it.unitPrice)}</span>
+                    </div>
+                  );
+                })}
+                <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-200 flex items-center justify-between text-xs">
+                  <span className={`font-semibold ${op.match==="diff"?"text-red-600":"text-emerald-600"}`}>{op.match==="diff"?"⚠ يوجد فارق في الكميات":"✓ الكميات متطابقة"}</span>
+                  <span className="font-mono font-bold text-purple-700">{fmt(op.purchaseItems.reduce((s,i)=>s+i.rcvQty*i.unitPrice,0))} ر.س</span>
+                </div>
+              </div>
+              {isPending && !forHead && (
+                <div className="flex gap-2 mt-3 justify-end">
+                  <button onClick={e=>{e.stopPropagation();onReject();}} className="px-4 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold hover:bg-red-100">✕ رفض</button>
+                  <button onClick={e=>{e.stopPropagation();onApprove();}} className="px-4 py-2 rounded-xl bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600">✓ موافقة</button>
+                </div>
+              )}
+            </div>
+          )}
+          {/* INVENTORY: branch items diff */}
+          {op.module==="inventory" && (()=>{
+            const items = INV_BRANCH_DATA[op.branch] || [];
+            return items.length>0 ? (
+              <div>
+                <p className="text-xs font-bold text-gray-600 mb-2">تفاصيل جرد المخزون — {op.branch}</p>
+                <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                  <div className="grid grid-cols-5 px-4 py-2 bg-gray-50 border-b border-gray-100 text-[10px] font-bold text-gray-500">
+                    <span>الصنف</span><span className="text-center">الوحدة</span><span className="text-center">الأمس</span><span className="text-center">اليوم</span><span className="text-center">الفرق</span>
+                  </div>
+                  {items.map(it=>{
+                    const diff = it.curr - it.prev;
+                    return (
+                      <div key={it.name} className={`grid grid-cols-5 px-4 py-2.5 border-b border-gray-50 last:border-0 text-xs items-center ${diff<-(it.prev*0.3)?"bg-amber-50/40":""}`}>
+                        <span className="font-medium text-gray-800">{it.name}</span>
+                        <span className="text-center text-gray-500">{it.unit}</span>
+                        <span className="text-center font-mono text-gray-500">{it.prev}</span>
+                        <span className="text-center font-mono font-bold text-gray-800">{it.curr}</span>
+                        <span className={`text-center font-mono font-bold ${diff<0?"text-red-600":"text-emerald-600"}`}>{diff>0?"+":""}{diff}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null;
+          })()}
+          {/* Default: no detail */}
+          {(op.module!=="sales"&&op.module!=="expenses"&&op.module!=="purchases"&&op.module!=="inventory") && (
+            <p className="text-xs text-gray-400 text-center">انقر على زر العرض للتفاصيل الكاملة</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
