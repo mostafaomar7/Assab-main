@@ -2245,6 +2245,8 @@ const SEPT_BASELINE: Partial<Record<ModuleKey,number>> = {
 const SEPT_NET = (SEPT_BASELINE.sales||0) - (SEPT_BASELINE.expenses||0) - (SEPT_BASELINE.purchases||0);
 
 function OwnerReportsPage({ ops }: PageProps) {
+  const { t, lang, dir } = useLang();
+  const en = lang === "en";
   const [tab, setTab] = useState<"internal"|"owner">("owner");
 
   // — Owner layer data source: ERP-posted only — the verified financial record
@@ -2264,13 +2266,13 @@ function OwnerReportsPage({ ops }: PageProps) {
 
   // Category breakdown for owner — ERP-posted amounts only, with period comparison
   const ownerCategories = [
-    { key:"sales"     as ModuleKey, label:"الإيرادات",        icon:"💰", color:"bg-emerald-500", textColor:"text-emerald-700", isIncome:true  },
-    { key:"expenses"  as ModuleKey, label:"المصروفات",        icon:"💸", color:"bg-red-500",     textColor:"text-red-700",     isIncome:false },
-    { key:"purchases" as ModuleKey, label:"المشتريات",        icon:"🛒", color:"bg-orange-500",  textColor:"text-orange-700",  isIncome:false },
-    { key:"inventory" as ModuleKey, label:"المخزون",          icon:"📦", color:"bg-amber-500",   textColor:"text-amber-700",   isIncome:false },
-    { key:"shifts"    as ModuleKey, label:"الشفتات",          icon:"⏰", color:"bg-blue-500",    textColor:"text-blue-700",    isIncome:false },
-    { key:"employees" as ModuleKey, label:"مستحقات الموظفين", icon:"👥", color:"bg-indigo-500",  textColor:"text-indigo-700",  isIncome:false },
-    { key:"cash"      as ModuleKey, label:"العهد النقدية",    icon:"💼", color:"bg-purple-500",  textColor:"text-purple-700",  isIncome:false },
+    { key:"sales"     as ModuleKey, label:t("الإيرادات","Revenue"),          icon:"💰", color:"bg-emerald-500", textColor:"text-emerald-700", isIncome:true  },
+    { key:"expenses"  as ModuleKey, label:t("المصروفات","Expenses"),         icon:"💸", color:"bg-red-500",     textColor:"text-red-700",     isIncome:false },
+    { key:"purchases" as ModuleKey, label:t("المشتريات","Purchases"),        icon:"🛒", color:"bg-orange-500",  textColor:"text-orange-700",  isIncome:false },
+    { key:"inventory" as ModuleKey, label:t("المخزون","Inventory"),          icon:"📦", color:"bg-amber-500",   textColor:"text-amber-700",   isIncome:false },
+    { key:"shifts"    as ModuleKey, label:t("الشفتات","Shifts"),             icon:"⏰", color:"bg-blue-500",    textColor:"text-blue-700",    isIncome:false },
+    { key:"employees" as ModuleKey, label:t("مستحقات الموظفين","Payroll"),   icon:"👥", color:"bg-indigo-500",  textColor:"text-indigo-700",  isIncome:false },
+    { key:"cash"      as ModuleKey, label:t("العهد النقدية","Cash Custody"), icon:"💼", color:"bg-purple-500",  textColor:"text-purple-700",  isIncome:false },
   ].map(c=>{
     const amt  = postedOps.filter(o=>o.moduleKey===c.key).reduce((s,o)=>s+o.amount,0);
     const prev = SEPT_BASELINE[c.key]||0;
@@ -2284,33 +2286,33 @@ function OwnerReportsPage({ ops }: PageProps) {
   const commentary: {icon:string; text:string; color:string}[] = [];
   const incomeChange = SEPT_BASELINE.sales ? salesPosted - (SEPT_BASELINE.sales||0) : null;
   if(incomeChange !== null) {
-    if(incomeChange > 0) commentary.push({icon:"↑", text:`ارتفعت الإيرادات بمقدار ${fmtAmt(incomeChange)} ر.س مقارنةً بسبتمبر 2025`, color:"text-emerald-700"});
-    else if(incomeChange < 0) commentary.push({icon:"↓", text:`انخفضت الإيرادات بمقدار ${fmtAmt(Math.abs(incomeChange))} ر.س مقارنةً بسبتمبر 2025`, color:"text-red-700"});
+    if(incomeChange > 0) commentary.push({icon:"↑", text:en?`Revenue increased by ${fmtAmt(incomeChange)} SAR vs September 2025`:`ارتفعت الإيرادات بمقدار ${fmtAmt(incomeChange)} ر.س مقارنةً بسبتمبر 2025`, color:"text-emerald-700"});
+    else if(incomeChange < 0) commentary.push({icon:"↓", text:en?`Revenue decreased by ${fmtAmt(Math.abs(incomeChange))} SAR vs September 2025`:`انخفضت الإيرادات بمقدار ${fmtAmt(Math.abs(incomeChange))} ر.س مقارنةً بسبتمبر 2025`, color:"text-red-700"});
   }
   if(netPctChange !== null) {
-    if(netPctChange >= 0) commentary.push({icon:"✓", text:`صافي المركز المالي تحسَّن ${netPctChange}% مقارنةً بالشهر السابق`, color:"text-emerald-700"});
-    else commentary.push({icon:"⚠", text:`صافي المركز المالي تراجع ${Math.abs(netPctChange)}% مقارنةً بالشهر السابق — يستوجب المتابعة`, color:"text-amber-700"});
+    if(netPctChange >= 0) commentary.push({icon:"✓", text:en?`Net financial position improved ${netPctChange}% vs prior month`:`صافي المركز المالي تحسَّن ${netPctChange}% مقارنةً بالشهر السابق`, color:"text-emerald-700"});
+    else commentary.push({icon:"⚠", text:en?`Net financial position declined ${Math.abs(netPctChange)}% vs prior month — requires attention`:`صافي المركز المالي تراجع ${Math.abs(netPctChange)}% مقارنةً بالشهر السابق — يستوجب المتابعة`, color:"text-amber-700"});
   }
   const topBranch = branchRankings[0];
-  if(topBranch) commentary.push({icon:"🏆", text:`${topBranch[0]} هو الفرع الأعلى إيراداً في ERP بمقدار ${fmtAmt(topBranch[1])} ر.س`, color:"text-indigo-700"});
+  if(topBranch) commentary.push({icon:"🏆", text:en?`${topBranch[0]} is the highest-revenue branch in ERP at ${fmtAmt(topBranch[1])} SAR`:`${topBranch[0]} هو الفرع الأعلى إيراداً في ERP بمقدار ${fmtAmt(topBranch[1])} ر.س`, color:"text-indigo-700"});
   const highExpPct = SEPT_BASELINE.expenses && expPosted > (SEPT_BASELINE.expenses||0)*1.1;
-  if(highExpPct) commentary.push({icon:"!", text:"المصروفات تجاوزت مستوى سبتمبر بأكثر من 10% — يُوصى بمراجعة بنود الإنفاق", color:"text-red-700"});
+  if(highExpPct) commentary.push({icon:"!", text:en?"Expenses exceeded September baseline by more than 10% — review of spending items recommended":"المصروفات تجاوزت مستوى سبتمبر بأكثر من 10% — يُوصى بمراجعة بنود الإنفاق", color:"text-red-700"});
 
   // ERP batch log — source of truth
   const batchMap: Record<string,{id:string; total:number; modules:Set<string>}> = {};
   postedOps.forEach(o=>{
-    const b = o.erpBatchId||"دفعة غير مُسمَّاة";
+    const b = o.erpBatchId||t("دفعة غير مُسمَّاة","Unnamed batch");
     if(!batchMap[b]) batchMap[b]={id:b,total:0,modules:new Set()};
     batchMap[b].total+=o.amount; batchMap[b].modules.add(o.moduleLabel);
   });
   const batches = Object.values(batchMap);
 
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       {/* Page header — kept minimal, layer tabs carry the identity */}
       <div>
-        <h2 className="text-xl font-bold text-gray-800">التقارير المالية</h2>
-        <p className="text-gray-400 text-sm mt-0.5">طبقتان: التقارير التشغيلية الداخلية · رؤية المالك النهائية</p>
+        <h2 className="text-xl font-bold text-gray-800">{t("التقارير المالية","Financial Reports")}</h2>
+        <p className="text-gray-400 text-sm mt-0.5">{t("طبقتان: التقارير التشغيلية الداخلية · رؤية المالك النهائية","Two layers: Internal operational reports · Owner final view")}</p>
       </div>
 
       {/* Layer tabs — visually distinct to signal the boundary */}
@@ -2319,16 +2321,16 @@ function OwnerReportsPage({ ops }: PageProps) {
           className={`px-6 py-3 text-sm font-semibold border-b-2 -mb-0.5 transition-all
             ${tab==="internal"?"border-blue-600 text-blue-700 bg-blue-50/60":"border-transparent text-gray-400 hover:text-gray-600"}`}>
           <span className="flex flex-col items-start gap-0.5">
-            <span>📋 التقارير الداخلية</span>
-            <span className="text-[10px] font-normal text-gray-400">للفريق المالي · تشغيلية</span>
+            <span>📋 {t("التقارير الداخلية","Internal Reports")}</span>
+            <span className="text-[10px] font-normal text-gray-400">{t("للفريق المالي · تشغيلية","Finance team · Operational")}</span>
           </span>
         </button>
         <button onClick={()=>setTab("owner")}
           className={`px-6 py-3 text-sm font-semibold border-b-2 -mb-0.5 transition-all
             ${tab==="owner"?"border-indigo-600 text-indigo-700 bg-indigo-50/60":"border-transparent text-gray-400 hover:text-gray-600"}`}>
           <span className="flex flex-col items-start gap-0.5">
-            <span>👁 رؤية المالك</span>
-            <span className="text-[10px] font-normal text-gray-400">وجهة نهائية · بيانات ERP فقط · قراءة فقط</span>
+            <span>👁 {t("رؤية المالك","Owner View")}</span>
+            <span className="text-[10px] font-normal text-gray-400">{t("وجهة نهائية · بيانات ERP فقط · قراءة فقط","Final destination · ERP data only · Read-only")}</span>
           </span>
         </button>
       </div>
@@ -2339,26 +2341,26 @@ function OwnerReportsPage({ ops }: PageProps) {
           <div className="bg-blue-50 border border-blue-100 rounded-xl px-5 py-3.5 flex items-start gap-3">
             <span className="text-xl flex-shrink-0 mt-0.5">📋</span>
             <div>
-              <p className="text-sm font-bold text-blue-800">تقارير داخلية — الطبقة التشغيلية للفريق المالي</p>
-              <p className="text-xs text-blue-600 mt-0.5">تشمل البيانات في جميع مراحل المراجعة · تُستخدم لمتابعة الأداء الداخلي وليس للقرار المالي النهائي</p>
+              <p className="text-sm font-bold text-blue-800">{t("تقارير داخلية — الطبقة التشغيلية للفريق المالي","Internal Reports — Operational layer for the finance team")}</p>
+              <p className="text-xs text-blue-600 mt-0.5">{t("تشمل البيانات في جميع مراحل المراجعة · تُستخدم لمتابعة الأداء الداخلي وليس للقرار المالي النهائي","Includes data across all review stages · Used for internal performance tracking, not final financial decisions")}</p>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4">
             {[
-              {title:"تقرير المبيعات الشهري",     icon:"💰", desc:"إجمالي المبيعات لكل الفروع مجمعةً"},
-              {title:"تقرير المصروفات التشغيلية",  icon:"💸", desc:"المصروفات المرفوعة والمعتمدة"},
-              {title:"تقرير المشتريات والموردين",  icon:"🛒", desc:"الطلبات والفواتير الواردة"},
-              {title:"كشف مستحقات الموظفين",       icon:"👥", desc:"الرواتب والبدلات الشهرية"},
-              {title:"تقرير المخزون والجرد",        icon:"📦", desc:"حركة المخزون وفروقات الجرد"},
-              {title:"تقرير الأداء العام",          icon:"📊", desc:"ملخص شامل لجميع الموديولات"},
+              {title:t("تقرير المبيعات الشهري","Monthly Sales Report"),       icon:"💰", desc:t("إجمالي المبيعات لكل الفروع مجمعةً","Total sales aggregated across all branches")},
+              {title:t("تقرير المصروفات التشغيلية","Operating Expenses Report"),icon:"💸", desc:t("المصروفات المرفوعة والمعتمدة","Submitted and approved expenses")},
+              {title:t("تقرير المشتريات والموردين","Purchases & Suppliers"),   icon:"🛒", desc:t("الطلبات والفواتير الواردة","Purchase orders and incoming invoices")},
+              {title:t("كشف مستحقات الموظفين","Employee Payroll Statement"),   icon:"👥", desc:t("الرواتب والبدلات الشهرية","Monthly salaries and allowances")},
+              {title:t("تقرير المخزون والجرد","Inventory & Stock Report"),     icon:"📦", desc:t("حركة المخزون وفروقات الجرد","Inventory movement and variance")},
+              {title:t("تقرير الأداء العام","Overall Performance Report"),     icon:"📊", desc:t("ملخص شامل لجميع الموديولات","Comprehensive summary of all modules")},
             ].map((r,i)=>(
               <div key={i} className="bg-white rounded-xl border border-gray-100 p-5 hover:border-blue-200 hover:shadow-sm transition-all shadow-sm">
                 <div className="text-2xl mb-3">{r.icon}</div>
                 <p className="font-bold text-gray-800 text-sm">{r.title}</p>
                 <p className="text-xs text-gray-400 mt-1 mb-3">{r.desc}</p>
                 <div className="flex items-center gap-2">
-                  <Btn size="sm"><Eye size={11}/> عرض</Btn>
-                  <Btn size="sm"><Download size={11}/> تحميل</Btn>
+                  <Btn size="sm"><Eye size={11}/> {t("عرض","View")}</Btn>
+                  <Btn size="sm"><Download size={11}/> {t("تحميل","Download")}</Btn>
                 </div>
               </div>
             ))}
@@ -2379,44 +2381,43 @@ function OwnerReportsPage({ ops }: PageProps) {
                     <Eye size={18} className="text-white"/>
                   </div>
                   <div>
-                    <p className="font-bold text-white text-lg leading-tight">التقرير المالي الموحد</p>
-                    <p className="text-indigo-300 text-xs">رؤية المالك — المركز المالي المُعتمد</p>
+                    <p className="font-bold text-white text-lg leading-tight">{t("التقرير المالي الموحد","Unified Financial Report")}</p>
+                    <p className="text-indigo-300 text-xs">{t("رؤية المالك — المركز المالي المُعتمد","Owner View — Verified Financial Position")}</p>
                   </div>
                 </div>
                 <p className="text-indigo-200 text-xs leading-relaxed max-w-lg">
-                  هذه الصفحة وجهة نهائية للمالك وتُعرض بيانات مُعتمدة نهائياً ومُرحَّلة في ERP حصراً.
-                  لا تظهر هنا أي بيانات في طور المراجعة أو الاعتماد أو الانتظار.
+                  {t("هذه الصفحة وجهة نهائية للمالك وتُعرض بيانات مُعتمدة نهائياً ومُرحَّلة في ERP حصراً. لا تظهر هنا أي بيانات في طور المراجعة أو الاعتماد أو الانتظار.","This page is the owner's final destination and displays only fully approved, ERP-posted data. No data under review or pending approval is shown here.")}
                 </p>
               </div>
               <div className="flex flex-col items-end gap-2">
                 <div className="bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-center">
-                  <p className="text-indigo-200 text-[10px] font-semibold">الفترة المالية</p>
-                  <p className="text-white font-bold text-sm">أكتوبر 2025</p>
+                  <p className="text-indigo-200 text-[10px] font-semibold">{t("الفترة المالية","Financial Period")}</p>
+                  <p className="text-white font-bold text-sm">{t("أكتوبر 2025","October 2025")}</p>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span className="text-[10px] text-emerald-300 font-semibold">بيانات ERP مُعتمدة</span>
+                  <span className="text-[10px] text-emerald-300 font-semibold">{t("بيانات ERP مُعتمدة","ERP Verified Data")}</span>
                 </div>
               </div>
             </div>
             {/* Data provenance strip */}
             <div className="bg-black/20 border-t border-white/10 px-8 py-2.5 flex items-center gap-8 text-[11px] text-indigo-300">
-              <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>المصدر: ERP مُعتمد فقط</span>
+              <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>{t("المصدر: ERP مُعتمد فقط","Source: Approved ERP only")}</span>
               <span>·</span>
-              <span>الأرقام غير المُعتمدة نهائياً مُستبعدة</span>
+              <span>{t("الأرقام غير المُعتمدة نهائياً مُستبعدة","Unapproved figures excluded")}</span>
               <span>·</span>
-              <span>لا توجد أزرار إجراءات في هذه الصفحة</span>
+              <span>{t("لا توجد أزرار إجراءات في هذه الصفحة","No action buttons on this page")}</span>
               <span>·</span>
-              <span>{postedOps.length} بيان مُدرَج</span>
+              <span>{postedOps.length} {t("بيان مُدرَج","records included")}</span>
             </div>
           </div>
 
           {postedOps.length === 0 ? (
             <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center shadow-sm">
               <div className="text-5xl mb-5">📊</div>
-              <p className="font-bold text-gray-700 text-lg mb-2">لا توجد بيانات ERP مُعتمدة بعد</p>
-              <p className="text-gray-400 text-sm mb-1">تظهر هنا البيانات بعد الاعتماد النهائي والترحيل لـ ERP فقط</p>
-              <p className="text-gray-300 text-xs">الطبقة الداخلية (التبويب الأول) تُظهر جميع البيانات في مراحل المراجعة</p>
+              <p className="font-bold text-gray-700 text-lg mb-2">{t("لا توجد بيانات ERP مُعتمدة بعد","No approved ERP data yet")}</p>
+              <p className="text-gray-400 text-sm mb-1">{t("تظهر هنا البيانات بعد الاعتماد النهائي والترحيل لـ ERP فقط","Data appears here only after final approval and ERP posting")}</p>
+              <p className="text-gray-300 text-xs">{t("الطبقة الداخلية (التبويب الأول) تُظهر جميع البيانات في مراحل المراجعة","The internal layer (first tab) shows all data under review")}</p>
             </div>
           ) : (
             <>
@@ -2424,29 +2425,29 @@ function OwnerReportsPage({ ops }: PageProps) {
               <div className="grid grid-cols-3 gap-4">
                 <div className="col-span-1 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col justify-between">
                   <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">صافي المركز المالي</p>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{t("صافي المركز المالي","Net Financial Position")}</p>
                     <p className={`text-4xl font-black tabular-nums leading-none mb-2 ${netPosition>=0?"text-emerald-700":"text-red-700"}`}>
                       {netPosition>=0?"+":""}{(netPosition/1000).toFixed(1)}K
-                      <span className="text-lg font-semibold text-gray-400 mr-1">ر.س</span>
+                      <span className="text-lg font-semibold text-gray-400 mr-1">{t("ر.س","SAR")}</span>
                     </p>
-                    <p className="text-xs text-gray-400">إيرادات − مصروفات − مشتريات</p>
+                    <p className="text-xs text-gray-400">{t("إيرادات − مصروفات − مشتريات","Revenue − Expenses − Purchases")}</p>
                   </div>
                   <div className="mt-4 pt-4 border-t border-gray-100">
                     <div className="flex items-center justify-between text-[11px] text-gray-500 mb-1">
-                      <span>+ إيرادات</span><span className="font-mono font-bold text-emerald-700">{(salesPosted/1000).toFixed(1)}K</span>
+                      <span>+ {t("إيرادات","Revenue")}</span><span className="font-mono font-bold text-emerald-700">{(salesPosted/1000).toFixed(1)}K</span>
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-gray-500 mb-1">
-                      <span>− مصروفات</span><span className="font-mono font-bold text-red-600">{(expPosted/1000).toFixed(1)}K</span>
+                      <span>− {t("مصروفات","Expenses")}</span><span className="font-mono font-bold text-red-600">{(expPosted/1000).toFixed(1)}K</span>
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-gray-500">
-                      <span>− مشتريات</span><span className="font-mono font-bold text-orange-600">{(purPosted/1000).toFixed(1)}K</span>
+                      <span>− {t("مشتريات","Purchases")}</span><span className="font-mono font-bold text-orange-600">{(purPosted/1000).toFixed(1)}K</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Category bar chart — visual financial breakdown */}
                 <div className="col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">توزيع المبالغ المُعتمدة في ERP حسب الفئة</p>
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">{t("توزيع المبالغ المُعتمدة في ERP حسب الفئة","ERP-Approved Amounts by Category")}</p>
                   <div className="space-y-3">
                     {ownerCategories.map((c,i)=>{
                       const octPct  = Math.round((c.amount/maxCatAmt)*100);
@@ -2483,7 +2484,7 @@ function OwnerReportsPage({ ops }: PageProps) {
                         </div>
                       );
                     })}
-                    <p className="text-[10px] text-gray-300 pt-1">الشريط العلوي: أكتوبر 2025 · الشريط السفلي: سبتمبر 2025 (للمقارنة)</p>
+                    <p className="text-[10px] text-gray-300 pt-1">{t("الشريط العلوي: أكتوبر 2025 · الشريط السفلي: سبتمبر 2025 (للمقارنة)","Upper bar: October 2025 · Lower bar: September 2025 (comparison)")}</p>
                   </div>
                 </div>
               </div>
@@ -2492,15 +2493,15 @@ function OwnerReportsPage({ ops }: PageProps) {
               {netPctChange !== null && (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                   <div className="px-6 py-4 border-b border-gray-100">
-                    <h3 className="font-bold text-gray-900">مقارنة الفترة — أكتوبر مقابل سبتمبر 2025</h3>
-                    <p className="text-xs text-gray-400 mt-0.5">مبنية على بيانات ERP المُعتمدة في كلا الفترتين · أرقام غير مُعتمدة مُستبعدة</p>
+                    <h3 className="font-bold text-gray-900">{t("مقارنة الفترة — أكتوبر مقابل سبتمبر 2025","Period Comparison — October vs September 2025")}</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">{t("مبنية على بيانات ERP المُعتمدة في كلا الفترتين · أرقام غير مُعتمدة مُستبعدة","Built on approved ERP data for both periods · Unapproved figures excluded")}</p>
                   </div>
                   <div className="px-6 py-4 grid grid-cols-4 gap-4">
                     {[
-                      { label:"صافي المركز المالي", oct:netPosition, sep:SEPT_NET, isIncome:true },
-                      { label:"الإيرادات",           oct:salesPosted, sep:SEPT_BASELINE.sales||0, isIncome:true  },
-                      { label:"المصروفات",           oct:expPosted,   sep:SEPT_BASELINE.expenses||0, isIncome:false },
-                      { label:"المشتريات",           oct:purPosted,   sep:SEPT_BASELINE.purchases||0, isIncome:false },
+                      { label:t("صافي المركز المالي","Net Position"), oct:netPosition, sep:SEPT_NET, isIncome:true },
+                      { label:t("الإيرادات","Revenue"),               oct:salesPosted, sep:SEPT_BASELINE.sales||0, isIncome:true  },
+                      { label:t("المصروفات","Expenses"),              oct:expPosted,   sep:SEPT_BASELINE.expenses||0, isIncome:false },
+                      { label:t("المشتريات","Purchases"),             oct:purPosted,   sep:SEPT_BASELINE.purchases||0, isIncome:false },
                     ].map((row,i)=>{
                       const diff    = row.oct - row.sep;
                       const pct     = row.sep > 0 ? Math.round((diff/row.sep)*100) : null;
@@ -2511,7 +2512,7 @@ function OwnerReportsPage({ ops }: PageProps) {
                         <div key={i} className="text-center">
                           <p className="text-[10px] font-semibold text-gray-400 mb-2">{row.label}</p>
                           <p className="text-lg font-black tabular-nums text-gray-900">{(row.oct/1000).toFixed(1)}K</p>
-                          <p className="text-[10px] text-gray-400 mb-1">سبتمبر: {(row.sep/1000).toFixed(1)}K</p>
+                          <p className="text-[10px] text-gray-400 mb-1">{t("سبتمبر:","Sep:")} {(row.sep/1000).toFixed(1)}K</p>
                           {pct !== null && (
                             <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full
                               ${isGood?"bg-emerald-50 text-emerald-700 border border-emerald-100":isPos?"bg-red-50 text-red-700 border border-red-100":"bg-amber-50 text-amber-700 border border-amber-100"}`}>
@@ -2530,11 +2531,11 @@ function OwnerReportsPage({ ops }: PageProps) {
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                   <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                     <div>
-                      <h3 className="font-bold text-gray-900">ترتيب الفروع — حسب المبالغ المُعتمدة في ERP</h3>
-                      <p className="text-xs text-gray-400 mt-0.5">بيانات ERP مُعتمدة فقط — فروع بدون ترحيل ERP غير مُدرجة</p>
+                      <h3 className="font-bold text-gray-900">{t("ترتيب الفروع — حسب المبالغ المُعتمدة في ERP","Branch Rankings — By ERP-Approved Amounts")}</h3>
+                      <p className="text-xs text-gray-400 mt-0.5">{t("بيانات ERP مُعتمدة فقط — فروع بدون ترحيل ERP غير مُدرجة","Approved ERP data only — branches without ERP posting are excluded")}</p>
                     </div>
                     <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-full">
-                      {branchRankings.length} فرع نشط
+                      {branchRankings.length} {t("فرع نشط","active branches")}
                     </span>
                   </div>
                   <div className="px-6 py-3 space-y-3">
@@ -2551,7 +2552,7 @@ function OwnerReportsPage({ ops }: PageProps) {
                             <div className="h-2.5 rounded-full bg-indigo-500" style={{width:`${pct}%`}}/>
                           </div>
                           <span className="font-mono font-extrabold text-xs text-indigo-700 tabular-nums w-24 text-left flex-shrink-0">
-                            {fmtAmt(total)} ر.س
+                            {fmtAmt(total)} {t("ر.س","SAR")}
                           </span>
                           <span className="text-[10px] text-gray-400 w-8 text-left flex-shrink-0">{pct}%</span>
                         </div>
@@ -2565,8 +2566,8 @@ function OwnerReportsPage({ ops }: PageProps) {
               {commentary.length > 0 && (
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                   <div className="px-6 py-4 border-b border-gray-100">
-                    <h3 className="font-bold text-gray-900">الملاحظات التنفيذية</h3>
-                    <p className="text-xs text-gray-400 mt-0.5">مُشتقَّة تلقائياً من بيانات ERP المُعتمدة فقط · لا توجد بيانات تقديرية</p>
+                    <h3 className="font-bold text-gray-900">{t("الملاحظات التنفيذية","Executive Commentary")}</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">{t("مُشتقَّة تلقائياً من بيانات ERP المُعتمدة فقط · لا توجد بيانات تقديرية","Auto-derived from approved ERP data only · No estimated figures")}</p>
                   </div>
                   <div className="px-6 py-4 space-y-2.5">
                     {commentary.map((c,i)=>(
@@ -2584,10 +2585,10 @@ function OwnerReportsPage({ ops }: PageProps) {
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                   <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                     <div>
-                      <h3 className="font-bold text-gray-900">سجل دفعات ERP</h3>
-                      <p className="text-xs text-gray-400 mt-0.5">مصدر البيانات المُعتمدة في هذا التقرير — كل دفعة قيد محاسبي مُغلق</p>
+                      <h3 className="font-bold text-gray-900">{t("سجل دفعات ERP","ERP Batch Log")}</h3>
+                      <p className="text-xs text-gray-400 mt-0.5">{t("مصدر البيانات المُعتمدة في هذا التقرير — كل دفعة قيد محاسبي مُغلق","Source of approved data in this report — each batch is a closed accounting entry")}</p>
                     </div>
-                    <Badge className="bg-indigo-50 text-indigo-600 border border-indigo-100 text-xs">🔒 مُغلق</Badge>
+                    <Badge className="bg-indigo-50 text-indigo-600 border border-indigo-100 text-xs">🔒 {t("مُغلق","Closed")}</Badge>
                   </div>
                   <div className="divide-y divide-gray-100">
                     {batches.map((b,i)=>(
@@ -2601,9 +2602,9 @@ function OwnerReportsPage({ ops }: PageProps) {
                         </div>
                         <p className="font-black text-gray-900 font-mono tabular-nums text-base">
                           {(b.total/1000).toFixed(1)}K
-                          <span className="text-xs font-semibold text-gray-400 mr-0.5">ر.س</span>
+                          <span className="text-xs font-semibold text-gray-400 mr-0.5">{t("ر.س","SAR")}</span>
                         </p>
-                        <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg">✓ مُعتمد</span>
+                        <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg">✓ {t("مُعتمد","Approved")}</span>
                       </div>
                     ))}
                   </div>
@@ -2612,11 +2613,11 @@ function OwnerReportsPage({ ops }: PageProps) {
 
               {/* Provenance footer */}
               <div className="flex items-center justify-center gap-4 py-3 text-[11px] text-gray-300 border-t border-gray-100">
-                <span>جميع الأرقام من ERP المُعتمد حصراً</span>
+                <span>{t("جميع الأرقام من ERP المُعتمد حصراً","All figures from approved ERP only")}</span>
                 <span>·</span>
-                <span>الأرقام الأولية أو غير المُجمَّعة غير مُدرجة</span>
+                <span>{t("الأرقام الأولية أو غير المُجمَّعة غير مُدرجة","Preliminary or unaggregated figures excluded")}</span>
                 <span>·</span>
-                <span>لا توجد إجراءات في هذه الصفحة</span>
+                <span>{t("لا توجد إجراءات في هذه الصفحة","No actions on this page")}</span>
               </div>
             </>
           )}
@@ -3040,12 +3041,14 @@ function ConvertToAssetModal({
   amount:number; branch:string; date:string;
   onClose:()=>void; onSuccess:(draftId:string)=>void;
 }) {
+  const { t, lang, dir } = useLang();
+  const en = lang === "en";
   const { addDraft } = useContext(AssetDraftContext);
   const [step, setStep] = useState<1|2|3>(1);
   const [assetName,   setAssetName]   = useState(vendor || desc);
   const [cat,         setCat]         = useState<AssetCatType>("معدات");
   const [usefulLife,  setUsefulLife]  = useState(60);
-  const [custodian,   setCustodian]   = useState("مدير الفرع");
+  const [custodian,   setCustodian]   = useState(t("مدير الفرع","Branch Manager"));
   const [qty,         setQty]         = useState(1);
   const [notes,       setNotes]       = useState("");
   const [targetBranches, setTargetBranches] = useState<string[]>([branch]);
@@ -3070,18 +3073,25 @@ function ConvertToAssetModal({
   };
 
   const CAT_ICONS:Record<AssetCatType,string> = {معدات:"🔧",تقنية:"💻",أثاث:"🪑",مركبات:"🚗",أخرى:"📦"};
+  const CAT_LABELS:Record<AssetCatType,string> = {
+    معدات:t("معدات","Equipment"),
+    تقنية:t("تقنية","Technology"),
+    أثاث:t("أثاث","Furniture"),
+    مركبات:t("مركبات","Vehicles"),
+    أخرى:t("أخرى","Other"),
+  };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose} dir="rtl">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose} dir={dir}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col" onClick={e=>e.stopPropagation()}>
 
         {/* Header */}
         <div className="px-6 py-4 bg-gradient-to-l from-purple-700 to-indigo-700 text-white flex items-center justify-between flex-shrink-0">
           <div>
             <h3 className="font-bold text-base flex items-center gap-2">
-              <GitMerge size={16}/> تحويل مصروف إلى أصل ثابت
+              <GitMerge size={16}/> {t("تحويل مصروف إلى أصل ثابت","Convert Expense to Fixed Asset")}
             </h3>
-            <p className="text-purple-200 text-xs mt-0.5">الفاتورة {invNum} · {vendor}</p>
+            <p className="text-purple-200 text-xs mt-0.5">{t("الفاتورة","Invoice")} {invNum} · {vendor}</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1">
@@ -3098,7 +3108,11 @@ function ConvertToAssetModal({
 
         {/* Step labels */}
         <div className="flex border-b border-gray-100 bg-gray-50/60 flex-shrink-0">
-          {[{n:1,l:"بيانات الأصل"},{n:2,l:"الفروع والعهدة"},{n:3,l:"تم الإنشاء"}].map(s=>(
+          {[
+            {n:1,l:t("بيانات الأصل","Asset Details")},
+            {n:2,l:t("الفروع والعهدة","Branches & Custody")},
+            {n:3,l:t("تم الإنشاء","Created")},
+          ].map(s=>(
             <div key={s.n} className={`flex-1 py-2.5 text-center text-xs font-semibold transition-colors ${step===s.n?"text-purple-700 border-b-2 border-purple-600":"text-gray-400"}`}>{s.l}</div>
           ))}
         </div>
@@ -3112,31 +3126,31 @@ function ConvertToAssetModal({
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3">
                 <div className="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0"><Wallet size={16} className="text-amber-600"/></div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-amber-800">مصدر المصروف</p>
-                  <p className="text-xs text-amber-700 mt-0.5 truncate">{invNum} · {vendor} · <span className="font-mono font-bold">{fmtAmt(amount)} ر.س</span> · {branch}</p>
+                  <p className="text-xs font-bold text-amber-800">{t("مصدر المصروف","Expense Source")}</p>
+                  <p className="text-xs text-amber-700 mt-0.5 truncate">{invNum} · {vendor} · <span className="font-mono font-bold">{fmtAmt(amount)} {t("ر.س","SAR")}</span> · {branch}</p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-[10px] text-amber-600">يُحول المبلغ تلقائياً</p>
-                  <p className="text-xs font-bold text-amber-800 font-mono">{fmtAmt(amount)} ر.س</p>
+                  <p className="text-[10px] text-amber-600">{t("يُحول المبلغ تلقائياً","Amount auto-transferred")}</p>
+                  <p className="text-xs font-bold text-amber-800 font-mono">{fmtAmt(amount)} {t("ر.س","SAR")}</p>
                 </div>
               </div>
 
               {/* Asset name */}
               <div>
-                <label className="text-xs font-semibold text-gray-700 block mb-1.5">اسم الأصل <span className="text-red-500">*</span></label>
+                <label className="text-xs font-semibold text-gray-700 block mb-1.5">{t("اسم الأصل","Asset Name")} <span className="text-red-500">*</span></label>
                 <input value={assetName} onChange={e=>setAssetName(e.target.value)}
-                  placeholder="مثال: ثلاجة صناعية سامسونج — فرع الرياض"
+                  placeholder={t("مثال: ثلاجة صناعية سامسونج — فرع الرياض","e.g. Samsung Commercial Refrigerator — Riyadh Branch")}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-purple-400 outline-none"/>
               </div>
 
               {/* Category */}
               <div>
-                <label className="text-xs font-semibold text-gray-700 block mb-1.5">فئة الأصل <span className="text-red-500">*</span></label>
+                <label className="text-xs font-semibold text-gray-700 block mb-1.5">{t("فئة الأصل","Asset Category")} <span className="text-red-500">*</span></label>
                 <div className="grid grid-cols-5 gap-2">
                   {ASSET_CATS.map(c=>(
                     <button key={c} onClick={()=>setCat(c)}
                       className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-xs font-semibold ${cat===c?"border-purple-500 bg-purple-50 text-purple-700":"border-gray-200 bg-white text-gray-600 hover:border-purple-200"}`}>
-                      <span className="text-xl">{CAT_ICONS[c]}</span>{c}
+                      <span className="text-xl">{CAT_ICONS[c]}</span>{CAT_LABELS[c]}
                     </button>
                   ))}
                 </div>
@@ -3144,7 +3158,7 @@ function ConvertToAssetModal({
 
               {/* Useful life */}
               <div>
-                <label className="text-xs font-semibold text-gray-700 block mb-1.5">العمر الإنتاجي</label>
+                <label className="text-xs font-semibold text-gray-700 block mb-1.5">{t("العمر الإنتاجي","Useful Life")}</label>
                 <select value={usefulLife} onChange={e=>setUsefulLife(Number(e.target.value))}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-purple-400 outline-none">
                   {USEFUL_LIFE_OPTS.map(o=><option key={o.val} value={o.val}>{o.label}</option>)}
@@ -3153,20 +3167,20 @@ function ConvertToAssetModal({
 
               {/* Qty */}
               <div>
-                <label className="text-xs font-semibold text-gray-700 block mb-1.5">الكمية (عدد الوحدات)</label>
+                <label className="text-xs font-semibold text-gray-700 block mb-1.5">{t("الكمية (عدد الوحدات)","Quantity (units)")}</label>
                 <div className="flex items-center gap-2">
                   <button onClick={()=>setQty(q=>Math.max(1,q-1))} className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 text-lg font-bold">−</button>
                   <span className="w-14 text-center font-bold text-lg text-gray-800">{qty}</span>
                   <button onClick={()=>setQty(q=>q+1)} className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50 text-lg font-bold">+</button>
-                  <span className="text-xs text-gray-500 mr-2">وحدة — سعر الوحدة: <span className="font-mono font-bold">{fmtAmt(Math.round(amount/qty))} ر.س</span></span>
+                  <span className="text-xs text-gray-500 mr-2">{t("وحدة — سعر الوحدة:","unit — unit price:")} <span className="font-mono font-bold">{fmtAmt(Math.round(amount/qty))} {t("ر.س","SAR")}</span></span>
                 </div>
               </div>
 
               {/* Notes */}
               <div>
-                <label className="text-xs font-semibold text-gray-700 block mb-1.5">ملاحظات إضافية</label>
+                <label className="text-xs font-semibold text-gray-700 block mb-1.5">{t("ملاحظات إضافية","Additional Notes")}</label>
                 <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2}
-                  placeholder="أي ملاحظات على الأصل (اختياري)..."
+                  placeholder={t("أي ملاحظات على الأصل (اختياري)...","Any notes about the asset (optional)...")}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-purple-400 outline-none resize-none"/>
               </div>
             </div>
@@ -3177,8 +3191,8 @@ function ConvertToAssetModal({
             <div className="p-6 space-y-5">
               <div>
                 <label className="text-xs font-semibold text-gray-700 block mb-1.5">
-                  الفروع المستفيدة <span className="text-red-500">*</span>
-                  <span className="text-gray-400 font-normal mr-2">— يمكن اختيار فرع واحد أو أكثر</span>
+                  {t("الفروع المستفيدة","Beneficiary Branches")} <span className="text-red-500">*</span>
+                  <span className="text-gray-400 font-normal mr-2">— {t("يمكن اختيار فرع واحد أو أكثر","select one or more branches")}</span>
                 </label>
                 <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto">
                   {ALL_BRANCHES_FULL.map(b=>(
@@ -3193,31 +3207,31 @@ function ConvertToAssetModal({
                 </div>
                 {targetBranches.length>0 && (
                   <p className="text-[11px] text-purple-600 mt-2 font-semibold">
-                    ✓ {targetBranches.length} فرع محدد · سيُضاف {qty * targetBranches.length} أصل إجمالاً
+                    ✓ {targetBranches.length} {t("فرع محدد · سيُضاف","selected branches · will add")} {qty * targetBranches.length} {t("أصل إجمالاً","assets total")}
                   </p>
                 )}
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-gray-700 block mb-1.5">المسؤول عن العهدة <span className="text-red-500">*</span></label>
+                <label className="text-xs font-semibold text-gray-700 block mb-1.5">{t("المسؤول عن العهدة","Custody Responsible")} <span className="text-red-500">*</span></label>
                 <input value={custodian} onChange={e=>setCustodian(e.target.value)}
-                  placeholder="اسم المسؤول عن الأصل (مدير الفرع، مشرف الشفت...)"
+                  placeholder={t("اسم المسؤول عن الأصل (مدير الفرع، مشرف الشفت...)","Name of asset custodian (branch manager, shift supervisor...)")}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-purple-400 outline-none"/>
               </div>
 
               {/* Summary card */}
               {canProceed && (
                 <div className="bg-gradient-to-l from-purple-50 to-indigo-50 border border-purple-100 rounded-xl p-4 space-y-2">
-                  <p className="text-xs font-bold text-purple-800 flex items-center gap-1.5"><Layers size={12}/> ملخص ما سيُضاف في موديول الأصول الثابتة</p>
+                  <p className="text-xs font-bold text-purple-800 flex items-center gap-1.5"><Layers size={12}/> {t("ملخص ما سيُضاف في موديول الأصول الثابتة","Summary of what will be added in the Fixed Assets module")}</p>
                   <div className="grid grid-cols-2 gap-y-1.5 gap-x-4 text-xs">
-                    <div><span className="text-gray-500">الأصل:</span> <span className="font-semibold text-gray-800">{assetName}</span></div>
-                    <div><span className="text-gray-500">الفئة:</span> <span className="font-semibold text-gray-800">{CAT_ICONS[cat]} {cat}</span></div>
-                    <div><span className="text-gray-500">الكمية:</span> <span className="font-semibold text-gray-800">{qty} وحدة × {targetBranches.length} فرع</span></div>
-                    <div><span className="text-gray-500">العمر الإنتاجي:</span> <span className="font-semibold text-gray-800">{usefulLife} شهر</span></div>
-                    <div><span className="text-gray-500">القيمة للوحدة:</span> <span className="font-mono font-bold text-purple-700">{fmtAmt(Math.round(amount/qty))} ر.س</span></div>
-                    <div><span className="text-gray-500">المسؤول:</span> <span className="font-semibold text-gray-800">{custodian}</span></div>
+                    <div><span className="text-gray-500">{t("الأصل:","Asset:")}</span> <span className="font-semibold text-gray-800">{assetName}</span></div>
+                    <div><span className="text-gray-500">{t("الفئة:","Category:")}</span> <span className="font-semibold text-gray-800">{CAT_ICONS[cat]} {CAT_LABELS[cat]}</span></div>
+                    <div><span className="text-gray-500">{t("الكمية:","Qty:")}</span> <span className="font-semibold text-gray-800">{qty} {t("وحدة ×","unit ×")} {targetBranches.length} {t("فرع","branch")}</span></div>
+                    <div><span className="text-gray-500">{t("العمر الإنتاجي:","Useful Life:")}</span> <span className="font-semibold text-gray-800">{usefulLife} {t("شهر","months")}</span></div>
+                    <div><span className="text-gray-500">{t("القيمة للوحدة:","Unit value:")}</span> <span className="font-mono font-bold text-purple-700">{fmtAmt(Math.round(amount/qty))} {t("ر.س","SAR")}</span></div>
+                    <div><span className="text-gray-500">{t("المسؤول:","Custodian:")}</span> <span className="font-semibold text-gray-800">{custodian}</span></div>
                   </div>
-                  <p className="text-[10px] text-purple-600">سيظهر هذا الأصل كـ "مسودة" في موديول الأصول الثابتة لمراجعتك النهائية</p>
+                  <p className="text-[10px] text-purple-600">{t('سيظهر هذا الأصل كـ "مسودة" في موديول الأصول الثابتة لمراجعتك النهائية','This asset will appear as a "draft" in the Fixed Assets module for your final review')}</p>
                 </div>
               )}
             </div>
@@ -3230,11 +3244,11 @@ function ConvertToAssetModal({
                 <CheckCircle2 size={40} className="text-emerald-500"/>
               </div>
               <div>
-                <h4 className="font-bold text-gray-800 text-lg">تم إنشاء المسودة بنجاح</h4>
+                <h4 className="font-bold text-gray-800 text-lg">{t("تم إنشاء المسودة بنجاح","Draft Created Successfully")}</h4>
                 <p className="text-gray-500 text-sm mt-1">
-                  تم تحويل <span className="font-semibold text-purple-700">{invNum}</span> إلى مسودة أصل ثابت
+                  {t("تم تحويل","Converted")} <span className="font-semibold text-purple-700">{invNum}</span> {t("إلى مسودة أصل ثابت","to a fixed asset draft")}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">انتقل إلى موديول الأصول الثابتة لمراجعتها وتأكيدها</p>
+                <p className="text-xs text-gray-400 mt-1">{t("انتقل إلى موديول الأصول الثابتة لمراجعتها وتأكيدها","Navigate to the Fixed Assets module to review and confirm")}</p>
               </div>
               <div className="flex flex-wrap gap-2 justify-center">
                 {targetBranches.map(b=>(
@@ -3247,20 +3261,20 @@ function ConvertToAssetModal({
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/60 flex items-center justify-between flex-shrink-0">
-          <Btn size="sm" onClick={onClose}><X size={12}/> إغلاق</Btn>
+          <Btn size="sm" onClick={onClose}><X size={12}/> {t("إغلاق","Close")}</Btn>
           <div className="flex gap-2">
             {step===1 && (
               <button onClick={()=>setStep(2)} disabled={!assetName.trim()}
                 className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all ${!assetName.trim()?"bg-gray-100 text-gray-400 cursor-not-allowed":"bg-purple-600 text-white hover:bg-purple-700 shadow-sm"}`}>
-                التالي: الفروع والعهدة <ChevronLeft size={13}/>
+                {t("التالي: الفروع والعهدة","Next: Branches & Custody")} <ChevronLeft size={13}/>
               </button>
             )}
             {step===2 && (
               <>
-                <Btn onClick={()=>setStep(1)}><ChevronRight size={13}/> رجوع</Btn>
+                <Btn onClick={()=>setStep(1)}><ChevronRight size={13}/> {t("رجوع","Back")}</Btn>
                 <button onClick={handleConfirm} disabled={!canProceed || confirmed}
                   className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all ${(!canProceed||confirmed)?"bg-gray-100 text-gray-400 cursor-not-allowed":"bg-purple-600 text-white hover:bg-purple-700 shadow-sm"}`}>
-                  <GitMerge size={13}/> تأكيد التحويل للمسودة
+                  <GitMerge size={13}/> {t("تأكيد التحويل للمسودة","Confirm Convert to Draft")}
                 </button>
               </>
             )}
@@ -3656,6 +3670,8 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
 }
 
 function AccSalesDetail({ navigate, setModal, setDetailId, detailId, ops, approveOp, addCorrectiveOp }:PageProps) {
+  const { t, lang, dir } = useLang();
+  const en = lang === "en";
   const op = ops.find(o=>o.id===detailId) || ops[0];
 
   const RECON_EMP: Record<string,string> = {
@@ -3691,20 +3707,20 @@ function AccSalesDetail({ navigate, setModal, setDetailId, detailId, ops, approv
   return (
     <div className="space-y-4">
       <Breadcrumb items={[
-        { label:"لوحة التحكم", onClick:()=>navigate("acc-dashboard") },
-        { label:"المبيعات", onClick:()=>navigate("acc-sales") },
+        { label:t("لوحة التحكم","Dashboard"), onClick:()=>navigate("acc-dashboard") },
+        { label:t("المبيعات","Sales"), onClick:()=>navigate("acc-sales") },
         { label:op?.id||"" }
       ]}/>
 
       {op && <PipelineBar op={op}/>}
       {isLocked && <LockBanner op={op}/>}
       {op?.isCorrection && op.correctiveRef && (
-        <div className="flex items-center gap-3 px-5 py-3 bg-amber-50 border border-amber-200 rounded-xl" dir="rtl">
+        <div className="flex items-center gap-3 px-5 py-3 bg-amber-50 border border-amber-200 rounded-xl" dir={dir}>
           <ArrowLeftRight size={14} className="text-amber-600 flex-shrink-0"/>
           <p className="text-sm text-amber-800">
-            <span className="font-bold">عملية تعديل — </span>
-            ترتبط بالسجل الأصلي:
-            <span className="font-mono font-bold text-amber-900 mr-1">{op.correctiveRef}</span>
+            <span className="font-bold">{t("عملية تعديل — ","Correction operation — ")}</span>
+            {t("ترتبط بالسجل الأصلي:","Linked to original record:")}
+            <span className="font-mono font-bold text-amber-900 mx-1">{op.correctiveRef}</span>
           </p>
         </div>
       )}
@@ -3717,34 +3733,34 @@ function AccSalesDetail({ navigate, setModal, setDetailId, detailId, ops, approv
             <div className="flex items-center gap-3">
               <span className="text-2xl">💰</span>
               <div>
-                <h2 className="font-bold text-gray-900 text-xl">تقرير المبيعات اليومي</h2>
-                <p className="text-gray-500 text-sm mt-0.5">{op?.branch} · 14 أكتوبر 2025 · نهاية الشفت</p>
+                <h2 className="font-bold text-gray-900 text-xl">{t("تقرير المبيعات اليومي","Daily Sales Report")}</h2>
+                <p className="text-gray-500 text-sm mt-0.5">{op?.branch} · {t("14 أكتوبر 2025","October 14, 2025")} · {t("نهاية الشفت","Shift End")}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 mt-3 flex-wrap">
               <Badge className="bg-blue-50 text-blue-700 border border-blue-200 font-mono">{op?.id}</Badge>
               <Badge className={`${STATUS_CFG[op?.status||"pending"].cls} border`}>
                 {isLocked && <Lock size={10}/>}
-                {STATUS_CFG[op?.status||"pending"].label}
+                {en ? (EN_STATUS_CFG[op?.status||"pending"]||STATUS_CFG[op?.status||"pending"].label) : STATUS_CFG[op?.status||"pending"].label}
               </Badge>
-              <Badge className="bg-gray-50 text-gray-500 border border-gray-200">مدير الفرع: أحمد الشمري</Badge>
-              <Badge className="bg-gray-50 text-gray-500 border border-gray-200">📱 أُرسل قبل ساعة</Badge>
+              <Badge className="bg-gray-50 text-gray-500 border border-gray-200">{t("مدير الفرع: أحمد الشمري","Branch Manager: Ahmed Al-Shammari")}</Badge>
+              <Badge className="bg-gray-50 text-gray-500 border border-gray-200">📱 {t("أُرسل قبل ساعة","Sent 1 hour ago")}</Badge>
             </div>
           </div>
           <div className={`rounded-xl px-5 py-3 text-center ${isLocked?"bg-emerald-50 border border-emerald-200":op?.status==="approved"?"bg-blue-50":"bg-purple-50"}`}>
             {isLocked ? (
               <><Lock size={22} className="text-emerald-600 mx-auto"/>
-              <p className="text-emerald-700 font-bold mt-1 text-sm">معتمد نهائياً</p>
-              <p className="text-emerald-500 text-xs">مُرحَّل لـ ERP · مُغلق</p></>
+              <p className="text-emerald-700 font-bold mt-1 text-sm">{t("معتمد نهائياً","Final Approved")}</p>
+              <p className="text-emerald-500 text-xs">{t("مُرحَّل لـ ERP · مُغلق","Posted to ERP · Locked")}</p></>
             ) : op?.status==="approved" ? (
               <><CheckCircle2 size={28} className="text-blue-500 mx-auto"/>
-              <p className="text-blue-700 font-bold mt-1 text-sm">موافق عليه</p>
-              <p className="text-blue-500 text-xs">بانتظار رئيس الحسابات</p></>
+              <p className="text-blue-700 font-bold mt-1 text-sm">{t("موافق عليه","Approved")}</p>
+              <p className="text-blue-500 text-xs">{t("بانتظار رئيس الحسابات","Awaiting Head Accountant")}</p></>
             ) : (
-              <><p className="text-gray-500 text-xs">إجمالي المبيعات</p>
-              <p className="font-bold text-purple-700 text-2xl font-mono mt-0.5">{fmtAmt(totalSales)}<span className="text-sm mr-1">ر.س</span></p>
-              {hasVariance && <p className="text-red-500 text-xs mt-0.5 font-medium">⚠ فرق: {fmtAmt(Math.abs(variance))} ر.س</p>}
-              {!hasVariance && <p className="text-emerald-600 text-xs mt-0.5 font-medium">✓ التسوية مطابقة</p>}</>
+              <><p className="text-gray-500 text-xs">{t("إجمالي المبيعات","Total Sales")}</p>
+              <p className="font-bold text-purple-700 text-2xl font-mono mt-0.5">{fmtAmt(totalSales)}<span className="text-sm mx-1">{t("ر.س","SAR")}</span></p>
+              {hasVariance && <p className="text-red-500 text-xs mt-0.5 font-medium">⚠ {t("فرق:","Variance:")} {fmtAmt(Math.abs(variance))} {t("ر.س","SAR")}</p>}
+              {!hasVariance && <p className="text-emerald-600 text-xs mt-0.5 font-medium">✓ {t("التسوية مطابقة","Reconciliation matched")}</p>}</>
             )}
           </div>
         </div>
@@ -3753,59 +3769,59 @@ function AccSalesDetail({ navigate, setModal, setDetailId, detailId, ops, approv
 
       <div className="grid grid-cols-3 gap-4">
         <div className="col-span-2 space-y-4">
-          <Card title="تسوية المبيعات" actions={
+          <Card title={t("تسوية المبيعات","Sales Reconciliation")} actions={
             !isLocked && (
               <button onClick={()=>setReconEditMode(m=>!m)}
                 className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all ${reconEditMode?"bg-purple-600 text-white border-purple-600":"bg-white text-purple-600 border-purple-200 hover:bg-purple-50"}`}>
-                <Edit3 size={11}/> {reconEditMode ? "💾 حفظ التعديلات" : "تعديل الأرقام"}
+                <Edit3 size={11}/> {reconEditMode ? t("💾 حفظ التعديلات","💾 Save Changes") : t("تعديل الأرقام","Edit Figures")}
               </button>
             )
           }>
-            <div className="divide-y divide-gray-100" dir="rtl">
+            <div className="divide-y divide-gray-100" dir={dir}>
 
               {/* ── إجمالي المبيعات (مقفل — من رفع مدير الفرع) ── */}
               <div className="flex items-center justify-between px-4 py-3.5 bg-indigo-50/60">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 flex-shrink-0"/>
-                  <span className="text-sm font-bold text-indigo-900">إجمالي المبيعات</span>
-                  <span className="text-[10px] bg-indigo-100 text-indigo-500 px-1.5 py-0.5 rounded-md">(من رفع مدير الفرع — مقفل)</span>
+                  <span className="text-sm font-bold text-indigo-900">{t("إجمالي المبيعات","Total Sales")}</span>
+                  <span className="text-[10px] bg-indigo-100 text-indigo-500 px-1.5 py-0.5 rounded-md">{t("(من رفع مدير الفرع — مقفل)","(Branch Manager entry — locked)")}</span>
                 </div>
-                <span className="font-mono font-black text-indigo-800 text-base">{fmtAmt(totalSales)} ر.س</span>
+                <span className="font-mono font-black text-indigo-800 text-base">{fmtAmt(totalSales)} {t("ر.س","SAR")}</span>
               </div>
 
-              {/* ── نقدي ── */}
+              {/* Cash */}
               <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50/60">
                 <div className="flex items-center gap-2">
                   <span className="text-base">💵</span>
-                  <span className="text-sm text-gray-700 font-medium">نقدي (صندوق)</span>
+                  <span className="text-sm text-gray-700 font-medium">{t("نقدي (صندوق)","Cash (Till)")}</span>
                 </div>
                 {reconEditMode && !isLocked ? (
                   <input type="number" value={reconCash}
                     onChange={e=>setReconCash(+e.target.value)}
                     className="w-36 text-center font-mono font-semibold border-2 border-purple-300 rounded-xl px-3 py-1.5 text-sm bg-purple-50 focus:outline-none focus:border-purple-500"/>
                 ) : (
-                  <span className="font-mono font-semibold text-gray-800 text-sm">{fmtAmt(reconCash)} ر.س</span>
+                  <span className="font-mono font-semibold text-gray-800 text-sm">{fmtAmt(reconCash)} {t("ر.س","SAR")}</span>
                 )}
               </div>
 
-              {/* ── بنك / كارت ── */}
+              {/* Bank */}
               <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-50/60">
                 <div className="flex items-center gap-2">
                   <span className="text-base">🏦</span>
-                  <span className="text-sm text-gray-700 font-medium">بنك / كارت (بنك الرياض)</span>
+                  <span className="text-sm text-gray-700 font-medium">{t("بنك / كارت (بنك الرياض)","Bank / Card (Riyadh Bank)")}</span>
                 </div>
                 {reconEditMode && !isLocked ? (
                   <input type="number" value={reconBank}
                     onChange={e=>setReconBank(+e.target.value)}
                     className="w-36 text-center font-mono font-semibold border-2 border-purple-300 rounded-xl px-3 py-1.5 text-sm bg-purple-50 focus:outline-none focus:border-purple-500"/>
                 ) : (
-                  <span className="font-mono font-semibold text-gray-800 text-sm">{fmtAmt(reconBank)} ر.س</span>
+                  <span className="font-mono font-semibold text-gray-800 text-sm">{fmtAmt(reconBank)} {t("ر.س","SAR")}</span>
                 )}
               </div>
 
-              {/* ── تطبيقات التوصيل — header ── */}
+              {/* Delivery apps header */}
               <div className="px-4 py-2 bg-gray-50/80">
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">تطبيقات التوصيل</p>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">{t("تطبيقات التوصيل","Delivery Apps")}</p>
               </div>
 
               {/* ── كل تطبيق ── */}
@@ -3817,7 +3833,7 @@ function AccSalesDetail({ navigate, setModal, setDetailId, detailId, ops, approv
                       <span className="text-base">{d.icon}</span>
                       <span className="text-sm text-gray-700 font-medium">{d.app}</span>
                       {appDiff > 0 && (
-                        <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md font-bold">تعديل −{fmtAmt(appDiff)} ر.س</span>
+                        <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md font-bold">{t("تعديل","Adj")} −{fmtAmt(appDiff)} {t("ر.س","SAR")}</span>
                       )}
                     </div>
                     {reconEditMode && !isLocked ? (
@@ -3825,7 +3841,7 @@ function AccSalesDetail({ navigate, setModal, setDetailId, detailId, ops, approv
                         onChange={e=>setReconDelivApps(apps=>apps.map((a,j)=>j===i?{...a,val:+e.target.value}:a))}
                         className="w-36 text-center font-mono font-semibold border-2 border-purple-300 rounded-xl px-3 py-1.5 text-sm bg-purple-50 focus:outline-none focus:border-purple-500"/>
                     ) : (
-                      <span className={`font-mono font-semibold text-sm ${appDiff>0?"text-amber-700":"text-gray-800"}`}>{fmtAmt(d.val)} ر.س</span>
+                      <span className={`font-mono font-semibold text-sm ${appDiff>0?"text-amber-700":"text-gray-800"}`}>{fmtAmt(d.val)} {t("ر.س","SAR")}</span>
                     )}
                   </div>
                 );
@@ -3837,55 +3853,55 @@ function AccSalesDetail({ navigate, setModal, setDetailId, detailId, ops, approv
                   <div className="flex items-center gap-2 px-4 py-3 bg-red-100/60 border-b border-red-200">
                     <AlertTriangle size={14} className="text-red-600 flex-shrink-0"/>
                     <p className="text-sm font-bold text-red-800">
-                      تحميل الفرق على موظفين — الفرق: <span className="font-mono">{fmtAmt(variance)} ر.س</span>
+                      {t("تحميل الفرق على موظفين — الفرق:","Assign variance to employees — Variance:")} <span className="font-mono">{fmtAmt(variance)} {t("ر.س","SAR")}</span>
                     </p>
                     <span className={`mr-auto text-xs font-bold px-2 py-1 rounded-lg ${remaining<=0?"bg-emerald-100 text-emerald-700":"bg-red-100 text-red-700"}`}>
-                      {remaining<=0 ? "✓ محمَّل بالكامل" : `متبقي ${fmtAmt(remaining)} ر.س`}
+                      {remaining<=0 ? t("✓ محمَّل بالكامل","✓ Fully assigned") : `${t("متبقي","Remaining")} ${fmtAmt(remaining)} ${t("ر.س","SAR")}`}
                     </span>
                   </div>
                   <div className="p-4 space-y-2">
-                    {/* سبب الفرق */}
+                    {/* Variance reason */}
                     <div className="mb-3">
-                      <label className="text-[11px] font-bold text-red-700 block mb-1.5">سبب الفرق <span className="text-red-400">*</span></label>
+                      <label className="text-[11px] font-bold text-red-700 block mb-1.5">{t("سبب الفرق","Variance Reason")} <span className="text-red-400">*</span></label>
                       <select value={reconVarReason} onChange={e=>setReconVarReason(e.target.value)}
                         className="w-full text-sm border border-red-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-red-400">
-                        <option value="">— اختر سبب الفرق —</option>
-                        <option value="تأخر تحويل">تأخر تحويل من تطبيقات التوصيل</option>
-                        <option value="خطأ في الجهاز">خطأ في جهاز نقطة البيع (POS)</option>
-                        <option value="عملية ملغاة">عملية مبيعات ملغاة</option>
-                        <option value="فارق صندوق">فارق في الصندوق النقدي</option>
-                        <option value="خطأ في الإدخال">خطأ في إدخال البيانات</option>
-                        <option value="تسوية لاحقة">تسوية لاحقة — جارٍ المتابعة</option>
-                        <option value="أخرى">أخرى</option>
+                        <option value="">— {t("اختر سبب الفرق","Select reason")} —</option>
+                        <option value="تأخر تحويل">{t("تأخر تحويل من تطبيقات التوصيل","Delayed transfer from delivery apps")}</option>
+                        <option value="خطأ في الجهاز">{t("خطأ في جهاز نقطة البيع (POS)","POS terminal error")}</option>
+                        <option value="عملية ملغاة">{t("عملية مبيعات ملغاة","Cancelled sales transaction")}</option>
+                        <option value="فارق صندوق">{t("فارق في الصندوق النقدي","Cash till discrepancy")}</option>
+                        <option value="خطأ في الإدخال">{t("خطأ في إدخال البيانات","Data entry error")}</option>
+                        <option value="تسوية لاحقة">{t("تسوية لاحقة — جارٍ المتابعة","Deferred reconciliation — under follow-up")}</option>
+                        <option value="أخرى">{t("أخرى","Other")}</option>
                       </select>
-                      {reconVarReason && <p className="text-[10px] text-red-500 mt-1">✓ سبب مُسجَّل: {reconVarReason}</p>}
+                      {reconVarReason && <p className="text-[10px] text-red-500 mt-1">✓ {t("سبب مُسجَّل:","Recorded reason:")} {reconVarReason}</p>}
                     </div>
                     {varEmps.map((e,i)=>(
                       <div key={i} className="flex items-center gap-2">
                         <div className="flex flex-col gap-0.5">
-                          <label className="text-[10px] text-gray-400">رقم الموظف</label>
-                          <input placeholder="مثال: 1001" value={e.empId}
+                          <label className="text-[10px] text-gray-400">{t("رقم الموظف","Employee ID")}</label>
+                          <input placeholder={t("مثال: 1001","e.g. 1001")} value={e.empId}
                             onChange={ev=>setVarEmpField(i,"empId",ev.target.value)}
                             className="w-24 text-center font-mono border border-red-200 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:border-red-400"/>
                         </div>
                         <div className="flex flex-col gap-0.5 flex-1">
-                          <label className="text-[10px] text-gray-400">اسم الموظف</label>
+                          <label className="text-[10px] text-gray-400">{t("اسم الموظف","Employee Name")}</label>
                           <div className="h-8 flex items-center px-2 rounded-lg bg-white border border-gray-100 text-xs text-gray-700 font-medium">
-                            {e.empName || <span className="text-gray-300">يُعبأ تلقائياً</span>}
+                            {e.empName || <span className="text-gray-300">{t("يُعبأ تلقائياً","Auto-filled")}</span>}
                           </div>
                         </div>
                         <div className="flex flex-col gap-0.5">
-                          <label className="text-[10px] text-gray-400">المبلغ (ر.س)</label>
+                          <label className="text-[10px] text-gray-400">{t("المبلغ (ر.س)","Amount (SAR)")}</label>
                           <input placeholder="0.00" type="number" value={e.amount}
                             onChange={ev=>setVarEmpField(i,"amount",ev.target.value)}
                             className="w-28 text-center font-mono border border-red-200 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:border-red-400"/>
                         </div>
                         <div className="flex flex-col gap-0.5">
                           <label className="text-[10px] text-gray-400 opacity-0">⚡</label>
-                          <button title="تعبئة المتبقي تلقائياً"
+                          <button title={t("تعبئة المتبقي تلقائياً","Auto-fill remaining")}
                             onClick={()=>setVarEmpField(i,"amount",String(Math.max(0, remaining+(parseFloat(e.amount)||0))))}
                             className="px-2 py-1.5 bg-amber-100 text-amber-700 rounded-lg text-[11px] font-bold hover:bg-amber-200 border border-amber-200">
-                            ⚡ المتبقي
+                            ⚡ {t("المتبقي","Remaining")}
                           </button>
                         </div>
                         {varEmps.length > 1 && (
@@ -3902,11 +3918,11 @@ function AccSalesDetail({ navigate, setModal, setDetailId, detailId, ops, approv
                     <div className="flex items-center justify-between pt-1">
                       <button onClick={()=>setVarEmps(p=>[...p,{empId:"",empName:"",amount:""}])}
                         className="flex items-center gap-1 text-xs text-red-600 hover:underline font-semibold">
-                        <Plus size={11}/> إضافة موظف آخر
+                        <Plus size={11}/> {t("إضافة موظف آخر","Add Another Employee")}
                       </button>
                       {remaining <= 0 && (
                         <Btn size="sm" variant="success">
-                          <CheckCircle2 size={11}/> تأكيد التحميل
+                          <CheckCircle2 size={11}/> {t("تأكيد التحميل","Confirm Assignment")}
                         </Btn>
                       )}
                     </div>
@@ -3916,30 +3932,29 @@ function AccSalesDetail({ navigate, setModal, setDetailId, detailId, ops, approv
 
               {/* ── إجمالي التحصيل ── */}
               <div className={`flex items-center justify-between px-4 py-3.5 font-bold border-t-2 ${variance===0?"bg-emerald-50/70 border-emerald-200":"bg-red-50/70 border-red-200"}`}>
-                <span className={`text-sm ${variance===0?"text-emerald-800":"text-red-800"}`}>إجمالي التحصيل</span>
-                <span className={`font-mono text-base ${variance===0?"text-emerald-700":"text-red-700"}`}>{fmtAmt(totalCollection)} ر.س</span>
+                <span className={`text-sm ${variance===0?"text-emerald-800":"text-red-800"}`}>{t("إجمالي التحصيل","Total Collected")}</span>
+                <span className={`font-mono text-base ${variance===0?"text-emerald-700":"text-red-700"}`}>{fmtAmt(totalCollection)} {t("ر.س","SAR")}</span>
               </div>
 
-              {/* ── صف الفرق ── */}
               {variance !== 0 ? (
                 <div className="flex items-center justify-between px-4 py-3 bg-red-100 border-t border-red-200">
                   <div className="flex items-center gap-2">
                     <AlertTriangle size={13} className="text-red-600"/>
-                    <span className="text-sm font-bold text-red-800">الفرق المطلوب تحميله على الموظفين</span>
+                    <span className="text-sm font-bold text-red-800">{t("الفرق المطلوب تحميله على الموظفين","Variance to assign to employees")}</span>
                   </div>
-                  <span className="font-mono font-black text-red-800 text-base">{fmtAmt(variance)} ر.س</span>
+                  <span className="font-mono font-black text-red-800 text-base">{fmtAmt(variance)} {t("ر.س","SAR")}</span>
                 </div>
               ) : (
                 <div className="flex items-center justify-center px-4 py-3 bg-emerald-50">
                   <span className="text-sm text-emerald-700 font-bold flex items-center gap-2">
-                    <CheckCircle2 size={14}/> إجمالي التحصيل مطابق لإجمالي المبيعات تماماً
+                    <CheckCircle2 size={14}/> {t("إجمالي التحصيل مطابق لإجمالي المبيعات تماماً","Total collected matches total sales exactly")}
                   </span>
                 </div>
               )}
 
             </div>
           </Card>
-          <Card title="سجل دورة حياة السجل" actions={<span className="text-xs text-gray-400 font-mono">{op?.id}</span>}>
+          <Card title={t("سجل دورة حياة السجل","Record Lifecycle Log")} actions={<span className="text-xs text-gray-400 font-mono">{op?.id}</span>}>
             <div className="p-4 space-y-0">
               {op && buildAuditTrail(op).map((event, i, arr)=>(
                 <div key={i} className="flex gap-3 relative">
@@ -3955,7 +3970,7 @@ function AccSalesDetail({ navigate, setModal, setDetailId, detailId, ops, approv
                     <p className="text-[10px] text-gray-400 mt-0.5">{event.by} · {event.time}</p>
                     {event.isTerminal && (
                       <Badge className={`mt-1.5 text-[10px] ${op?.erpPosted ? "bg-indigo-50 text-indigo-700 border border-indigo-200" : "bg-emerald-50 text-emerald-700 border border-emerald-200"}`}>
-                        <Lock size={8}/> حالة نهائية
+                        <Lock size={8}/> {t("حالة نهائية","Final State")}
                       </Badge>
                     )}
                   </div>
@@ -3967,31 +3982,30 @@ function AccSalesDetail({ navigate, setModal, setDetailId, detailId, ops, approv
 
         <div className="space-y-4">
           {isLocked ? (
-            <Card title="حالة السجل الموثَّق">
+            <Card title={t("حالة السجل الموثَّق","Verified Record Status")}>
               <div className="p-4 space-y-3">
-                {/* Two distinct states: final-approved vs erp-posted */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className={`rounded-xl p-3 text-center border-2 ${isLocked ? "border-emerald-300 bg-emerald-50" : "border-gray-100 bg-gray-50"}`}>
                     <CheckCircle2 size={20} className="text-emerald-600 mx-auto mb-1"/>
-                    <p className="text-xs font-bold text-emerald-700">اعتماد نهائي</p>
-                    <p className="text-[10px] text-emerald-500 mt-0.5">{op?.finalApprovedAt || "16:42 م"}</p>
+                    <p className="text-xs font-bold text-emerald-700">{t("اعتماد نهائي","Final Approval")}</p>
+                    <p className="text-[10px] text-emerald-500 mt-0.5">{op?.finalApprovedAt || t("16:42 م","4:42 PM")}</p>
                   </div>
                   <div className={`rounded-xl p-3 text-center border-2 ${op?.erpPosted ? "border-indigo-300 bg-indigo-50" : "border-dashed border-gray-200 bg-gray-50"}`}>
                     <ChevronsRight size={20} className={`mx-auto mb-1 ${op?.erpPosted ? "text-indigo-600" : "text-gray-300"}`}/>
                     <p className={`text-xs font-bold ${op?.erpPosted ? "text-indigo-700" : "text-gray-400"}`}>
-                      {op?.erpPosted ? "مُرحَّل لـ ERP" : "لم يُرحَّل بعد"}
+                      {op?.erpPosted ? t("مُرحَّل لـ ERP","Posted to ERP") : t("لم يُرحَّل بعد","Not yet posted")}
                     </p>
                     <p className={`text-[10px] mt-0.5 ${op?.erpPosted ? "text-indigo-500" : "text-gray-300"}`}>
-                      {op?.erpPosted ? (op?.erpBatchId || "ERP-BATCH") : "في انتظار دفعة الترحيل"}
+                      {op?.erpPosted ? (op?.erpBatchId || "ERP-BATCH") : t("في انتظار دفعة الترحيل","Awaiting ERP batch")}
                     </p>
                   </div>
                 </div>
                 <div className="border border-gray-100 rounded-xl divide-y divide-gray-50 text-xs">
                   {[
-                    { label: "مُنشئ السجل", value: op?.submittedBy || "مدير الفرع" },
-                    { label: "راجعه واعتمده", value: op?.approvedBy || "المحاسب المختص" },
-                    { label: "الاعتماد النهائي", value: op?.finalApprovedBy || "رئيس الحسابات" },
-                    { label: "الترحيل لـ ERP", value: op?.erpPosted ? `✓ ${op.erpBatchId || "تم الترحيل"}` : "⏳ لم يُرحَّل بعد" },
+                    { label: t("مُنشئ السجل","Created by"), value: op?.submittedBy || t("مدير الفرع","Branch Manager") },
+                    { label: t("راجعه واعتمده","Reviewed & approved by"), value: op?.approvedBy || t("المحاسب المختص","Assigned Accountant") },
+                    { label: t("الاعتماد النهائي","Final approval by"), value: op?.finalApprovedBy || t("رئيس الحسابات","Head Accountant") },
+                    { label: t("الترحيل لـ ERP","ERP posting"), value: op?.erpPosted ? `✓ ${op.erpBatchId || t("تم الترحيل","Posted")}` : `⏳ ${t("لم يُرحَّل بعد","Not yet posted")}` },
                   ].map((row,i)=>(
                     <div key={i} className="flex justify-between px-3 py-2.5">
                       <span className="text-gray-400">{row.label}</span>
@@ -4007,36 +4021,36 @@ function AccSalesDetail({ navigate, setModal, setDetailId, detailId, ops, approv
                     }
                   }}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-amber-50 text-amber-700 font-semibold text-sm hover:bg-amber-100 border border-amber-200">
-                  <FileText size={14}/> إنشاء عملية تعديل مرتبطة
+                  <FileText size={14}/> {t("إنشاء عملية تعديل مرتبطة","Create Linked Correction")}
                 </button>
               </div>
             </Card>
           ) : op?.status==="pending" ? (
-            <Card title="الإجراءات">
+            <Card title={t("الإجراءات","Actions")}>
               <div className="p-4 space-y-2.5">
                 <button onClick={()=>{ approveOp(op.id); }} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 shadow-sm">
-                  <CheckCircle2 size={15}/> موافقة — إرسال لرئيس الحسابات
+                  <CheckCircle2 size={15}/> {t("موافقة — إرسال لرئيس الحسابات","Approve — Send to Head Accountant")}
                 </button>
                 <button onClick={()=>{ setDetailId(op.id); setModal("reject"); }} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-50 text-red-700 font-semibold text-sm hover:bg-red-100 border border-red-200">
-                  <XCircle size={15}/> رفض — إعادة لمدير الفرع
+                  <XCircle size={15}/> {t("رفض — إعادة لمدير الفرع","Reject — Return to Branch Manager")}
                 </button>
                 <button className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-blue-50 text-blue-700 font-semibold text-sm hover:bg-blue-100 border border-blue-200">
-                  <MessageSquare size={15}/> طلب توضيح
+                  <MessageSquare size={15}/> {t("طلب توضيح","Request Clarification")}
                 </button>
               </div>
             </Card>
           ) : op?.status==="approved" ? (
-            <Card title="حالة السجل">
+            <Card title={t("حالة السجل","Record Status")}>
               <div className="p-4">
                 <div className="flex flex-col items-center gap-2 py-3 text-center">
                   <CheckCircle2 size={32} className="text-blue-500"/>
-                  <p className="font-bold text-blue-700 text-sm">تمت الموافقة</p>
-                  <p className="text-gray-400 text-xs">بانتظار الاعتماد النهائي من رئيس الحسابات</p>
+                  <p className="font-bold text-blue-700 text-sm">{t("تمت الموافقة","Approved")}</p>
+                  <p className="text-gray-400 text-xs">{t("بانتظار الاعتماد النهائي من رئيس الحسابات","Awaiting final approval from Head Accountant")}</p>
                 </div>
               </div>
             </Card>
           ) : null}
-          <Card title="المرفقات (3)">
+          <Card title={t("المرفقات (3)","Attachments (3)")}>
             <div className="p-4 space-y-2">
               {[{name:"تقرير POS.pdf",type:"PDF",size:"245 KB"},{name:"كشف بنك الرياض.pdf",type:"PDF",size:"182 KB"},{name:"تقرير هنقرستيشن.xlsx",type:"Excel",size:"98 KB"}].map((att,i)=>(
                 <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-gray-50 border border-gray-100">
@@ -4053,10 +4067,10 @@ function AccSalesDetail({ navigate, setModal, setDetailId, detailId, ops, approv
             </div>
           </Card>
           {!isLocked && (
-            <Card title="ملاحظات المحاسب">
+            <Card title={t("ملاحظات المحاسب","Accountant Notes")}>
               <div className="p-4">
-                <textarea className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 resize-none mb-2" rows={3} placeholder="أضف ملاحظة..."/>
-                <Btn variant="ghost" className="w-full justify-center text-xs">حفظ الملاحظة</Btn>
+                <textarea className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 resize-none mb-2" rows={3} placeholder={t("أضف ملاحظة...","Add a note...")}/>
+                <Btn variant="ghost" className="w-full justify-center text-xs">{t("حفظ الملاحظة","Save Note")}</Btn>
               </div>
             </Card>
           )}
@@ -4123,21 +4137,22 @@ const PURCHASE_DETAIL = { default: PUR_RECORDS[0] ? { supplier: PUR_RECORDS[0].s
 
 // ── Shared purchase reconciliation table (used in both AccPurchases and ProcNewOrders)
 function PurItemsTable({ items, verifiedMap, onToggleVerify }: { items:PurItem[]; verifiedMap?:Record<string,boolean>; onToggleVerify?:(key:string)=>void }) {
+  const { t } = useLang();
   return (
     <table className="w-full border border-gray-100 rounded-xl overflow-hidden text-xs" dir="rtl">
       <thead className="bg-gray-100">
         <tr>
-          <th className="px-3 py-2 text-right">الصنف</th>
-          <th className="px-3 py-2 text-center">الوحدة</th>
-          <th className="px-3 py-2 text-center">سعر الوحدة</th>
-          <th className="px-3 py-2 text-center bg-sky-50/80 text-sky-700">سعر تاريخي</th>
-          <th className="px-3 py-2 text-center">مطلوب</th>
-          <th className="px-3 py-2 text-center">مستلم</th>
-          <th className="px-3 py-2 text-center bg-amber-50/80 text-amber-700">استهلاك يومي</th>
-          <th className="px-3 py-2 text-center bg-amber-50/80 text-amber-700">موصى به</th>
-          <th className="px-3 py-2 text-center">الإجمالي</th>
-          <th className="px-3 py-2 text-center">الحالة</th>
-          {onToggleVerify && <th className="px-3 py-2 text-center text-emerald-700 bg-emerald-50/50">توثيق ✓</th>}
+          <th className="px-3 py-2 text-right">{t("الصنف","Item")}</th>
+          <th className="px-3 py-2 text-center">{t("الوحدة","Unit")}</th>
+          <th className="px-3 py-2 text-center">{t("سعر الوحدة","Unit Price")}</th>
+          <th className="px-3 py-2 text-center bg-sky-50/80 text-sky-700">{t("سعر تاريخي","Hist. Price")}</th>
+          <th className="px-3 py-2 text-center">{t("مطلوب","Ordered")}</th>
+          <th className="px-3 py-2 text-center">{t("مستلم","Received")}</th>
+          <th className="px-3 py-2 text-center bg-amber-50/80 text-amber-700">{t("استهلاك يومي","Daily Avg")}</th>
+          <th className="px-3 py-2 text-center bg-amber-50/80 text-amber-700">{t("موصى به","Recommended")}</th>
+          <th className="px-3 py-2 text-center">{t("الإجمالي","Total")}</th>
+          <th className="px-3 py-2 text-center">{t("الحالة","Status")}</th>
+          {onToggleVerify && <th className="px-3 py-2 text-center text-emerald-700 bg-emerald-50/50">{t("توثيق","Verify")} ✓</th>}
         </tr>
       </thead>
       <tbody className="divide-y divide-gray-100 bg-white">
@@ -4153,22 +4168,22 @@ function PurItemsTable({ items, verifiedMap, onToggleVerify }: { items:PurItem[]
               <td className="px-3 py-2 font-semibold text-gray-800">{row.name}</td>
               <td className="px-3 py-2 text-center text-gray-500">{row.unit}</td>
               <td className={`px-3 py-2 text-center font-mono font-semibold ${priceDiff>2?"text-red-600":priceDiff<-2?"text-emerald-600":"text-gray-800"}`}>
-                {row.price} ر.س
-                {priceDiff>2  && <div className="text-[9px] text-red-500">↑ أعلى من المعتاد</div>}
-                {priceDiff<-2 && <div className="text-[9px] text-emerald-500">↓ أقل من المعتاد</div>}
+                {row.price} {t("ر.س","SAR")}
+                {priceDiff>2  && <div className="text-[9px] text-red-500">↑ {t("أعلى من المعتاد","Above usual")}</div>}
+                {priceDiff<-2 && <div className="text-[9px] text-emerald-500">↓ {t("أقل من المعتاد","Below usual")}</div>}
               </td>
-              <td className="px-3 py-2 text-center font-mono text-gray-500 bg-sky-50/20">{row.histPrice} ر.س</td>
+              <td className="px-3 py-2 text-center font-mono text-gray-500 bg-sky-50/20">{row.histPrice} {t("ر.س","SAR")}</td>
               <td className="px-3 py-2 text-center font-mono font-bold text-gray-800">{row.ordered}</td>
               <td className={`px-3 py-2 text-center font-mono font-bold ${diff>0?"text-red-600":"text-gray-800"}`}>{row.received}</td>
               <td className="px-3 py-2 text-center font-mono text-amber-700 bg-amber-50/20">{row.dailyAvg}</td>
               <td className="px-3 py-2 text-center font-mono bg-amber-50/20">
                 <span className={`font-semibold ${Math.abs(qtyVsRec)>5?"text-orange-600":"text-gray-700"}`}>{row.recommended}</span>
-                {Math.abs(qtyVsRec)>5 && <div className="text-[9px] text-orange-500">{qtyVsRec>0?"زيادة":"نقص"} {Math.abs(qtyVsRec)}</div>}
+                {Math.abs(qtyVsRec)>5 && <div className="text-[9px] text-orange-500">{qtyVsRec>0?t("زيادة","Over"):t("نقص","Under")} {Math.abs(qtyVsRec)}</div>}
               </td>
-              <td className="px-3 py-2 text-center font-mono font-semibold text-blue-700">{fmtAmt(total)} ر.س</td>
+              <td className="px-3 py-2 text-center font-mono font-semibold text-blue-700">{fmtAmt(total)} {t("ر.س","SAR")}</td>
               <td className="px-3 py-2 text-center">
-                {diff===0 ? <Badge className="bg-emerald-50 text-emerald-700">مطابق</Badge>
-                           : <Badge className="bg-red-50 text-red-700">فرق {diff}</Badge>}
+                {diff===0 ? <Badge className="bg-emerald-50 text-emerald-700">{t("مطابق","Matched")}</Badge>
+                           : <Badge className="bg-red-50 text-red-700">{t("فرق","Diff")} {diff}</Badge>}
               </td>
               {onToggleVerify && (
                 <td className="px-3 py-2 text-center">
@@ -4184,9 +4199,9 @@ function PurItemsTable({ items, verifiedMap, onToggleVerify }: { items:PurItem[]
       </tbody>
       <tfoot className="bg-gray-50 border-t-2 border-gray-200">
         <tr>
-          <td colSpan={onToggleVerify?8:8} className="px-3 py-2 font-bold text-gray-800 text-right">إجمالي الفاتورة</td>
+          <td colSpan={onToggleVerify?8:8} className="px-3 py-2 font-bold text-gray-800 text-right">{t("إجمالي الفاتورة","Invoice Total")}</td>
           <td className="px-3 py-2 text-center font-black font-mono text-blue-800">
-            {fmtAmt(items.reduce((s,r)=>s+r.received*r.price,0))} ر.س
+            {fmtAmt(items.reduce((s,r)=>s+r.received*r.price,0))} {t("ر.س","SAR")}
           </td>
           <td></td>
           {onToggleVerify && <td></td>}
@@ -4200,11 +4215,14 @@ function PurItemsTable({ items, verifiedMap, onToggleVerify }: { items:PurItem[]
 // ACCOUNTANT PURCHASES — Dual-Lens Professional View
 // ════════════════════════════════════════════════════════════
 function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectOp, bulkApprove }:PageProps) {
+  const { t, lang, dir } = useLang();
+  const en = lang === "en";
+  const ALL = "الكل";
   const [viewMode, setViewMode] = useState<"supplier"|"branch">("supplier");
-  const [filterSupplier, setFilterSupplier] = useState("الكل");
-  const [filterBranch,   setFilterBranch]   = useState("الكل");
-  const [filterStatus,   setFilterStatus]   = useState("الكل");
-  const [filterMatch,    setFilterMatch]     = useState("الكل");
+  const [filterSupplier, setFilterSupplier] = useState(ALL);
+  const [filterBranch,   setFilterBranch]   = useState(ALL);
+  const [filterStatus,   setFilterStatus]   = useState(ALL);
+  const [filterMatch,    setFilterMatch]     = useState(ALL);
   const [search,         setSearch]         = useState("");
   const [expandedId,     setExpandedId]     = useState<string|null>(null);
   const [verifiedRows,    setVerifiedRows]    = useState<Record<string,boolean>>({});
@@ -4216,10 +4234,10 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
   const BRANCH_LIST   = [...new Set(PUR_RECORDS.map(r=>r.branch))];
 
   const filtered = PUR_RECORDS.filter(r=>{
-    if(filterSupplier!=="الكل" && r.supplier!==filterSupplier) return false;
-    if(filterBranch!=="الكل"   && r.branch!==filterBranch)     return false;
-    if(filterStatus!=="الكل"   && r.status!==filterStatus)     return false;
-    if(filterMatch!=="الكل"    && r.match!==filterMatch)       return false;
+    if(filterSupplier!==ALL && r.supplier!==filterSupplier) return false;
+    if(filterBranch!==ALL   && r.branch!==filterBranch)     return false;
+    if(filterStatus!==ALL   && r.status!==filterStatus)     return false;
+    if(filterMatch!==ALL    && r.match!==filterMatch)       return false;
     if(search && !r.branch.includes(search)&&!r.supplier.includes(search)&&!r.invNum.includes(search)&&!r.items.some(it=>it.name.includes(search))) return false;
     return true;
   });
@@ -4228,7 +4246,7 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
   const pending    = effectiveFiltered.filter(r=>r.status==="pending");
   const totalVal   = effectiveFiltered.reduce((s,r)=>s+r.amount,0);
   const diffCount  = effectiveFiltered.filter(r=>r.match==="diff").length;
-  const hasFilters = filterSupplier!=="الكل"||filterBranch!=="الكل"||filterStatus!=="الكل"||filterMatch!=="الكل"||search;
+  const hasFilters = filterSupplier!==ALL||filterBranch!==ALL||filterStatus!==ALL||filterMatch!==ALL||search;
 
   const approveRecord = (id:string) => setApprovedIds(p=>new Set([...p,id]));
   const approveAll    = ()          => setApprovedIds(p=>new Set([...p,...pending.map(r=>r.id)]));
@@ -4264,26 +4282,26 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
         {/* Invoice meta bar */}
         <div className="flex items-center gap-4 mt-3 mb-1 p-3 bg-white rounded-xl border border-blue-100">
           <div className="flex-1">
-            <p className="text-xs font-bold text-gray-700">المورد: <span className="text-blue-700">{rec.supplier}</span></p>
-            <p className="text-xs text-gray-500 mt-0.5">رقم الفاتورة: <span className="font-mono font-semibold text-purple-600">{rec.invNum}</span> · {rec.date}</p>
+            <p className="text-xs font-bold text-gray-700">{t("المورد:","Supplier:")} <span className="text-blue-700">{rec.supplier}</span></p>
+            <p className="text-xs text-gray-500 mt-0.5">{t("رقم الفاتورة:","Invoice #:")} <span className="font-mono font-semibold text-purple-600">{rec.invNum}</span> · {rec.date}</p>
           </div>
           <div className="text-left">
-            <p className="text-xs text-gray-400">الفرع</p>
+            <p className="text-xs text-gray-400">{t("الفرع","Branch")}</p>
             <p className="text-xs font-semibold text-gray-700">{rec.branch}</p>
           </div>
           <div className="text-left">
-            <p className="text-xs text-gray-400">إجمالي الفاتورة</p>
-            <p className="font-mono font-bold text-blue-700">{fmtAmt(rec.amount)} ر.س</p>
+            <p className="text-xs text-gray-400">{t("إجمالي الفاتورة","Invoice Total")}</p>
+            <p className="font-mono font-bold text-blue-700">{fmtAmt(rec.amount)} {t("ر.س","SAR")}</p>
           </div>
           {/* Attachment + edit controls */}
           <div className="flex gap-2">
             <button onClick={()=>setPurAttachModal({recId:rec.id, invNum:rec.invNum, idx:0, total:rec.items.length})}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 text-xs font-semibold transition-all">
-              <Paperclip size={11}/> المرفقات ({rec.items.length})
+              <Paperclip size={11}/> {t("المرفقات","Attachments")} ({rec.items.length})
             </button>
             <button onClick={()=>setEditingRecId(isEditing?null:rec.id)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 text-xs font-semibold transition-all">
-              <Edit3 size={11}/> {isEditing?"إيقاف التعديل":"تعديل البنود"}
+              <Edit3 size={11}/> {isEditing?t("إيقاف التعديل","Stop Editing"):t("تعديل البنود","Edit Items")}
             </button>
           </div>
         </div>
@@ -4293,13 +4311,13 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
           <table className="w-full border border-gray-100 rounded-xl overflow-hidden text-xs" dir="rtl">
             <thead className="bg-gray-100">
               <tr>
-                <th className="px-3 py-2 text-right font-semibold text-gray-600">اسم الصنف</th>
-                <th className="px-3 py-2 text-center font-semibold text-gray-600">الوحدة</th>
-                <th className="px-3 py-2 text-center font-semibold text-gray-600">سعر الوحدة</th>
-                <th className="px-3 py-2 text-center font-semibold text-sky-700 bg-sky-50/60">آخر سعر وصول</th>
-                <th className="px-3 py-2 text-center font-semibold text-gray-600">الكمية</th>
-                <th className="px-3 py-2 text-center font-semibold text-gray-600">الإجمالي</th>
-                <th className="px-3 py-2 text-center font-semibold text-emerald-700 bg-emerald-50/50">توثيق ✓</th>
+                <th className="px-3 py-2 text-right font-semibold text-gray-600">{t("اسم الصنف","Item Name")}</th>
+                <th className="px-3 py-2 text-center font-semibold text-gray-600">{t("الوحدة","Unit")}</th>
+                <th className="px-3 py-2 text-center font-semibold text-gray-600">{t("سعر الوحدة","Unit Price")}</th>
+                <th className="px-3 py-2 text-center font-semibold text-sky-700 bg-sky-50/60">{t("آخر سعر وصول","Last Price")}</th>
+                <th className="px-3 py-2 text-center font-semibold text-gray-600">{t("الكمية","Qty")}</th>
+                <th className="px-3 py-2 text-center font-semibold text-gray-600">{t("الإجمالي","Total")}</th>
+                <th className="px-3 py-2 text-center font-semibold text-emerald-700 bg-emerald-50/50">{t("توثيق","Verify")} ✓</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
@@ -4319,14 +4337,14 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
                     <td className="px-3 py-2.5 text-center font-mono">
                       {isEditing
                         ? <input defaultValue={String(row.price)} className="w-20 text-center border border-purple-200 rounded-lg px-2 py-1 text-xs font-mono bg-white focus:border-purple-400 outline-none"/>
-                        : <span className={`font-bold ${row.price>row.histPrice?"text-red-600":"text-gray-800"}`}>{row.price} ر.س</span>
+                        : <span className={`font-bold ${row.price>row.histPrice?"text-red-600":"text-gray-800"}`}>{row.price} {t("ر.س","SAR")}</span>
                       }
                     </td>
                     <td className="px-3 py-2.5 text-center bg-sky-50/20">
-                      <p className="font-mono text-gray-500">{row.histPrice} ر.س</p>
+                      <p className="font-mono text-gray-500">{row.histPrice} {t("ر.س","SAR")}</p>
                       {row.price>row.histPrice && <p className="text-[9px] text-red-500 font-bold">▲ +{(row.price-row.histPrice).toFixed(1)}</p>}
                       {row.price<row.histPrice && <p className="text-[9px] text-emerald-500 font-bold">▼ -{(row.histPrice-row.price).toFixed(1)}</p>}
-                      {row.price===row.histPrice && <p className="text-[9px] text-gray-400">مطابق</p>}
+                      {row.price===row.histPrice && <p className="text-[9px] text-gray-400">{t("مطابق","Match")}</p>}
                     </td>
                     <td className="px-3 py-2.5 text-center font-mono">
                       {isEditing
@@ -4334,7 +4352,7 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
                         : <span className="font-bold text-gray-800">{row.received}</span>
                       }
                     </td>
-                    <td className="px-3 py-2.5 text-center font-mono font-semibold text-blue-700">{fmtAmt(total)} ر.س</td>
+                    <td className="px-3 py-2.5 text-center font-mono font-semibold text-blue-700">{fmtAmt(total)} {t("ر.س","SAR")}</td>
                     <td className="px-3 py-2.5 text-center">
                       <button onClick={()=>toggleVerify(rec.id, vKey)}
                         className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center mx-auto transition-all ${verified?"bg-emerald-500 border-emerald-500 text-white":"border-gray-300 hover:border-emerald-400"}`}>
@@ -4347,10 +4365,10 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
             </tbody>
             <tfoot className="bg-gray-50 border-t-2 border-gray-200">
               <tr>
-                <td colSpan={5} className="px-3 py-2.5 font-bold text-gray-900 text-right">إجمالي الفاتورة</td>
-                <td className="px-3 py-2.5 text-center font-black font-mono text-blue-800">{fmtAmt(rec.items.reduce((s,r)=>s+r.received*r.price,0))} ر.س</td>
+                <td colSpan={5} className="px-3 py-2.5 font-bold text-gray-900 text-right">{t("إجمالي الفاتورة","Invoice Total")}</td>
+                <td className="px-3 py-2.5 text-center font-black font-mono text-blue-800">{fmtAmt(rec.items.reduce((s,r)=>s+r.received*r.price,0))} {t("ر.س","SAR")}</td>
                 <td className="px-3 py-2.5 text-center text-[10px] text-gray-500">
-                  {Object.keys(verifiedRows).filter(k=>k.startsWith(rec.id+"-")).length}/{rec.items.length} موثّق
+                  {Object.keys(verifiedRows).filter(k=>k.startsWith(rec.id+"-")).length}/{rec.items.length} {t("موثّق","verified")}
                 </td>
               </tr>
             </tfoot>
@@ -4358,18 +4376,20 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
         </div>
         {isEditing && (
           <div className="flex gap-2">
-            <Btn size="sm" variant="success" onClick={()=>setEditingRecId(null)}><CheckCircle2 size={11}/> حفظ التعديلات</Btn>
-            <Btn size="sm" onClick={()=>setEditingRecId(null)}>إلغاء</Btn>
+            <Btn size="sm" variant="success" onClick={()=>setEditingRecId(null)}><CheckCircle2 size={11}/> {t("حفظ التعديلات","Save Changes")}</Btn>
+            <Btn size="sm" onClick={()=>setEditingRecId(null)}>{t("إلغاء","Cancel")}</Btn>
           </div>
         )}
         {recStatus==="pending" && (
           <div className="flex gap-2 pt-1 flex-wrap">
-            <Btn size="sm" variant="success" onClick={()=>approveRecord(rec.id)}><ThumbsUp size={12}/> موافقة على الفاتورة</Btn>
-            <Btn size="sm" variant="danger"><ThumbsDown size={12}/> رفض</Btn>
+            <Btn size="sm" variant="success" onClick={()=>approveRecord(rec.id)}><ThumbsUp size={12}/> {t("موافقة على الفاتورة","Approve Invoice")}</Btn>
+            <Btn size="sm" variant="danger"><ThumbsDown size={12}/> {t("رفض","Reject")}</Btn>
             {rec.items.some(r=>r.price>r.histPrice) && (
-              <button onClick={()=>alert(`جارٍ إرسال طلب تعديل للمورد: ${rec.supplier}\nالأصناف ذات فروق السعر:\n${rec.items.filter(r=>r.price>r.histPrice).map(r=>`• ${r.name}: السعر الحالي ${r.price} ر.س / آخر سعر ${r.histPrice} ر.س`).join("\n")}`)}
+              <button onClick={()=>alert(en
+                ? `Sending price adjustment request to supplier: ${rec.supplier}\nItems with price differences:\n${rec.items.filter(r=>r.price>r.histPrice).map(r=>`• ${r.name}: Current ${r.price} SAR / Last ${r.histPrice} SAR`).join("\n")}`
+                : `جارٍ إرسال طلب تعديل للمورد: ${rec.supplier}\nالأصناف ذات فروق السعر:\n${rec.items.filter(r=>r.price>r.histPrice).map(r=>`• ${r.name}: السعر الحالي ${r.price} ر.س / آخر سعر ${r.histPrice} ر.س`).join("\n")}`)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700 border border-sky-200 text-xs font-semibold hover:bg-sky-100 transition-all">
-                <Send size={11}/> طلب تعديل من المورد
+                <Send size={11}/> {t("طلب تعديل من المورد","Request Price Adjustment")}
               </button>
             )}
           </div>
@@ -4379,28 +4399,28 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
   };
 
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="space-y-5" dir={dir}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">موديول المشتريات</h2>
-          <p className="text-gray-400 text-sm mt-0.5">مطابقة الفواتير بالمنتجات والموردين — عرض حسب المورد أو حسب الفرع</p>
+          <h2 className="text-xl font-bold text-gray-800">{t("موديول المشتريات","Purchases Module")}</h2>
+          <p className="text-gray-400 text-sm mt-0.5">{t("مطابقة الفواتير بالمنتجات والموردين — عرض حسب المورد أو حسب الفرع","Match invoices to items and suppliers — view by supplier or by branch")}</p>
         </div>
-        {pending.length>0 && <Btn variant="success" size="sm" onClick={approveAll}><CheckCircle2 size={12}/> موافقة جماعية ({pending.length})</Btn>}
+        {pending.length>0 && <Btn variant="success" size="sm" onClick={approveAll}><CheckCircle2 size={12}/> {t("موافقة جماعية","Bulk Approve")} ({pending.length})</Btn>}
       </div>
 
       {/* KPI cards */}
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label="إجمالي قيمة المشتريات" value={`${(totalVal/1000).toFixed(1)}K ر.س`} sub="الفترة المحددة" icon={<ShoppingCart size={18} className="text-blue-600"/>} accent="blue"/>
-        <KpiCard label="فواتير معلقة" value={String(pending.length)} sub="تنتظر المراجعة" icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
-        <KpiCard label="فواتير بفروق" value={String(diffCount)} sub="كمية أو سعر" icon={<AlertTriangle size={18} className="text-red-600"/>} accent="red"/>
-        <KpiCard label="موردون نشطون" value={String(SUPPLIER_LIST.length)} sub="هذه الفترة" icon={<Truck size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label={t("إجمالي قيمة المشتريات","Total Purchases")} value={`${(totalVal/1000).toFixed(1)}K ${t("ر.س","SAR")}`} sub={t("الفترة المحددة","Selected period")} icon={<ShoppingCart size={18} className="text-blue-600"/>} accent="blue"/>
+        <KpiCard label={t("فواتير معلقة","Pending Invoices")} value={String(pending.length)} sub={t("تنتظر المراجعة","Awaiting review")} icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("فواتير بفروق","Invoices with Variance")} value={String(diffCount)} sub={t("كمية أو سعر","Qty or price")} icon={<AlertTriangle size={18} className="text-red-600"/>} accent="red"/>
+        <KpiCard label={t("موردون نشطون","Active Suppliers")} value={String(SUPPLIER_LIST.length)} sub={t("هذه الفترة","This period")} icon={<Truck size={18} className="text-purple-600"/>} accent="purple"/>
       </div>
 
       {/* View mode tabs */}
       <div className="flex items-center justify-between">
         <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
-          {([["supplier","🏭 عرض حسب المورد"],["branch","🏪 عرض حسب الفرع"]] as const).map(([mode,label])=>(
+          {([["supplier",`🏭 ${t("عرض حسب المورد","By Supplier")}`],["branch",`🏪 ${t("عرض حسب الفرع","By Branch")}`]] as const).map(([mode,label])=>(
             <button key={mode} onClick={()=>{ setViewMode(mode); setExpandedId(null); }}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${viewMode===mode?"bg-white text-gray-800 shadow-sm":"text-gray-500 hover:text-gray-700"}`}>
               {label}
@@ -4408,9 +4428,9 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
           ))}
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-500">
-          <div className="w-3 h-3 rounded bg-amber-200"/>استهلاك يومي
-          <div className="w-3 h-3 rounded bg-sky-200 mr-2"/>سعر تاريخي
-          <div className="w-3 h-3 rounded bg-emerald-400 mr-2"/>توثيق المحاسب
+          <div className="w-3 h-3 rounded bg-amber-200"/>{t("استهلاك يومي","Daily Avg")}
+          <div className="w-3 h-3 rounded bg-sky-200 mr-2"/>{t("سعر تاريخي","Hist. Price")}
+          <div className="w-3 h-3 rounded bg-emerald-400 mr-2"/>{t("توثيق المحاسب","Accountant Verify")}
         </div>
       </div>
 
@@ -4418,65 +4438,66 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <div className="grid grid-cols-3 gap-3 mb-3">
           <div>
-            <label className="text-[11px] font-semibold text-gray-500 block mb-1">العلامة التجارية / البراند</label>
+            <label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("العلامة التجارية / البراند","Brand")}</label>
             <select className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2">
-              {["الكل","برغر خليفة","بيتزا باكو","وسطاوي"].map(b=><option key={b}>{b}</option>)}
+              {[t("الكل","All"),"برغر خليفة","بيتزا باكو","وسطاوي"].map(b=><option key={b}>{b}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-[11px] font-semibold text-gray-500 block mb-1">المورد</label>
+            <label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("المورد","Supplier")}</label>
             <select value={filterSupplier} onChange={e=>setFilterSupplier(e.target.value)} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2">
-              <option>الكل</option>
-              {SUPPLIER_LIST.map(s=><option key={s}>{s}</option>)}
+              <option value={ALL}>{t("الكل","All")}</option>
+              {SUPPLIER_LIST.map(s=><option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-[11px] font-semibold text-gray-500 block mb-1">الفرع</label>
+            <label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("الفرع","Branch")}</label>
             <select value={filterBranch} onChange={e=>setFilterBranch(e.target.value)} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2">
-              <option>الكل</option>
-              {BRANCH_LIST.map(b=><option key={b}>{b}</option>)}
+              <option value={ALL}>{t("الكل","All")}</option>
+              {BRANCH_LIST.map(b=><option key={b} value={b}>{b}</option>)}
             </select>
           </div>
         </div>
         <div className="grid grid-cols-3 gap-3 mb-3">
           <div>
-            <label className="text-[11px] font-semibold text-gray-500 block mb-1">الحالة</label>
+            <label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("الحالة","Status")}</label>
             <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2">
-              {["الكل","pending","approved","rejected"].map(s=>(
-                <option key={s} value={s}>{s==="الكل"?"الكل":s==="pending"?"معلق":s==="approved"?"معتمد":"مرفوض"}</option>
+              <option value={ALL}>{t("الكل","All")}</option>
+              {["pending","approved","rejected"].map(s=>(
+                <option key={s} value={s}>{s==="pending"?t("معلق","Pending"):s==="approved"?t("معتمد","Approved"):t("مرفوض","Rejected")}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="text-[11px] font-semibold text-gray-500 block mb-1">المطابقة</label>
+            <label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("المطابقة","Match")}</label>
             <select value={filterMatch} onChange={e=>setFilterMatch(e.target.value)} className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2">
-              <option>الكل</option>
-              <option value="exact">مطابق تاماً</option>
-              <option value="diff">به فروق</option>
+              <option value={ALL}>{t("الكل","All")}</option>
+              <option value="exact">{t("مطابق تاماً","Exact match")}</option>
+              <option value="diff">{t("به فروق","Has variance")}</option>
             </select>
           </div>
           <div>
-            <label className="text-[11px] font-semibold text-gray-500 block mb-1">بحث (فرع / مورد / منتج / مطعم)</label>
+            <label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("بحث (فرع / مورد / منتج / مطعم)","Search (branch / supplier / item)")}</label>
             <div className="flex items-center gap-1.5 border border-gray-200 rounded-lg px-2 py-2">
               <Search size={11} className="text-gray-400 flex-shrink-0"/>
-              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="ابحث بالاسم أو المورد..." className="flex-1 text-xs outline-none min-w-0"/>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder={t("ابحث بالاسم أو المورد...","Search by name or supplier...")} className="flex-1 text-xs outline-none min-w-0"/>
             </div>
           </div>
         </div>
         <div className="flex items-center justify-between">
           {hasFilters && (
-            <button onClick={()=>{ setFilterSupplier("الكل"); setFilterBranch("الكل"); setFilterStatus("الكل"); setFilterMatch("الكل"); setSearch(""); }}
-              className="text-xs text-purple-600 hover:underline flex items-center gap-1"><RotateCcw size={10}/> مسح الفلاتر</button>
+            <button onClick={()=>{ setFilterSupplier(ALL); setFilterBranch(ALL); setFilterStatus(ALL); setFilterMatch(ALL); setSearch(""); }}
+              className="text-xs text-purple-600 hover:underline flex items-center gap-1"><RotateCcw size={10}/> {t("مسح الفلاتر","Clear Filters")}</button>
           )}
-          <button onClick={()=>alert("جارٍ تصدير بيانات المشتريات إلى Excel...")}
+          <button onClick={()=>alert(t("جارٍ تصدير بيانات المشتريات إلى Excel...","Exporting purchases data to Excel..."))}
             className="mr-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100 transition-all">
-            <FileText size={11}/> تصدير Excel
+            <FileText size={11}/> {t("تصدير Excel","Export Excel")}
           </button>
         </div>
       </div>
 
       {effectiveFiltered.length===0
-        ? <div className="bg-white rounded-xl border border-gray-100 p-12 text-center"><EmptyState icon="🔍" title="لا توجد نتائج" desc="غيّر الفلاتر للحصول على نتائج أخرى"/></div>
+        ? <div className="bg-white rounded-xl border border-gray-100 p-12 text-center"><EmptyState icon="🔍" title={t("لا توجد نتائج","No Results")} desc={t("غيّر الفلاتر للحصول على نتائج أخرى","Adjust filters to see more results")}/></div>
         : viewMode==="supplier"
           ? (
             /* ── SUPPLIER MODE: grouped by supplier ── */
@@ -4492,14 +4513,14 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
                       </div>
                       <div className="flex-1">
                         <p className="font-bold text-gray-800">{g.sup}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{g.recs.length} فاتورة · {g.branches.length} {g.branches.length===1?"فرع":"فروع"}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{g.recs.length} {t("فاتورة","inv.")} · {g.branches.length} {g.branches.length===1?t("فرع","branch"):t("فروع","branches")}</p>
                       </div>
                       <div className="flex gap-3 items-center">
-                        {g.dCount>0 && <Badge className="bg-red-50 text-red-700 border border-red-200 text-[10px]">⚠ {g.dCount} فرق</Badge>}
-                        {g.pCount>0 && <Badge className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px]">⏳ {g.pCount} معلق</Badge>}
+                        {g.dCount>0 && <Badge className="bg-red-50 text-red-700 border border-red-200 text-[10px]">⚠ {g.dCount} {t("فرق","diff")}</Badge>}
+                        {g.pCount>0 && <Badge className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px]">⏳ {g.pCount} {t("معلق","pending")}</Badge>}
                         <div className="text-left">
-                          <p className="font-mono font-bold text-blue-700 text-base">{fmtAmt(g.total)} ر.س</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">يومياً: {fmtAmt(Math.round(g.total/30))} ر.س</p>
+                          <p className="font-mono font-bold text-blue-700 text-base">{fmtAmt(g.total)} {t("ر.س","SAR")}</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">{t("يومياً:","Daily:")} {fmtAmt(Math.round(g.total/30))} {t("ر.س","SAR")}</p>
                         </div>
                       </div>
                     </div>
@@ -4528,12 +4549,12 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-semibold text-sm text-gray-800">{rec.branch}</span>
                                 <span className="font-mono text-xs text-purple-600">{rec.invNum}</span>
-                                <Badge className={`${MATCH_CFG[rec.match].cls} border text-[10px]`}>{MATCH_CFG[rec.match].label}</Badge>
-                                <Badge className={`${STATUS_CFG[recStatus].cls} text-[10px]`}>{STATUS_CFG[recStatus].label}</Badge>
+                                <Badge className={`${MATCH_CFG[rec.match].cls} border text-[10px]`}>{en?(rec.match==="exact"?"Exact":"Diff"):MATCH_CFG[rec.match].label}</Badge>
+                                <Badge className={`${STATUS_CFG[recStatus].cls} text-[10px]`}>{en?(EN_STATUS_CFG[recStatus]||STATUS_CFG[recStatus].label):STATUS_CFG[recStatus].label}</Badge>
                               </div>
-                              <p className="text-[11px] text-gray-400 mt-0.5">{rec.items.length} أصناف · {rec.date}</p>
+                              <p className="text-[11px] text-gray-400 mt-0.5">{rec.items.length} {t("أصناف","items")} · {rec.date}</p>
                             </div>
-                            <span className="font-mono font-bold text-gray-800">{fmtAmt(rec.amount)} ر.س</span>
+                            <span className="font-mono font-bold text-gray-800">{fmtAmt(rec.amount)} {t("ر.س","SAR")}</span>
                             {expandedId===rec.id?<ChevronUp size={13} className="text-gray-400"/>:<ChevronDown size={13} className="text-gray-400"/>}
                           </div>
                           {expandedId===rec.id && renderItemsPanel(rec)}
@@ -4557,13 +4578,13 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
                       <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 font-black text-base flex-shrink-0">🏪</div>
                       <div className="flex-1">
                         <p className="font-bold text-gray-800">{g.br}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{g.recs.length} فاتورة · {g.suppliers.length} مورد</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{g.recs.length} {t("فاتورة","inv.")} · {g.suppliers.length} {t("مورد","supplier(s)")}</p>
                       </div>
                       <div className="flex gap-3 items-center">
-                        {g.pCount>0 && <Badge className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px]">⏳ {g.pCount} معلق</Badge>}
+                        {g.pCount>0 && <Badge className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px]">⏳ {g.pCount} {t("معلق","pending")}</Badge>}
                         <div className="text-left">
-                          <p className="font-mono font-bold text-emerald-700 text-base">{fmtAmt(g.total)} ر.س</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">إجمالي مشتريات الفرع</p>
+                          <p className="font-mono font-bold text-emerald-700 text-base">{fmtAmt(g.total)} {t("ر.س","SAR")}</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">{t("إجمالي مشتريات الفرع","Branch total purchases")}</p>
                         </div>
                       </div>
                     </div>
@@ -4592,12 +4613,12 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-semibold text-sm text-gray-800">{rec.supplier}</span>
                                 <span className="font-mono text-xs text-purple-600">{rec.invNum}</span>
-                                <Badge className={`${MATCH_CFG[rec.match].cls} border text-[10px]`}>{MATCH_CFG[rec.match].label}</Badge>
-                                <Badge className={`${STATUS_CFG[recStatus].cls} text-[10px]`}>{STATUS_CFG[recStatus].label}</Badge>
+                                <Badge className={`${MATCH_CFG[rec.match].cls} border text-[10px]`}>{en?(rec.match==="exact"?"Exact":"Diff"):MATCH_CFG[rec.match].label}</Badge>
+                                <Badge className={`${STATUS_CFG[recStatus].cls} text-[10px]`}>{en?(EN_STATUS_CFG[recStatus]||STATUS_CFG[recStatus].label):STATUS_CFG[recStatus].label}</Badge>
                               </div>
-                              <p className="text-[11px] text-gray-400 mt-0.5">{rec.items.length} أصناف · {rec.date} · {rec.items.map(i=>i.name).join("، ")}</p>
+                              <p className="text-[11px] text-gray-400 mt-0.5">{rec.items.length} {t("أصناف","items")} · {rec.date} · {rec.items.map(i=>i.name).join("، ")}</p>
                             </div>
-                            <span className="font-mono font-bold text-gray-800">{fmtAmt(rec.amount)} ر.س</span>
+                            <span className="font-mono font-bold text-gray-800">{fmtAmt(rec.amount)} {t("ر.س","SAR")}</span>
                             {expandedId===rec.id?<ChevronUp size={13} className="text-gray-400"/>:<ChevronDown size={13} className="text-gray-400"/>}
                           </div>
                           {expandedId===rec.id && renderItemsPanel(rec)}
@@ -4614,11 +4635,11 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
       {/* Attachment viewer modal for purchases */}
       {purAttachModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6" onClick={()=>setPurAttachModal(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={e=>e.stopPropagation()} dir="rtl">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={e=>e.stopPropagation()} dir={dir}>
             <div className="px-5 py-4 bg-gradient-to-l from-blue-600 to-blue-700 text-white flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-base">مرفقات الفاتورة — {purAttachModal.invNum}</h3>
-                <p className="text-blue-200 text-xs mt-0.5">مرفق {purAttachModal.idx+1} من {purAttachModal.total}</p>
+                <h3 className="font-bold text-base">{t("مرفقات الفاتورة —","Invoice Attachments —")} {purAttachModal.invNum}</h3>
+                <p className="text-blue-200 text-xs mt-0.5">{t("مرفق","Attachment")} {purAttachModal.idx+1} {t("من","of")} {purAttachModal.total}</p>
               </div>
               <button onClick={()=>setPurAttachModal(null)} className="text-blue-200 hover:text-white"><X size={18}/></button>
             </div>
@@ -4626,18 +4647,20 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
               <div className="bg-gray-100 rounded-xl h-52 flex flex-col items-center justify-center border-2 border-dashed border-gray-300">
                 <Paperclip size={36} className="text-gray-300 mb-3"/>
                 <p className="text-sm font-semibold text-gray-600">
-                  {["فاتورة المورد الأصلية","صورة إيصال الاستلام","توقيع المستلم","كشف التسليم","شهادة الجودة"][purAttachModal.idx % 5]}
+                  {en
+                    ? ["Original supplier invoice","Receipt photo","Recipient signature","Delivery note","Quality certificate"][purAttachModal.idx % 5]
+                    : ["فاتورة المورد الأصلية","صورة إيصال الاستلام","توقيع المستلم","كشف التسليم","شهادة الجودة"][purAttachModal.idx % 5]}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">purchase_{purAttachModal.invNum}_p{purAttachModal.idx+1}.pdf</p>
                 <button className="mt-4 flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-all">
-                  <Eye size={14}/> عرض الملف الكامل
+                  <Eye size={14}/> {t("عرض الملف الكامل","View Full File")}
                 </button>
               </div>
               <div className="flex items-center justify-between mt-4">
                 <button disabled={purAttachModal.idx===0}
                   onClick={()=>setPurAttachModal(p=>p?{...p,idx:p.idx-1}:p)}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
-                  <ChevronRight size={14}/> السابق
+                  <ChevronRight size={14}/> {t("السابق","Prev")}
                 </button>
                 <div className="flex gap-1.5">
                   {Array.from({length:purAttachModal.total},(_,i)=>(
@@ -4648,16 +4671,16 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
                 <button disabled={purAttachModal.idx===purAttachModal.total-1}
                   onClick={()=>setPurAttachModal(p=>p?{...p,idx:p.idx+1}:p)}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
-                  التالي <ChevronLeft size={14}/>
+                  {t("التالي","Next")} <ChevronLeft size={14}/>
                 </button>
               </div>
             </div>
             <div className="px-5 pb-4 flex gap-2 justify-end border-t border-gray-100 pt-3">
-              <Btn size="sm"><Download size={12}/> تحميل</Btn>
+              <Btn size="sm"><Download size={12}/> {t("تحميل","Download")}</Btn>
               <Btn size="sm" variant="success" onClick={()=>{
                 toggleVerify(purAttachModal.recId, `attach-${purAttachModal.idx}`);
                 setPurAttachModal(null);
-              }}><CheckSquare size={12}/> تم التحقق من المرفق</Btn>
+              }}><CheckSquare size={12}/> {t("تم التحقق من المرفق","Attachment Verified")}</Btn>
             </div>
           </div>
         </div>
@@ -4827,8 +4850,8 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
                         ⚠ {branchAnomalies.length} شذوذ
                       </span>
                     )}
-                    {branchOp && <Badge className={STATUS_CFG[branchOp.status].cls}>{STATUS_CFG[branchOp.status].label}</Badge>}
-                    {!branchOp && <Badge className="bg-gray-100 text-gray-500">لم يُرفع بعد</Badge>}
+                    {branchOp && <Badge className={STATUS_CFG[branchOp.status].cls}>{en?(EN_STATUS_CFG[branchOp.status]||STATUS_CFG[branchOp.status].label):STATUS_CFG[branchOp.status].label}</Badge>}
+                    {!branchOp && <Badge className="bg-gray-100 text-gray-500">{t("لم يُرفع بعد","Not submitted yet")}</Badge>}
                     {/* Monthly: flagged/confirmed indicators */}
                     {invType==="monthly" && isFlagged && (
                       <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold border border-purple-200 flex items-center gap-0.5">
@@ -8063,9 +8086,9 @@ function HeadApprovalTab({ ops, finalApproveOp, rejectOp, setModal, setDetailId,
                 <div key={op.id} className="flex items-center gap-3 px-5 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50/50">
                   <span className="font-mono text-xs text-purple-600 font-semibold w-24 flex-shrink-0">{op.id}</span>
                   <span className="text-sm text-gray-700 flex-1">{op.branch}</span>
-                  <Badge className={`${MATCH_CFG[op.match].cls} border`}>{MATCH_CFG[op.match].label}</Badge>
-                  <Badge className={STATUS_CFG[op.status].cls}>{STATUS_CFG[op.status].label}</Badge>
-                  <span className="font-mono font-semibold text-gray-800">{fmtAmt(op.amount)} ر.س</span>
+                  <Badge className={`${MATCH_CFG[op.match].cls} border`}>{en?(op.match==="exact"?"Exact":"Diff"):MATCH_CFG[op.match].label}</Badge>
+                  <Badge className={STATUS_CFG[op.status].cls}>{en?(EN_STATUS_CFG[op.status]||STATUS_CFG[op.status].label):STATUS_CFG[op.status].label}</Badge>
+                  <span className="font-mono font-semibold text-gray-800">{fmtAmt(op.amount)} {t("ر.س","SAR")}</span>
                   <div className="flex gap-1">
                     <button onClick={()=>finalApproveOp(op.id)} className="p-1.5 rounded hover:bg-emerald-50"><CheckCircle2 size={13} className="text-emerald-600"/></button>
                     <button onClick={()=>{ setDetailId(op.id); setModal("reject"); }} className="p-1.5 rounded hover:bg-red-50"><XCircle size={13} className="text-red-500"/></button>
@@ -8133,7 +8156,7 @@ function HeadPending({ navigate, setModal, setDetailId, ops, finalApproveOp, rej
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold text-sm text-gray-800">{op.branch}</span>
               <span className="text-xs font-mono text-gray-400">{op.id}</span>
-              <Badge className={`${MATCH_CFG[op.match].cls} border text-[10px]`}>{MATCH_CFG[op.match].label}</Badge>
+              <Badge className={`${MATCH_CFG[op.match].cls} border text-[10px]`}>{en?(op.match==="exact"?"Exact":"Diff"):MATCH_CFG[op.match].label}</Badge>
               {wasCond && <span className="text-[10px] bg-amber-100 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-bold">⚡ {t("اعتماد مشروط","Conditional Approval")}</span>}
             </div>
             <p className="text-xs text-gray-400 mt-0.5">⏰ {op.timeAgo}</p>
@@ -8523,7 +8546,7 @@ function HeadModulePage({ moduleKey, navigate, setModal, setDetailId, ops, final
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-sm text-gray-800">{op.branch}</span>
                       <span className="text-xs font-mono text-gray-400">{op.id}</span>
-                      <Badge className={`${MATCH_CFG[op.match].cls} border text-[10px]`}>{MATCH_CFG[op.match].label}</Badge>
+                      <Badge className={`${MATCH_CFG[op.match].cls} border text-[10px]`}>{en?(op.match==="exact"?"Exact":"Diff"):MATCH_CFG[op.match].label}</Badge>
                     </div>
                     <p className="text-xs text-gray-400 mt-0.5">{t("راجعه:","Reviewed by:")} <span className="text-purple-600 font-medium">{accountant}</span> · <span>⏰ {op.timeAgo}</span></p>
                   </div>
