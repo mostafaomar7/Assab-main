@@ -118,6 +118,7 @@ const fmt = (n:number) => n.toLocaleString("ar-SA");
 // COMPANY & HIERARCHY DATA
 // ═══════════════════════════════════════════════════
 const COMPANY = { name:"مجموعة التاج للمطاعم", logo:"👑", plan:"Professional", city:"الرياض" };
+const PLAN_AR: Record<string,string> = { Basic:"أساسي", Professional:"احترافي", Enterprise:"مؤسسي" };
 
 const BRANDS = [
   { id:"B1", name:"برغر التاج", color:"#E53E3E", abbr:"بر", restaurants:[
@@ -811,7 +812,7 @@ function Shell({ role, page, navigate, onLogout, children, headPendingCount=0 }:
             <div className="min-w-0">
               <p className="text-white font-bold text-sm leading-tight truncate">{COMPANY.name}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-xs text-cyan-400 font-semibold">{COMPANY.plan}</span>
+                <span className="text-xs text-cyan-400 font-semibold">{t(PLAN_AR[COMPANY.plan]||COMPANY.plan, COMPANY.plan)}</span>
                 <span className="w-1 h-1 rounded-full bg-emerald-400"/>
               </div>
             </div>
@@ -867,7 +868,7 @@ function Shell({ role, page, navigate, onLogout, children, headPendingCount=0 }:
             <span>{pageLabel}</span>
           </div>
           <div className="flex items-center gap-3">
-            <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-100">● {COMPANY.plan}</Badge>
+            <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-100">● {t(PLAN_AR[COMPANY.plan]||COMPANY.plan, COMPANY.plan)}</Badge>
             <Badge className="bg-purple-50 text-purple-700 border border-purple-100">{meta.icon} {t(meta.label, enMeta.label)}</Badge>
             <div className="relative">
               <button onClick={()=>setShowNotif(v=>!v)} className="relative text-gray-400 hover:text-gray-600 transition-colors">
@@ -1251,7 +1252,7 @@ function CADashboard({ navigate }:{ navigate:(p:string)=>void }) {
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-800">{t("مرحباً،","Welcome,")} {COMPANY.name} 🏢</h2>
-          <p className="text-gray-400 text-sm mt-0.5">{t("خطة","Plan")} {COMPANY.plan} · 12 {t("فرع","branches")} · 3 {t("علامات تجارية","brands")}</p>
+          <p className="text-gray-400 text-sm mt-0.5">{t("خطة","Plan")} {t(PLAN_AR[COMPANY.plan]||COMPANY.plan, COMPANY.plan)} · 12 {t("فرع","branches")} · 3 {t("علامات تجارية","brands")}</p>
         </div>
         <button onClick={()=>navigate("ca-subscription")} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 shadow-sm">
           <CreditCard size={14}/> {t("إدارة الاشتراك","Manage Subscription")}
@@ -1260,7 +1261,7 @@ function CADashboard({ navigate }:{ navigate:(p:string)=>void }) {
       <div className="bg-gradient-to-l from-purple-600 to-blue-700 rounded-2xl p-5 text-white">
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-bold text-lg">{t("خطة Professional — نشطة ✅","Professional Plan — Active ✅")}</p>
+            <p className="font-bold text-lg">{t("خطة احترافي — نشطة ✅","Professional Plan — Active ✅")}</p>
             <p className="text-white/70 text-sm mt-0.5">{t("تنتهي في 15 يناير 2026 · متبقي","Expires Jan 15, 2026 · ")} <span className="text-cyan-300 font-bold">87</span> {t("يوم","days remaining")}</p>
             <div className="flex items-center gap-6 mt-3">
               {statItems.map(([l,v])=>(
@@ -1327,7 +1328,7 @@ function CASubscription() {
       </div>
       <div className="bg-white rounded-2xl border border-purple-100 shadow-sm overflow-hidden">
         <div className="px-5 py-4 bg-gradient-to-l from-purple-600 to-blue-700 text-white flex items-center justify-between">
-          <div><div className="flex items-center gap-2"><span className="font-black text-xl">Professional</span><Badge className="bg-white/20 text-white text-[10px]">{t("الخطة الحالية","Current Plan")}</Badge></div><p className="text-white/70 text-xs mt-0.5">{t("تنتهي 15 يناير 2026","Expires Jan 15, 2026")}</p></div>
+          <div><div className="flex items-center gap-2"><span className="font-black text-xl">{t("احترافي","Professional")}</span><Badge className="bg-white/20 text-white text-[10px]">{t("الخطة الحالية","Current Plan")}</Badge></div><p className="text-white/70 text-xs mt-0.5">{t("تنتهي 15 يناير 2026","Expires Jan 15, 2026")}</p></div>
           <p className="text-2xl font-black">{billing==="annual"?"4,800":"400"} <span className="text-sm font-normal text-white/60">{SAR}/{billing==="annual"?perYear:perMonth}</span></p>
         </div>
         <div className="p-5 grid grid-cols-3 gap-4">
@@ -1341,7 +1342,7 @@ function CASubscription() {
           <div key={p.id} className={`bg-white rounded-2xl border-2 shadow-sm overflow-hidden ${p.current?"border-purple-400 shadow-purple-100":"border-gray-100"}`}>
             {p.current&&<div className="px-4 py-1.5 text-center text-xs font-bold bg-purple-600 text-white">⭐ {t("خطتك الحالية","Your Current Plan")}</div>}
             <div className="p-5">
-              <p className="font-black text-gray-900 text-lg">{p.plan}</p>
+              <p className="font-black text-gray-900 text-lg">{t(PLAN_AR[p.plan]||p.plan, p.plan)}</p>
               <div className="mt-2 mb-4">{p.price_m===null?<p className="text-2xl font-black text-gray-800">{t("حسب الطلب","Custom")}</p>:<><span className="text-2xl font-black text-gray-800">{billing==="annual"?p.price_a!.toLocaleString():p.price_m.toLocaleString()}</span><span className="text-gray-400 text-sm"> {SAR}/{billing==="annual"?perYear:perMonth}</span></>}</div>
               <ul className="space-y-1.5 mb-5">{p.features.map(f=><li key={f} className="flex items-center gap-2 text-xs text-gray-600"><Check size={11} className="text-emerald-500 flex-shrink-0"/>{f}</li>)}</ul>
               {p.current?<div className="w-full py-2 rounded-lg bg-purple-100 text-purple-700 text-xs font-bold text-center">{t("خطتك الحالية ✓","Your Current Plan ✓")}</div>:p.price_m===null?<button className="w-full py-2 rounded-lg border-2 border-purple-300 text-purple-700 text-xs font-bold hover:bg-purple-50">{t("تواصل مع المبيعات","Contact Sales")}</button>:<button onClick={()=>alert(`✅ ${t("طلب الترقية تم إرساله","Upgrade request sent")}`)} className="w-full py-2 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700">{t("ترقية ↑","Upgrade ↑")}</button>}

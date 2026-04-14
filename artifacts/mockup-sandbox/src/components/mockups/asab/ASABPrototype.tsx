@@ -10560,6 +10560,7 @@ const COMPANY_PLANS_META = {
   Professional: { maxBranches:20, maxUsers:50, price:4800,  color:"bg-blue-50 text-blue-700 border border-blue-200"  },
   Enterprise:   { maxBranches:999,maxUsers:999,price:12000, color:"bg-purple-50 text-purple-700 border border-purple-200"},
 };
+const PLAN_NAMES_AR: Record<string,string> = { Basic:"أساسي", Professional:"احترافي", Enterprise:"مؤسسي" };
 
 const INITIAL_COMPANIES:CompanySub[] = [
   { id:"C001", name:"مجموعة التاج للمطاعم",   logo:"👑", contactName:"محمد الراشد",   contactEmail:"m.rashed@altaj.com",   contactPhone:"+966 50 111 2222", plan:"Professional", status:"active",    brands:3, restaurants:8,  branches:12, usedBranches:12, users:31, maxUsers:50, monthlyRevenue:4800,  startDate:"يناير 2024", nextBilling:"15 يناير 2026", daysLeft:87, modules:["مبيعات","مصروفات","مشتريات","مخزون","أصول","شفتات"],          adminEmail:"admin@altaj.com",    city:"الرياض"    },
@@ -10639,7 +10640,7 @@ function AdminCompanies({ navigate }:PageProps) {
             {(["all","Basic","Professional","Enterprise","trial","suspended"] as const).map(f=>(
               <button key={f} onClick={()=>setFilter(f)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filter===f?"bg-white text-gray-800 shadow-sm":"text-gray-500 hover:text-gray-700"}`}>
-                {f==="all"?t("الكل","All"):f==="trial"?t("تجريبي","Trial"):f==="suspended"?t("موقوف","Suspended"):f}
+                {f==="all"?t("الكل","All"):f==="trial"?t("تجريبي","Trial"):f==="suspended"?t("موقوف","Suspended"):t(PLAN_NAMES_AR[f]||f, f)}
               </button>
             ))}
           </div>
@@ -10664,7 +10665,7 @@ function AdminCompanies({ navigate }:PageProps) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold text-gray-800 text-sm">{c.name}</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${COMPANY_PLANS_META[c.plan].color}`}>{c.plan}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${COMPANY_PLANS_META[c.plan].color}`}>{t(PLAN_NAMES_AR[c.plan]||c.plan, c.plan)}</span>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusMeta[c.status].cls}`}>{statusMeta[c.status].label}</span>
                     {c.status==="danger"&&<span className="text-[10px] text-red-600 font-bold">⚠ {c.daysLeft} {t("يوم فقط","days left")}</span>}
                   </div>
@@ -10722,7 +10723,7 @@ function AdminCompanies({ navigate }:PageProps) {
                 <div>
                   <h3 className="font-bold text-gray-900 text-base">{selected.name}</h3>
                   <div className="flex items-center gap-2">
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${COMPANY_PLANS_META[selected.plan].color}`}>{selected.plan}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${COMPANY_PLANS_META[selected.plan].color}`}>{t(PLAN_NAMES_AR[selected.plan]||selected.plan, selected.plan)}</span>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusMeta[selected.status].cls}`}>{statusMeta[selected.status].label}</span>
                   </div>
                 </div>
@@ -10790,7 +10791,7 @@ function AdminCompanies({ navigate }:PageProps) {
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div>
                     <p className="text-xs text-gray-400">{t("الخطة","Plan")}</p>
-                    <p className="font-bold text-gray-800">{selected.plan}</p>
+                    <p className="font-bold text-gray-800">{t(PLAN_NAMES_AR[selected.plan]||selected.plan, selected.plan)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400">{t("القيمة السنوية","Annual Value")}</p>
@@ -10811,7 +10812,7 @@ function AdminCompanies({ navigate }:PageProps) {
                     <button key={plan} onClick={()=>plan!==selected.plan&&setShowUpgrade({company:selected,targetPlan:plan})}
                       className={`py-3 rounded-xl border-2 text-sm font-bold transition-all ${selected.plan===plan?"border-purple-400 bg-purple-50 text-purple-700":"border-gray-200 bg-white text-gray-600 hover:border-purple-300 hover:bg-purple-50"}`}>
                       {selected.plan===plan&&<div className="text-[10px] font-normal text-purple-500 mb-0.5">{t("الخطة الحالية","Current Plan")}</div>}
-                      {plan}
+                      {t(PLAN_NAMES_AR[plan]||plan, plan)}
                       <div className="text-[10px] font-normal text-gray-400 mt-0.5">{COMPANY_PLANS_META[plan].price.toLocaleString()} {t("ر.س/سنة","SAR/yr")}</div>
                     </button>
                   ))}
@@ -10848,7 +10849,7 @@ function AdminCompanies({ navigate }:PageProps) {
             <div className="w-14 h-14 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-4"><CreditCard size={24} className="text-purple-600"/></div>
             <h3 className="font-bold text-gray-900 text-lg mb-1">{t("تأكيد تغيير الخطة","Confirm Plan Change")}</h3>
             <p className="text-gray-500 text-sm mb-4">
-              {t("تغيير خطة","Change plan for")} <span className="font-bold">{showUpgrade.company.name}</span> {t("من","from")} <span className="font-bold text-gray-700">{showUpgrade.company.plan}</span> {t("إلى","to")} <span className="font-bold text-purple-700">{showUpgrade.targetPlan}</span>؟
+              {t("تغيير خطة","Change plan for")} <span className="font-bold">{showUpgrade.company.name}</span> {t("من","from")} <span className="font-bold text-gray-700">{t(PLAN_NAMES_AR[showUpgrade.company.plan]||showUpgrade.company.plan, showUpgrade.company.plan)}</span> {t("إلى","to")} <span className="font-bold text-purple-700">{t(PLAN_NAMES_AR[showUpgrade.targetPlan]||showUpgrade.targetPlan, showUpgrade.targetPlan)}</span>؟
             </p>
             <div className="bg-gray-50 rounded-xl p-3 mb-4 text-xs text-gray-600">
               {t("القيمة الجديدة:","New value:")} <span className="font-bold text-purple-700">{COMPANY_PLANS_META[showUpgrade.targetPlan].price.toLocaleString()} {t("ر.س/سنة","SAR/yr")}</span>
@@ -10882,7 +10883,7 @@ function AdminCompanies({ navigate }:PageProps) {
                 <div className="grid grid-cols-3 gap-2">
                   {(["Basic","Professional","Enterprise"] as CompanyPlan[]).map(p=>(
                     <button key={p} className="py-2 rounded-xl border-2 border-gray-200 text-xs font-bold hover:border-purple-400 hover:bg-purple-50 text-gray-600 transition-all">
-                      {p}<br/><span className="text-[10px] text-gray-400 font-normal">{COMPANY_PLANS_META[p].price.toLocaleString()} {t("ر.س","SAR")}</span>
+                      {t(PLAN_NAMES_AR[p]||p, p)}<br/><span className="text-[10px] text-gray-400 font-normal">{COMPANY_PLANS_META[p].price.toLocaleString()} {t("ر.س","SAR")}</span>
                     </button>
                   ))}
                 </div>
