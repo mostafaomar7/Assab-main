@@ -1,5 +1,5 @@
 import "./_group.css";
-import { useState, ReactNode, createContext, useContext } from "react";
+import { useState, ReactNode, createContext, useContext, type MouseEvent as ReactMouseEvent } from "react";
 import {
   LayoutDashboard, Building2, Users, Settings, Bell, LogOut, ChevronRight,
   CheckCircle2, XCircle, TrendingUp, Plus, X, Edit2, FileText,
@@ -65,7 +65,7 @@ const BG_CONTENT   = "#F0F4FA";
 // PRIMITIVES
 // ═══════════════════════════════════════════════════
 function Btn({ children, onClick, variant="ghost", size="md", disabled=false }:{
-  children:ReactNode; onClick?:()=>void;
+  children:ReactNode; onClick?:(e:ReactMouseEvent<HTMLButtonElement>)=>void;
   variant?:"primary"|"success"|"danger"|"ghost"|"outline"|"amber"|"cyan";
   size?:"sm"|"md"; disabled?:boolean;
 }) {
@@ -159,7 +159,7 @@ const ALL_BRANCHES = BRANDS.flatMap(b=>b.restaurants.flatMap(r=>r.branches.map(b
 
 type COpStatus = "pending"|"approved"|"rejected"|"final-approved";
 type CMatch = "exact"|"review"|"diff";
-type CModKey = "sales"|"expenses"|"purchases"|"inventory"|"assets"|"shifts";
+type CModKey = "sales"|"expenses"|"purchases"|"inventory"|"assets"|"shifts"|"employees"|"cash";
 
 type COp = {
   id:string; branch:string; brandName:string; brandColor:string;

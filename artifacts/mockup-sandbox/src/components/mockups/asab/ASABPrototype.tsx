@@ -1,5 +1,5 @@
 import "./_group.css";
-import { useState, useMemo, ReactNode, createContext, useContext, useRef } from "react";
+import { useState, useMemo, ReactNode, createContext, useContext, useRef, type MouseEvent as ReactMouseEvent } from "react";
 import {
   LayoutDashboard, TrendingUp, Wallet, ShoppingCart, Package, Building2, Clock,
   Users, ArrowLeftRight, BarChart3, Settings, Bell, LogOut, ChevronRight,
@@ -8,7 +8,7 @@ import {
   Upload, ChevronsRight, Phone, Search, Plus, Trash2, Edit2, Edit3, X, FileText,
   Truck, Home, Shield, RotateCcw, Lock, Send, Tag, Smartphone, CheckSquare,
   ZapOff, ChevronLeft, Clipboard, Check, CreditCard, ArrowRightToLine, Layers, GitMerge,
-  Printer, Globe, MapPin, Copy, ToggleLeft, ToggleRight
+  Printer, Globe, MapPin, Copy, ToggleLeft, ToggleRight, Calendar
 } from "lucide-react";
 
 // ─────────────────────────────────────────────
@@ -110,11 +110,11 @@ type Lang = "ar" | "en";
 interface LangCtxType {
   lang: Lang;
   setLang: (l: Lang) => void;
-  t: (ar: string, en: string) => string;
+  t: <T>(ar: T, en: T) => T;
   dir: "rtl" | "ltr";
 }
 const LangContext = createContext<LangCtxType>({
-  lang: "ar", setLang: ()=>{}, t: (ar)=>ar, dir: "rtl",
+  lang: "ar", setLang: ()=>{}, t: <T,>(ar: T, _en: T): T => ar, dir: "rtl",
 });
 const useLang = () => useContext(LangContext);
 
@@ -661,10 +661,10 @@ function Badge({ children, className="" }:{ children:ReactNode; className?:strin
   return <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide ${className}`}>{children}</span>;
 }
 
-function Btn({ children, onClick, variant="ghost", size="md", className="" }:{
-  children:ReactNode; onClick?:()=>void;
+function Btn({ children, onClick, variant="ghost", size="md", className="", disabled=false }:{
+  children:ReactNode; onClick?:(e:ReactMouseEvent<HTMLButtonElement>)=>void;
   variant?:"primary"|"success"|"danger"|"ghost"|"outline"|"amber";
-  size?:"sm"|"md"; className?:string
+  size?:"sm"|"md"; className?:string; disabled?:boolean
 }) {
   const base = "inline-flex items-center gap-1.5 font-semibold cursor-pointer border transition-all rounded-lg whitespace-nowrap";
   const sizes = { sm:"px-3 py-1.5 text-xs", md:"px-4 py-2 text-sm" };
@@ -676,7 +676,7 @@ function Btn({ children, onClick, variant="ghost", size="md", className="" }:{
     ghost:   "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100",
     outline: "bg-white text-gray-700 border-gray-300 hover:bg-gray-50",
   };
-  return <button onClick={onClick} className={`${base} ${sizes[size]} ${variants[variant]} ${className}`}>{children}</button>;
+  return <button onClick={onClick} disabled={disabled} className={`${base} ${sizes[size]} ${variants[variant]} ${className}`}>{children}</button>;
 }
 
 function KpiCard({ label, value, sub, icon, accent="purple", onClick }:{
@@ -1611,7 +1611,7 @@ const BRANCHES = [...new Set(INITIAL_OPS.map(o=>o.branch))];
 // ─────────────────────────────────────────────
 function PageRouter({ state, pageProps, adminUsers, setAdminUsers }:{
   state:AppState; pageProps:PageProps;
-  adminUsers:{name:string;email:string;role:string;restaurant:string;branches:number;status:string}[];
+  adminUsers:AdminUserData[];
   setAdminUsers:(v:any)=>void;
 }) {
   const { role, page } = state;
@@ -2935,7 +2935,7 @@ function AccSalesPage({ navigate, setModal, setDetailId, ops, approveOp, rejectO
             <select value={filters.status} onChange={e=>setFilters(p=>({...p,status:e.target.value===t("الكل","All")?"":e.target.value}))} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
               {[t("الكل","All"),"pending","approved","rejected","final-approved"].map(s=>(
                 <option key={s} value={s===t("الكل","All")?"":s}>
-                  {s===t("الكل","All") ? s : (en ? (EN_STATUS_CFG[s as OpStatus]?.label||STATUS_CFG[s as OpStatus]?.label||s) : (STATUS_CFG[s as OpStatus]?.label||s))}
+                  {s===t("الكل","All") ? s : (en ? (EN_STATUS_CFG[s as OpStatus]||STATUS_CFG[s as OpStatus]?.label||s) : (STATUS_CFG[s as OpStatus]?.label||s))}
                 </option>
               ))}
             </select>
@@ -3373,7 +3373,7 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
             <select value={filters.status} onChange={e=>setFilters(p=>({...p,status:e.target.value===t("الكل","All")?"":e.target.value}))} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
               {[t("الكل","All"),"pending","approved","rejected","final-approved"].map(s=>(
                 <option key={s} value={s===t("الكل","All")?"":s}>
-                  {s===t("الكل","All") ? s : (en?(EN_STATUS_CFG[s as OpStatus]?.label||STATUS_CFG[s as OpStatus]?.label||s):(STATUS_CFG[s as OpStatus]?.label||s))}
+                  {s===t("الكل","All") ? s : (en?(EN_STATUS_CFG[s as OpStatus]||STATUS_CFG[s as OpStatus]?.label||s):(STATUS_CFG[s as OpStatus]?.label||s))}
                 </option>
               ))}
             </select>
@@ -3442,7 +3442,7 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
               const invoices = INVOICES[op.id] || INVOICES["default"];
               const isExpanded = expandedId===op.id;
               const isLocked = op.status==="final-approved";
-              const statusLabel = en ? (EN_STATUS_CFG[op.status]?.label||STATUS_CFG[op.status].label) : STATUS_CFG[op.status].label;
+              const statusLabel = en ? (EN_STATUS_CFG[op.status]||STATUS_CFG[op.status].label) : STATUS_CFG[op.status].label;
               return (
                 <div key={op.id} className="border-b border-gray-100 last:border-0">
                   <div className={`px-5 py-4 flex items-center gap-4 hover:bg-gray-50/70 ${isExpanded?"bg-purple-50/20":""}`}>
@@ -8201,7 +8201,7 @@ function HeadPending({ navigate, setModal, setDetailId, ops, finalApproveOp, rej
               <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl p-2 z-20 hidden group-hover:block w-56">
                 <p className="text-[10px] font-bold text-gray-500 mb-1.5 px-1">{t("سبب الرفض","Reject Reason")}</p>
                 {REJECT_REASONS.map(r=>(
-                  <button key={r} onClick={()=>{ setDetailId?.(op.id); rejectOp?.(op.id); }}
+                  <button key={r} onClick={()=>{ setDetailId?.(op.id); rejectOp?.(op.id, r); }}
                     className={`w-full ${dir==="ltr"?"text-left":"text-right"} text-xs px-2 py-1.5 rounded-lg hover:bg-red-50 text-red-700 hover:font-semibold transition-colors`}>{r}</button>
                 ))}
               </div>
@@ -10447,7 +10447,7 @@ function AdminSubscriptions({}: PageProps) {
   const statusCls = { active:"border-emerald-200 bg-emerald-50/20",warning:"border-amber-200 bg-amber-50/20",danger:"border-red-200 bg-red-50/20",expired:"border-red-300 bg-red-50/30" };
   const statusBadgeCls = { active:"bg-emerald-50 text-emerald-700",warning:"bg-amber-50 text-amber-700",danger:"bg-red-50 text-red-700",expired:"bg-red-100 text-red-800" };
   const statusLabel = { active:t("اشتراك نشط","Active Subscription"),warning:t("ينتهي قريباً","Expiring Soon"),danger:t("إنذار انتهاء","Expiry Alert"),expired:t("منتهي الاشتراك","Subscription Expired") };
-  const renew = (id:string) => setSubs(p=>p.map(s=>s.id===id?{...s,subStatus:"active" as const,daysLeft:365,expires:"14 مارس 2027"}:s));
+  const renew = (id:string) => setSubs(p=>p.map(s=>s.id===id?{...s,subStatus:"active" as const,daysLeft:365,expires:"14 مارس 2027"}:s) as typeof subs);
 
   const totalRestaurants = subs.reduce((s,b)=>s+b.restaurants.length,0);
   const totalBranches    = subs.reduce((s,b)=>s+b.restaurants.reduce((ss,r)=>ss+r.branches.length,0),0);
@@ -12405,10 +12405,11 @@ function SupOverview({ navigate }:PageProps) {
 
 function SupNewOrders({}: PageProps) {
   const { t } = useLang();
-  const [orders, setOrders] = useState([
-    { id:"ORD-5501", rest:t("مطعم هرفي","Herfy Restaurant"), items:[{name:t("دجاج طازج","Fresh Chicken"),qty:200,unit:t("كجم","kg"),price:24}], deadline:t("غداً 8 ص","Tomorrow 8 AM"), status:"pending" as const },
-    { id:"ORD-5500", rest:t("ماكدونالدز السعودية","McDonald's KSA"), items:[{name:t("دجاج مجمد","Frozen Chicken"),qty:500,unit:t("كجم","kg"),price:21}], deadline:t("بعد غد","Day after tomorrow"), status:"pending" as const },
-    { id:"ORD-5499", rest:t("مطعم الريم","Al-Reem Restaurant"), items:[{name:t("قطع مشكلة","Mixed Cuts"),qty:150,unit:t("كجم","kg"),price:24}], deadline:t("اليوم 6 م","Today 6 PM"), status:"pending" as const },
+  type SupOrder = { id:string; rest:string; items:{name:string;qty:number;unit:string;price:number}[]; deadline:string; status:"pending"|"accepted"|"rejected" };
+  const [orders, setOrders] = useState<SupOrder[]>([
+    { id:"ORD-5501", rest:t("مطعم هرفي","Herfy Restaurant"), items:[{name:t("دجاج طازج","Fresh Chicken"),qty:200,unit:t("كجم","kg"),price:24}], deadline:t("غداً 8 ص","Tomorrow 8 AM"), status:"pending" },
+    { id:"ORD-5500", rest:t("ماكدونالدز السعودية","McDonald's KSA"), items:[{name:t("دجاج مجمد","Frozen Chicken"),qty:500,unit:t("كجم","kg"),price:21}], deadline:t("بعد غد","Day after tomorrow"), status:"pending" },
+    { id:"ORD-5499", rest:t("مطعم الريم","Al-Reem Restaurant"), items:[{name:t("قطع مشكلة","Mixed Cuts"),qty:150,unit:t("كجم","kg"),price:24}], deadline:t("اليوم 6 م","Today 6 PM"), status:"pending" },
   ]);
   const accept = (id:string) => setOrders(p=>p.map(o=>o.id===id?{...o,status:"accepted" as const}:o));
   const reject = (id:string) => setOrders(p=>p.map(o=>o.id===id?{...o,status:"rejected" as const}:o));
@@ -13006,7 +13007,7 @@ function SupReports({}: PageProps) {
 // ════════════════════════════════════════════════════════════
 export function ASABPrototype() {
   const [lang, setLang] = useState<Lang>("ar");
-  const t = (ar: string, en: string) => lang === "ar" ? ar : en;
+  const t = <T,>(ar: T, en: T): T => lang === "ar" ? ar : en;
   const dir = lang === "ar" ? "rtl" : "ltr";
 
   const [appState, setAppState] = useState<AppState>({ role:null, page:"", detailId:null, modal:null });
