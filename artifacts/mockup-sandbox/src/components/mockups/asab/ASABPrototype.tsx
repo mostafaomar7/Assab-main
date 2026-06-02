@@ -5592,8 +5592,8 @@ function ShiftSmartPanel({ cfg, onNum, onDur, onStart, onGen }:{
 }
 
 function AccShifts({ navigate, setModal }:PageProps) {
-  usePlatformLiveShifts();
-  usePlatformHistoryShifts();
+  const { data: apiLiveShifts } = usePlatformLiveShifts();
+  const { data: apiHistoryShifts } = usePlatformHistoryShifts();
   const [tab, setTab] = useState<"live"|"setup"|"close"|"history">("live");
   const [closeForm, setCloseForm] = useState({cashInDrawer:"",salesSystem:"",notes:"",branch:"فرع الرياض - العليا"});
   const [closeSent, setCloseSent] = useState(false);
@@ -5632,21 +5632,23 @@ function AccShifts({ navigate, setModal }:PageProps) {
     setRestEdits(p=>({...p,[rId]:null}));
   };
 
-  const liveShifts = [
+  const LIVE_SHIFTS_FALLBACK = [
     { name:"خالد الشمري", role:"مشرف الشفت", branch:"فرع الرياض - العليا", start:"8:00 ص", duration:"3:22 ساعة", durationHrs:3.4, orders:87, sales:12500, status:"active" as const },
     { name:"محمد العتيبي", role:"كاشير رئيسي", branch:"فرع الرياض - العليا", start:"8:00 ص", duration:"3:22 ساعة", durationHrs:3.4, orders:87, sales:12500, status:"active" as const },
     { name:"سعد الدوسري", role:"مشرف الشفت", branch:"فرع مكة - المعابدة", start:"6:00 ص", duration:"9:22 ساعة", durationHrs:9.4, orders:45, sales:9200, status:"late" as const },
     { name:"فهد القحطاني", role:"كاشير", branch:"فرع جدة - الحمراء", start:"7:00 ص", duration:"4:22 ساعة", durationHrs:4.4, orders:63, sales:9200, status:"active" as const },
   ];
+  const liveShifts = ((apiLiveShifts as any)?.length > 0 ? apiLiveShifts : LIVE_SHIFTS_FALLBACK) as typeof LIVE_SHIFTS_FALLBACK;
   const overdueShifts = liveShifts.filter(s=>s.durationHrs>8);
 
-  const shiftHistory = [
+  const SHIFT_HISTORY_FALLBACK = [
     {branch:"فرع الرياض - العليا", supervisor:"خالد الشمري", date:"13 أكت", startT:"8:00 ص", endT:"4:00 م", orders:145, sales:22400, cashExpected:8200, cashActual:8150, diff:-50},
     {branch:"فرع جدة - الحمراء",    supervisor:"فهد القحطاني", date:"13 أكت", startT:"7:00 ص", endT:"3:30 م", orders:118, sales:18900, cashExpected:7200, cashActual:7200, diff:0},
     {branch:"فرع مكة - المعابدة",   supervisor:"سعد الدوسري",  date:"13 أكت", startT:"6:00 ص", endT:"2:00 م", orders:92,  sales:14300, cashExpected:5800, cashActual:5920, diff:120},
     {branch:"فرع الرياض - العليا", supervisor:"خالد الشمري", date:"12 أكت", startT:"8:00 ص", endT:"4:00 م", orders:138, sales:21000, cashExpected:7800, cashActual:7800, diff:0},
     {branch:"فرع جدة - الحمراء",    supervisor:"فهد القحطاني", date:"12 أكت", startT:"7:00 ص", endT:"3:30 م", orders:99,  sales:15600, cashExpected:6100, cashActual:6050, diff:-50},
   ];
+  const shiftHistory = (((apiHistoryShifts as any)?.data?.length > 0 ? (apiHistoryShifts as any).data : SHIFT_HISTORY_FALLBACK)) as typeof SHIFT_HISTORY_FALLBACK;
 
   const cashIn  = parseFloat(closeForm.cashInDrawer)||0;
   const salesSys = parseFloat(closeForm.salesSystem)||0;
@@ -6009,10 +6011,10 @@ function AccShifts({ navigate, setModal }:PageProps) {
 }
 
 function AccEmployees({ navigate, setModal }:PageProps) {
-  usePlatformEmployees();
+  const { data: apiEmployees } = usePlatformEmployees();
   const [selectedIdx, setSelectedIdx] = useState<number>(0);
   const [empFilter, setEmpFilter] = useState({empNum:"", branch:"", brand:""});
-  const employees = [
+  const EMPLOYEES_FALLBACK = [
     { name:"أحمد الشمري", role:"مشرف الشفت", branch:"الرياض - العليا", balance:1250, movements:[
       { date:"14 أكتوبر", desc:"عمولة الشفت الصباحي", type:"credit", amt:500 },
       { date:"14 أكتوبر", desc:"خصم — نقص في الصندوق", type:"debit", amt:150 },
@@ -6029,6 +6031,7 @@ function AccEmployees({ navigate, setModal }:PageProps) {
       { date:"14 أكتوبر", desc:"عمولة الشفت الصباحي", type:"credit", amt:800 },
     ]},
   ];
+  const employees = (((apiEmployees as any)?.data?.length > 0 ? (apiEmployees as any).data : EMPLOYEES_FALLBACK)) as typeof EMPLOYEES_FALLBACK;
   const emp = employees[selectedIdx];
   const totalCredit = emp.movements.filter(m=>m.type==="credit").reduce((s,m)=>s+m.amt,0);
   const totalDebit = emp.movements.filter(m=>m.type==="debit").reduce((s,m)=>s+m.amt,0);
@@ -6131,13 +6134,13 @@ function AccEmployees({ navigate, setModal }:PageProps) {
 
 function AccCash({}: PageProps) {
   const { t, lang, dir } = useLang();
-  usePlatformCashCustody();
+  const { data: apiCashCustody } = usePlatformCashCustody();
   const [expandedBranch, setExpandedBranch] = useState<string|null>(null);
   const [searchTerm,     setSearchTerm]     = useState("");
   const [statusFilter,   setStatusFilter]   = useState("");
   const [settlementReqs, setSettlementReqs] = useState<Record<string,boolean>>({});
 
-  const branches = [
+  const BRANCHES_FALLBACK = [
     { branch:"فرع الرياض - العليا", custodian:"أحمد الشمري", amount:5000, used:3200, daysSinceSettlement:18,
       txns:[
         {date:"14 أكت", desc:"صيانة طارئة — مكيف",      type:"debit",  amt:450},
@@ -6172,6 +6175,7 @@ function AccCash({}: PageProps) {
       pendingTxns:0
     },
   ];
+  const branches = ((apiCashCustody as any)?.length > 0 ? apiCashCustody : BRANCHES_FALLBACK) as typeof BRANCHES_FALLBACK;
   const overdueSettlement = branches.filter(b=>b.daysSinceSettlement>=30);
 
   const filtered = branches.filter(b=>{
