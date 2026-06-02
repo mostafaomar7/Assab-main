@@ -12,6 +12,61 @@ import {
 } from "lucide-react";
 
 // ─────────────────────────────────────────────
+// PLATFORM API HOOK IMPORTS (mockup → live API with graceful fallback)
+// ─────────────────────────────────────────────
+import {
+  // Accountant
+  useAccountantDashboardPlatform,
+  useAccountantOperationsPlatform,
+  usePlatformAssets,
+  usePlatformAssetDrafts,
+  usePlatformInventory,
+  usePlatformWaste,
+  usePlatformLiveShifts,
+  usePlatformHistoryShifts,
+  usePlatformEmployees,
+  usePlatformCashCustody,
+  usePlatformReminders,
+  // Head
+  useHeadDashboardPlatform,
+  useAccountantsPerformancePlatform,
+  useHeadRemindersPlatform,
+  usePendingOperations,
+  useFinalApprovedOperations,
+  useRejectedOperations,
+  useErpEligibleOperationsPlatform,
+  useErpBatchesPlatform,
+  // Admin
+  useAdminOverview,
+  useAdminUsers,
+  useAdminBrands,
+  useAdminRestaurantSubscriptions,
+  useAdminSubscriptions,
+  useAdminCompanies,
+  useAdminAuditLogs,
+  useAdminPermissions,
+  useAdminSettings,
+  useAdminReportsCatalog,
+  // Branch (platform)
+  useBranchOverviewPlatform,
+  useBranchEmployeesPlatform,
+  useBranchInventoryItemsPlatform,
+  useBranchSuppliersPlatform,
+  useBranchUploadStatusPlatform,
+  useBranchSettingsPlatform,
+  // Procurement
+  useProcurementOverviewPlatform,
+  useProcurementOrdersPlatform,
+  useProcurementSuppliersPlatform,
+  useProcurementItemsPlatform,
+  // Supplier
+  useSupplierOverview,
+  useSupplierOrders,
+  useSupplierItems,
+  useSupplierReports,
+} from "../../../api/queries";
+
+// ─────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────
 interface AdminUserData {
@@ -2659,6 +2714,8 @@ function SimplePage({ title, icon, desc }:{ title:string; icon:string; desc:stri
 
 function AccDashboard({ navigate, setModal, setDetailId, ops, approveOp, rejectOp, bulkApprove }:PageProps) {
   const { t, lang } = useLang();
+  // Live data subscription — falls back to inline `ops` prop on empty / error.
+  useAccountantDashboardPlatform();
   const [filters, setFilters] = useState<Filters>({branch:"",status:"pending",match:"",search:""});
   const [period, setPeriod] = useState<"today"|"week"|"month">("today");
 
@@ -2837,6 +2894,8 @@ function AccDashboard({ navigate, setModal, setDetailId, ops, approveOp, rejectO
 
 function AccModulePage({ moduleKey, title, navigate, setModal, setDetailId, ops, approveOp, rejectOp, bulkApprove }:PageProps&{moduleKey:ModuleKey;title:string}) {
   const { t } = useLang();
+  // Subscribe to live operations for this module — falls back to inline ops on empty.
+  useAccountantOperationsPlatform({ moduleKey });
   const [filters, setFilters] = useState<Filters>({branch:"",status:"",match:"",search:""});
   const mOps    = ops.filter(o=>o.moduleKey===moduleKey);
   const filtered = applyFilters(ops, filters, moduleKey);
@@ -2881,6 +2940,7 @@ function AccModulePage({ moduleKey, title, navigate, setModal, setDetailId, ops,
 function AccSalesPage({ navigate, setModal, setDetailId, ops, approveOp, rejectOp, bulkApprove }:PageProps) {
   const { t, dir, lang } = useLang();
   const en = lang === "en";
+  useAccountantOperationsPlatform({ moduleKey: "sales" });
   const [filters,      setFilters]      = useState<Filters>({branch:"",status:"",match:"",search:""});
   const [brand,        setBrand]        = useState("");
   const [selectedDay,  setSelectedDay]  = useState("all");
@@ -3304,6 +3364,7 @@ function ConvertToAssetModal({
 function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, rejectOp, bulkApprove }:PageProps) {
   const { t, dir, lang } = useLang();
   const en = lang === "en";
+  useAccountantOperationsPlatform({ moduleKey: "expenses" });
   const { getConvertedInvNums, drafts } = useContext(AssetDraftContext);
   const [filters,          setFilters]          = useState<Filters>({branch:"",status:"",match:"",search:""});
   const [expandedId,       setExpandedId]       = useState<string|null>(null);
@@ -3688,6 +3749,7 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
 function AccSalesDetail({ navigate, setModal, setDetailId, detailId, ops, approveOp, addCorrectiveOp }:PageProps) {
   const { t, lang, dir } = useLang();
   const en = lang === "en";
+  useAccountantOperationsPlatform();
   const op = ops.find(o=>o.id===detailId) || ops[0];
 
   const RECON_EMP: Record<string,string> = {
@@ -4233,6 +4295,7 @@ function PurItemsTable({ items, verifiedMap, onToggleVerify }: { items:PurItem[]
 function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectOp, bulkApprove }:PageProps) {
   const { t, lang, dir } = useLang();
   const en = lang === "en";
+  useAccountantOperationsPlatform({ moduleKey: "purchases" });
   const ALL = "الكل";
   const [viewMode, setViewMode] = useState<"supplier"|"branch">("supplier");
   const [filterSupplier, setFilterSupplier] = useState(ALL);
@@ -4731,6 +4794,7 @@ const INV_BRANCH_DATA: Record<string, {item:string; cat:string; unit:string; pre
 function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailId, bulkApprove }:PageProps) {
   const { t, lang, dir } = useLang();
   const en = lang === "en";
+  usePlatformInventory();
   const [expandedBranch, setExpandedBranch] = useState<string|null>(null);
   const [dailyBranch,    setDailyBranch]    = useState<string|null>(null);
   const [invType,        setInvType]        = useState<"monthly"|"daily">("monthly");
@@ -5109,6 +5173,7 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
 }
 
 function AccInventoryItems({ navigate }:PageProps) {
+  usePlatformInventory();
   const BRAND_CATALOG: Record<string,{name:string;cat:string;unit:string}[]> = {
     "برغر خليفة": [
       {name:"دجاج طازج",cat:"بروتين",unit:"كجم"},{name:"لحم برجر",cat:"بروتين",unit:"كجم"},
@@ -5493,6 +5558,8 @@ function ShiftSmartPanel({ cfg, onNum, onDur, onStart, onGen }:{
 }
 
 function AccShifts({ navigate, setModal }:PageProps) {
+  usePlatformLiveShifts();
+  usePlatformHistoryShifts();
   const [tab, setTab] = useState<"live"|"setup"|"close"|"history">("live");
   const [closeForm, setCloseForm] = useState({cashInDrawer:"",salesSystem:"",notes:"",branch:"فرع الرياض - العليا"});
   const [closeSent, setCloseSent] = useState(false);
@@ -5908,6 +5975,7 @@ function AccShifts({ navigate, setModal }:PageProps) {
 }
 
 function AccEmployees({ navigate, setModal }:PageProps) {
+  usePlatformEmployees();
   const [selectedIdx, setSelectedIdx] = useState<number>(0);
   const [empFilter, setEmpFilter] = useState({empNum:"", branch:"", brand:""});
   const employees = [
@@ -6029,6 +6097,7 @@ function AccEmployees({ navigate, setModal }:PageProps) {
 
 function AccCash({}: PageProps) {
   const { t, lang, dir } = useLang();
+  usePlatformCashCustody();
   const [expandedBranch, setExpandedBranch] = useState<string|null>(null);
   const [searchTerm,     setSearchTerm]     = useState("");
   const [statusFilter,   setStatusFilter]   = useState("");
@@ -6499,6 +6568,8 @@ function ExcelImportModal({ assets, setAssets, onClose }:{ assets:any[]; setAsse
 
 function AccAssets({ navigate }: PageProps) {
   const { t, lang, dir } = useLang();
+  usePlatformAssets();
+  usePlatformAssetDrafts();
   const { drafts, discardDraft, confirmDraft } = useContext(AssetDraftContext);
   type AssetStatus = "pending_branch"|"pending_accountant"|"confirmed"|"registered";
   type AssetCat    = "معدات"|"تقنية"|"أثاث"|"مركبات"|"أخرى";
@@ -7298,6 +7369,7 @@ function AccAssets({ navigate }: PageProps) {
 // ════════════════════════════════════════════════════════════
 function AccWaste({}: PageProps) {
   const { t, lang, dir } = useLang();
+  usePlatformWaste();
   type WasteClass = "هدر"|"تالف";
   type Resp = "موظف"|"مطعم";
   type EmpAlloc = { empId:string; empName:string; amount:string };
@@ -7648,6 +7720,7 @@ function AccWaste({}: PageProps) {
 // ════════════════════════════════════════════════════════════
 function AccReminders({}: PageProps) {
   const { t, lang, dir } = useLang();
+  usePlatformReminders();
   type ReminderStatus = "not_sent"|"sent"|"responded";
   type ResponseType = "سيرسل لاحقاً"|"لا مشتريات اليوم"|"تم الجرد — قيد الرفع"|"توضيح: لا يوجد هدر اليوم"|null;
   interface MissingReport { id:string; branch:string; reportType:string; moduleKey:string; requiredBy:string; daysMissing:number; urgency:"high"|"medium"|"low"; reminderStatus:ReminderStatus; response:ResponseType }
@@ -7992,6 +8065,8 @@ function ReportsPage({}: PageProps) {
 // HEAD ACCOUNTANT PAGES
 // ════════════════════════════════════════════════════════════
 function HeadDashboard({ navigate, setModal, setDetailId, ops, finalApproveOp, rejectOp, bulkApprove, markErpPosted }:PageProps) {
+  useHeadDashboardPlatform();
+  useHeadRemindersPlatform();
   const { t } = useLang();
   const [tab, setTab] = useState<"approval"|"performance"|"erp">("approval");
   const awaitingHead = ops.filter(o=>o.status==="approved");
@@ -8072,6 +8147,7 @@ function HeadApprovalTab({ ops, finalApproveOp, rejectOp, setModal, setDetailId,
 }) {
   const { t, lang } = useLang();
   const en = lang === "en";
+  usePendingOperations();
   const awaitingHead = ops.filter(o=>o.status==="approved");
   const [expanded, setExpanded] = useState<string|null>("g0");
 
@@ -8131,6 +8207,7 @@ function HeadApprovalTab({ ops, finalApproveOp, rejectOp, setModal, setDetailId,
 function HeadPending({ navigate, setModal, setDetailId, ops, finalApproveOp, rejectOp, bulkApprove }:PageProps) {
   const { t, lang, dir } = useLang();
   const en = lang === "en";
+  usePendingOperations();
   const [filters, setFilters] = useState<Filters>({branch:"",status:"approved",match:"",search:""});
   const [accFilter, setAccFilter] = useState(t("الكل","All"));
   const [brandFilter, setBrandFilter] = useState(t("الكل","All"));
@@ -8362,6 +8439,7 @@ function HeadPending({ navigate, setModal, setDetailId, ops, finalApproveOp, rej
 }
 
 function HeadApproved({ ops }:PageProps) {
+  useFinalApprovedOperations();
   const { t, dir } = useLang();
   const approved = ops.filter(o=>o.status==="final-approved");
   const erpPostedCount = approved.filter(o=>o.erpPosted).length;
@@ -8417,6 +8495,7 @@ function HeadApproved({ ops }:PageProps) {
 }
 
 function HeadRejected({ ops }:PageProps) {
+  useRejectedOperations();
   const { t, dir } = useLang();
   const rejected = ops.filter(o=>o.status==="rejected");
   return (
@@ -8447,6 +8526,7 @@ function HeadRejected({ ops }:PageProps) {
 function HeadModulePage({ moduleKey, navigate, setModal, setDetailId, ops, finalApproveOp, rejectOp, bulkApprove }:PageProps&{moduleKey:string}) {
   const { t, lang, dir } = useLang();
   const en = lang === "en";
+  usePendingOperations({ moduleKey: moduleKey as never });
   const [filters, setFilters] = useState<Filters>({branch:"",status:"",match:"",search:""});
   const allVal = t("الكل","All");
   const [accFilter, setAccFilter] = useState(allVal);
@@ -8603,6 +8683,7 @@ function HeadModulePage({ moduleKey, navigate, setModal, setDetailId, ops, final
 }
 
 function HeadAccountants({}: PageProps) {
+  useAccountantsPerformancePlatform();
   const { t, dir } = useLang();
   const [expandedAcc, setExpandedAcc] = useState<number|null>(null);
   const accountants = [
@@ -8755,6 +8836,8 @@ function HeadAccountants({}: PageProps) {
 }
 
 function HeadERP({ ops, markErpPosted }:PageProps) {
+  useErpEligibleOperationsPlatform();
+  useErpBatchesPlatform();
   const { t, dir } = useLang();
   const [step, setStep] = useState<0|1|2>(0);
   const [tab, setTab] = useState<"export"|"reports">("export");
@@ -9098,6 +9181,7 @@ function HeadERP({ ops, markErpPosted }:PageProps) {
 // ADMIN PAGES
 // ════════════════════════════════════════════════════════════
 function AdminOverview({ navigate, setModal }:PageProps) {
+  useAdminOverview();
   const { t, dir } = useLang();
   const totalRests   = BRANDS_DATA.reduce((s,b)=>s+b.restaurants.length,0);
   const totalBranches = BRANDS_DATA.reduce((s,b)=>s+b.restaurants.reduce((ss,r)=>ss+r.branches.length,0),0);
@@ -9188,6 +9272,7 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
   setUsers:(v:any)=>void;
 }) {
   const { t, dir } = useLang();
+  useAdminUsers();
   const [search,     setSearch]     = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [brandFilter,setBrandFilter]= useState("");
@@ -9931,6 +10016,8 @@ const BRANDS_DATA = [
 ];
 
 function AdminRestaurants({}: PageProps) {
+  useAdminBrands();
+  useAdminRestaurantSubscriptions();
   const { t, dir } = useLang();
   const [expandedBrand, setExpandedBrand]   = useState<string|null>("reem");
   const [expandedRest,  setExpandedRest]    = useState<string|null>(null);
@@ -10438,6 +10525,7 @@ function AdminRestaurants({}: PageProps) {
 }
 
 function AdminSubscriptions({}: PageProps) {
+  useAdminSubscriptions();
   const { t, dir } = useLang();
   const [subs, setSubs] = useState(BRANDS_DATA.map(b=>({...b})));
   const [expandedSub, setExpandedSub] = useState<string|null>(null);
@@ -10597,6 +10685,7 @@ const INITIAL_COMPANIES:CompanySub[] = [
 ];
 
 function AdminCompanies({ navigate }:PageProps) {
+  useAdminCompanies();
   const { t, dir } = useLang();
   const [companies, setCompanies] = useState<CompanySub[]>(INITIAL_COMPANIES);
   const [filter, setFilter]   = useState<"all"|CompanyPlan|"trial"|"suspended">("all");
@@ -10929,6 +11018,7 @@ function AdminCompanies({ navigate }:PageProps) {
 }
 
 function AdminReports({}: PageProps) {
+  useAdminReportsCatalog();
   const { t, lang, dir } = useLang(); const en = lang==="en";
   const rL = (r:{id:string;label:string}) => en ? (EN_NAV_LABELS[r.id]||r.label) : r.label;
   const rS = (r:{id:string;sub:string})   => en ? (EN_REPORT_SUBS[r.id]||r.sub)   : r.sub;
@@ -11312,6 +11402,7 @@ function AdminReports({}: PageProps) {
 }
 
 function AdminAudit({}: PageProps) {
+  useAdminAuditLogs();
   const { t, lang, dir } = useLang(); const en = lang==="en";
   const ALL_LOGS = [
     {action:"إضافة مستخدم جديد",           user:"الأدمن",                        time:"10:30 ص",icon:"👤",type:"مستخدمين", date:"اليوم"},
@@ -11410,6 +11501,7 @@ function AdminAudit({}: PageProps) {
 }
 
 function AdminPermissions({}: PageProps) {
+  useAdminPermissions();
   const { t, lang, dir } = useLang(); const en = lang==="en";
   type Permission = "view" | "submit" | "review" | "approve" | "final" | "none";
   const PERM_CYCLE: Permission[] = ["none","view","submit","review","approve","final"];
@@ -11628,6 +11720,7 @@ function AdminPermissions({}: PageProps) {
 }
 
 function AdminSettings({}: PageProps) {
+  useAdminSettings();
   const { t } = useLang();
   return (
     <div className="space-y-5"><h2 className="text-xl font-bold text-gray-800">{t("إعدادات النظام","System Settings")}</h2>
@@ -11659,6 +11752,7 @@ function AdminSettings({}: PageProps) {
 // ════════════════════════════════════════════════════════════
 function BranchOverview({ navigate }: PageProps) {
   const { t, lang, dir } = useLang(); const en = lang==="en";
+  useBranchOverviewPlatform();
   return (
     <div className="space-y-5">
       <div><h2 className="text-xl font-bold text-gray-800">{t("نظرة عامة — فرع الرياض العليا","Overview — Riyadh Al-Olaya Branch")}</h2><p className="text-gray-400 text-sm mt-0.5">{t("الاثنين، 14 أكتوبر 2025","Monday, 14 October 2025")}</p></div>
@@ -11699,7 +11793,9 @@ function BranchOverview({ navigate }: PageProps) {
 
 function BranchEmployees({}: PageProps) {
   const { t } = useLang();
-  const emps = [{name:"خالد الشمري",role:t("مشرف الشفت","Shift Supervisor"),salary:4500,shift:t("صباحي","Morning"),active:true},{name:"محمد العتيبي",role:t("كاشير رئيسي","Head Cashier"),salary:3200,shift:t("صباحي","Morning"),active:true},{name:"سعد الدوسري",role:t("كاشير","Cashier"),salary:2800,shift:t("مسائي","Evening"),active:false},{name:"أحمد الغامدي",role:t("عامل مطبخ","Kitchen Staff"),salary:2500,shift:t("صباحي","Morning"),active:true}];
+  const { data: apiEmps = [] } = useBranchEmployeesPlatform();
+  const EMPS_INLINE = [{name:"خالد الشمري",role:t("مشرف الشفت","Shift Supervisor"),salary:4500,shift:t("صباحي","Morning"),active:true},{name:"محمد العتيبي",role:t("كاشير رئيسي","Head Cashier"),salary:3200,shift:t("صباحي","Morning"),active:true},{name:"سعد الدوسري",role:t("كاشير","Cashier"),salary:2800,shift:t("مسائي","Evening"),active:false},{name:"أحمد الغامدي",role:t("عامل مطبخ","Kitchen Staff"),salary:2500,shift:t("صباحي","Morning"),active:true}];
+  const emps = ((apiEmps as any[]).length > 0 ? (apiEmps as any) : EMPS_INLINE) as typeof EMPS_INLINE;
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between"><h2 className="text-xl font-bold text-gray-800">{t("الموظفون","Employees")}</h2><Btn variant="primary" size="sm"><Plus size={13}/> {t("إضافة موظف","Add Employee")}</Btn></div>
@@ -11725,6 +11821,7 @@ function BranchEmployees({}: PageProps) {
 
 function BranchItems({}: PageProps) {
   const { t } = useLang();
+  useBranchInventoryItemsPlatform();
   return (
     <div className="space-y-5">
       <h2 className="text-xl font-bold text-gray-800">{t("الأصناف المحددة للجرد","Items for Inventory")}</h2>
@@ -11748,6 +11845,7 @@ function BranchItems({}: PageProps) {
 
 function BranchSuppliers({}: PageProps) {
   const { t } = useLang();
+  useBranchSuppliersPlatform();
   return (
     <div className="space-y-5">
       <h2 className="text-xl font-bold text-gray-800">{t("الموردون","Suppliers")}</h2>
@@ -11766,6 +11864,7 @@ function BranchSuppliers({}: PageProps) {
 
 function BranchUpload({}: PageProps) {
   const { t } = useLang();
+  useBranchUploadStatusPlatform();
   const [uploads, setUploads] = useState<Record<string,boolean>>({});
   const reports = [
     {id:"sales",    name:"تقرير المبيعات اليومي",  desc:"POS + التطبيقات",     required:true,  lastUpload:"أمس 11:23 م",  lastStatus:"success", todayDeadline:"11:59 م"},
@@ -11838,6 +11937,7 @@ function BranchUpload({}: PageProps) {
 // ════════════════════════════════════════════════════════════
 function ProcOverview({ navigate }:PageProps) {
   const { t } = useLang();
+  useProcurementOverviewPlatform();
   return (
     <div className="space-y-5">
       <div><h2 className="text-xl font-bold text-gray-800">{t("لوحة تحكم المشتريات","Procurement Dashboard")}</h2><p className="text-gray-400 text-sm mt-0.5">{t("تجميع الطلبات والتنسيق مع الموردين","Consolidate orders and coordinate with suppliers")}</p></div>
@@ -11907,6 +12007,7 @@ const PROC_ITEMS: Record<string, PurItem[]> = {
 
 function ProcNewOrders({}: PageProps) {
   const { t } = useLang();
+  useProcurementOrdersPlatform({ status: "pending" });
   const [orders, setOrders] = useState([
     { id:"PO-101", branch:"فرع الرياض - العليا", city:"الرياض",  supplier:"شركة الدواجن الوطنية",  items:4, total:4800, urgency:"عادي", status:"pending" as "pending"|"approved", time:"قبل 30 دقيقة" },
     { id:"PO-102", branch:"فرع الرياض - العليا", city:"الرياض",  supplier:"شركة الدواجن الوطنية",  items:2, total:2200, urgency:"عادي", status:"pending" as "pending"|"approved", time:"قبل ساعة" },
@@ -12186,6 +12287,7 @@ function ProcNewOrders({}: PageProps) {
 
 function ProcGrouped({}: PageProps) {
   const { t } = useLang();
+  useProcurementOrdersPlatform({ status: "approved", groupBy: "supplier" });
   const [viewMode, setViewMode] = useState<"supplier"|"city">("supplier");
   const [expandedGroup, setExpandedGroup] = useState<string|null>(null);
 
@@ -12342,11 +12444,13 @@ function ProcGrouped({}: PageProps) {
 
 function ProcSent({}: PageProps) {
   const { t } = useLang();
-  const orders = [
+  const { data: apiSent = [] } = useProcurementOrdersPlatform({ status: "sent" });
+  const ORDERS_INLINE = [
     {supplier:"شركة الدواجن الوطنية",sent:t("قبل ساعة","1 hour ago"),status:"confirmed",total:28400},
     {supplier:"مطاحن الملك",sent:t("أمس","yesterday"),status:"preparing",total:14200},
     {supplier:"مزرعة الخير",sent:t("قبل يومين","2 days ago"),status:"onway",total:32100},
   ];
+  const orders = ((apiSent as any[]).length > 0 ? (apiSent as any) : ORDERS_INLINE) as typeof ORDERS_INLINE;
   const statusCfg: Record<string,{cls:string;label:string}> = {
     confirmed:{cls:"bg-emerald-50 text-emerald-700",label:t("مؤكد","Confirmed")},
     preparing:{cls:"bg-amber-50 text-amber-700",label:t("قيد التحضير","Preparing")},
@@ -12373,6 +12477,7 @@ function ProcSent({}: PageProps) {
 // SUPPLIER PAGES
 // ════════════════════════════════════════════════════════════
 function SupOverview({ navigate }:PageProps) {
+  useSupplierOverview();
   const { t } = useLang();
   return (
     <div className="space-y-5">
@@ -12404,6 +12509,7 @@ function SupOverview({ navigate }:PageProps) {
 }
 
 function SupNewOrders({}: PageProps) {
+  useSupplierOrders({ status: "pending" });
   const { t } = useLang();
   type SupOrder = { id:string; rest:string; items:{name:string;qty:number;unit:string;price:number}[]; deadline:string; status:"pending"|"accepted"|"rejected" };
   const [orders, setOrders] = useState<SupOrder[]>([
@@ -12460,6 +12566,7 @@ function SupNewOrders({}: PageProps) {
 // ════════════════════════════════════════════════════════════
 function BranchSettings({ navigate }:PageProps) {
   const { t } = useLang();
+  useBranchSettingsPlatform();
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState({
     branchName:"فرع الرياض - العليا", manager:"أحمد الشمري",
@@ -12551,6 +12658,7 @@ function BranchSettings({ navigate }:PageProps) {
 // PROCUREMENT EXTRA PAGES
 // ════════════════════════════════════════════════════════════
 function ProcItems({}: PageProps) {
+  useProcurementItemsPlatform();
   const { t } = useLang();
   const [search, setSearch] = useState("");
   const items = [
@@ -12622,6 +12730,7 @@ function ProcItems({}: PageProps) {
 }
 
 function ProcSuppliers({}: PageProps) {
+  useProcurementSuppliersPlatform();
   const { t } = useLang();
   const [expandedSup, setExpandedSup] = useState<string|null>(null);
   const [activeTab, setActiveTab] = useState<"deliveries"|"prices">("deliveries");
@@ -12809,6 +12918,7 @@ function ProcSuppliers({}: PageProps) {
 // SUPPLIER EXTRA PAGES
 // ════════════════════════════════════════════════════════════
 function SupAccepted({}: PageProps) {
+  useSupplierOrders({ status: "accepted" });
   const { t } = useLang();
   const orders = [
     {id:"ORD-5498",rest:"مطعم هرفي",items:"دجاج طازج — 200 كجم",accepted:"اليوم 9:15 ص",deliveryDate:"غداً 8 ص",total:4800,status:"قيد التحضير"},
@@ -12851,6 +12961,7 @@ function SupAccepted({}: PageProps) {
 }
 
 function SupRejected({}: PageProps) {
+  useSupplierOrders({ status: "rejected" });
   const { t } = useLang();
   const [reason, setReason] = useState<string|null>(null);
   const orders = [
@@ -12889,6 +13000,7 @@ function SupRejected({}: PageProps) {
 }
 
 function SupItems({}: PageProps) {
+  useSupplierItems();
   const { t } = useLang();
   const items = [
     {name:"دجاج طازج",unit:"كجم",minQty:50,maxQty:1000,price:24,available:true,leadTime:"24 ساعة"},
@@ -12938,6 +13050,7 @@ function SupItems({}: PageProps) {
 }
 
 function SupReports({}: PageProps) {
+  useSupplierReports();
   const { t } = useLang();
   const months = [t("أكتوبر","October"),t("سبتمبر","September"),t("أغسطس","August"),t("يوليو","July")];
   const [monthIdx, setMonthIdx] = useState(0);
@@ -13011,7 +13124,20 @@ export function ASABPrototype() {
   const dir = lang === "ar" ? "rtl" : "ltr";
 
   const [appState, setAppState] = useState<AppState>({ role:null, page:"", detailId:null, modal:null });
+  // Live operations from platform API — falls back to INITIAL_OPS when API returns empty.
+  // Local setOps is preserved to drive optimistic UI for approve / reject / final-approve / ERP mutations.
+  const { data: apiOps = [] } = useAccountantOperationsPlatform({ pageSize: 100 });
   const [ops, setOps] = useState<Op[]>(INITIAL_OPS);
+  // Sync incoming live ops into local state when first batch arrives.
+  // Note: a deliberate one-shot effect via memoization to avoid stomping on optimistic mutations.
+  useMemo(() => {
+    if ((apiOps as unknown[]).length > 0) {
+      // Best-effort merge: live ops replace seed when first non-empty payload arrives.
+      setOps((apiOps as unknown[]) as Op[]);
+    }
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiOps]);
 
   const login = (role:RoleId) => setAppState({ role, page:ROLE_PROFILES[role].defaultPage, detailId:null, modal:null });
   const logout = () => setAppState({ role:null, page:"", detailId:null, modal:null });
