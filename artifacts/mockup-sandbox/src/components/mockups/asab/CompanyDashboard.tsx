@@ -954,36 +954,6 @@ function Shell({ role, page, navigate, onLogout, children, headPendingCount=0 }:
             <Badge className="bg-purple-50 text-purple-700 border border-purple-100">{meta.icon} {t(meta.label, enMeta.label)}</Badge>
             <GlobalSearch t={t} theme="light"/>
             <NotificationBell t={t} theme="light"/>
-            <div className="relative">
-              <button onClick={()=>setShowNotif(v=>!v)} className="relative text-gray-400 hover:text-gray-600 transition-colors">
-                <Bell size={16}/>
-                {unreadCount>0&&<span className="absolute -top-1 -left-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">{unreadCount}</span>}
-              </button>
-              {showNotif&&(
-                <div className={`absolute ${dir==="rtl"?"left-0":"right-0"} top-8 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50`} dir={dir}>
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                    <h3 className="font-bold text-gray-800 text-sm">{t("الإشعارات","Notifications")}</h3>
-                    <button onClick={()=>{setNotifs(n=>n.map(x=>({...x,unread:false})));}} className="text-[11px] text-purple-600 hover:text-purple-800 font-semibold">{t("تحديد الكل كمقروء","Mark all as read")}</button>
-                  </div>
-                  <div className="divide-y divide-gray-50">
-                    {notifs.map(n=>(
-                      <div key={n.id} onClick={()=>setNotifs(prev=>prev.map(x=>x.id===n.id?{...x,unread:false}:x))} className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors ${n.unread?"bg-purple-50/40":""}`}>
-                        <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-base flex-shrink-0">{n.icon}</div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm leading-tight ${n.unread?"font-bold text-gray-800":"font-medium text-gray-600"}`}>{n.title}</p>
-                          <p className="text-[11px] text-gray-400 mt-0.5 truncate">{n.body}</p>
-                          <p className="text-[10px] text-gray-300 mt-0.5">{n.time}</p>
-                        </div>
-                        {n.unread&&<div className="w-2 h-2 rounded-full bg-purple-500 mt-1 flex-shrink-0"/>}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="px-4 py-2.5 border-t border-gray-100">
-                    <button onClick={()=>setShowNotif(false)} className="w-full text-center text-xs text-purple-600 hover:text-purple-800 font-semibold">{t("إغلاق","Close")}</button>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-6">{children}</div>
