@@ -8740,13 +8740,15 @@ function HeadAccountants({}: PageProps) {
   ];
   const accountants = (((apiPerf as any)?.length > 0 ? (apiPerf as any) : ACCOUNTANTS_FALLBACK)) as typeof ACCOUNTANTS_FALLBACK;
 
-  const recentMovements = [
+  const RECENT_MOVEMENTS_FALLBACK = [
     [t("اعتماد مبيعات فرع العليا","Sales approval — Al-Alia branch"),t("قبل 12 دقيقة","12 min ago"),t("مبيعات","Sales")],
     [t("اعتماد مصروفات فرع الحمراء","Expenses approval — Al-Hamra branch"),t("قبل 28 دقيقة","28 min ago"),t("مصروفات","Expenses")],
     [t("رفض مشتريات — فرق في الكمية","Purchases rejected — quantity diff"),t("قبل 45 دقيقة","45 min ago"),t("مشتريات","Purchases")],
     [t("اعتماد مخزون فرع المعابدة","Inventory approval — Al-Maaabdah"),t("قبل ساعة","1 hr ago"),t("مخزون","Inventory")],
     [t("طلب توضيح — فرع الدمام","Clarification request — Dammam"),t("قبل ساعتين","2 hr ago"),t("مبيعات","Sales")],
   ];
+  const apiMovements = (apiPerf as any)?.recentMovements;
+  const recentMovements = ((apiMovements as any[])?.length > 0 ? apiMovements : RECENT_MOVEMENTS_FALLBACK) as typeof RECENT_MOVEMENTS_FALLBACK;
 
   return (
     <div className="space-y-4" dir={dir}>
