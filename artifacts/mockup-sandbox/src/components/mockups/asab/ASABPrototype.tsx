@@ -21,6 +21,7 @@ import {
   usePlatformAssets,
   usePlatformAssetDrafts,
   usePlatformInventory,
+  usePlatformInventoryCatalog,
   usePlatformWaste,
   usePlatformLiveShifts,
   usePlatformHistoryShifts,
@@ -47,6 +48,7 @@ import {
   useAdminPermissions,
   useAdminSettings,
   useAdminReportsCatalog,
+  useAdminDistribution,
   // Branch (platform)
   useBranchOverviewPlatform,
   useBranchEmployeesPlatform,
@@ -5208,7 +5210,8 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
 
 function AccInventoryItems({ navigate }:PageProps) {
   usePlatformInventory();
-  const BRAND_CATALOG: Record<string,{name:string;cat:string;unit:string}[]> = {
+  const { data: catalogApi } = usePlatformInventoryCatalog();
+  const BRAND_CATALOG_FALLBACK: Record<string,{name:string;cat:string;unit:string}[]> = {
     "برغر خليفة": [
       {name:"دجاج طازج",cat:"بروتين",unit:"كجم"},{name:"لحم برجر",cat:"بروتين",unit:"كجم"},
       {name:"خبز برجر",cat:"مخبوزات",unit:"قطعة"},{name:"جبنة شيدر",cat:"ألبان",unit:"شريحة"},
@@ -5235,6 +5238,9 @@ function AccInventoryItems({ navigate }:PageProps) {
       {name:"ليمون",cat:"فواكه",unit:"كجم"},{name:"مشروبات غازية",cat:"مشروبات",unit:"علبة"},
     ],
   };
+  const BRAND_CATALOG = (((catalogApi as any) && Object.keys(catalogApi as any).length>0)
+    ? (catalogApi as any)
+    : BRAND_CATALOG_FALLBACK) as typeof BRAND_CATALOG_FALLBACK;
   const BRAND_BRANCHES: Record<string,string[]> = {
     "برغر خليفة": ["فرع الرياض - العليا","فرع الرياض - النزهة","فرع جدة - الحمراء","فرع الدمام - الكورنيش"],
     "بيتزا باكو": ["فرع الرياض - الصحافة","فرع جدة - العزيزية","فرع مكة - العزيزية"],
@@ -9328,6 +9334,7 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
 }) {
   const { t, dir } = useLang();
   useAdminUsers();
+  const { data: distApi } = useAdminDistribution();
   const [search,     setSearch]     = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [brandFilter,setBrandFilter]= useState("");
@@ -9338,23 +9345,30 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
   const [headSel,  setHeadSel]   = useState<string|null>("h1");
   const [accSel,   setAccSel]    = useState<string|null>("acc1");
   type DistAcc = { id:string; name:string; avatar:string; headId:string|null; restaurants:string[] };
-  const [distAccs, setDistAccs]  = useState<DistAcc[]>([
+  const DIST_ACCS_FALLBACK: DistAcc[] = [
     { id:"acc1", name:"أحمد محمد الشهري", avatar:"أ", headId:"h1", restaurants:["مطعم الريم — العليا","مطعم الريم — جدة","هرفي — الرياض"] },
     { id:"acc2", name:"سارة العمري",      avatar:"س", headId:"h1", restaurants:["هرفي — جدة","ماكدونالدز — الرياض"] },
     { id:"acc3", name:"محمد الحربي",      avatar:"م", headId:"h2", restaurants:["هرفي — مكة","ماكدونالدز — الدمام"] },
     { id:"acc4", name:"فاطمة السالم",     avatar:"ف", headId:"h2", restaurants:["بروستد الوطني — الطائف"] },
     { id:"acc5", name:"خلود العتيبي",     avatar:"خ", headId:null,  restaurants:[] },
-  ]);
-  const distHeads = [
+  ];
+  const [distAccs, setDistAccs]  = useState<DistAcc[]>(DIST_ACCS_FALLBACK);
+  const DIST_HEADS_FALLBACK = [
     { id:"h1", name:"خالد العمري",  avatar:"خ", color:"bg-amber-100 text-amber-700" },
     { id:"h2", name:"نورة السعيد",  avatar:"ن", color:"bg-purple-100 text-purple-700" },
   ];
-  const ALL_RESTS = [
+  const distHeads = (((distApi as any)?.heads?.length>0)
+    ? (distApi as any).heads
+    : DIST_HEADS_FALLBACK) as typeof DIST_HEADS_FALLBACK;
+  const ALL_RESTS_FALLBACK = [
     "مطعم الريم — العليا","مطعم الريم — جدة",
     "هرفي — الرياض","هرفي — جدة","هرفي — مكة",
     "ماكدونالدز — الرياض","ماكدونالدز — الدمام",
     "بروستد الوطني — الطائف",
   ];
+  const ALL_RESTS = (((distApi as any)?.allRestaurants?.length>0)
+    ? (distApi as any).allRestaurants
+    : ALL_RESTS_FALLBACK) as typeof ALL_RESTS_FALLBACK;
   const assignedRests = distAccs.flatMap(a=>a.restaurants);
   const freeRests     = ALL_RESTS.filter(r=>!assignedRests.includes(r));
   const accsUnderHead = distAccs.filter(a=>a.headId===headSel);
@@ -10071,8 +10085,9 @@ const BRANDS_DATA = [
 ];
 
 function AdminRestaurants({}: PageProps) {
-  useAdminBrands();
+  const { data: brandsApi } = useAdminBrands();
   useAdminRestaurantSubscriptions();
+  const BRANDS = (((brandsApi as any)?.length>0) ? brandsApi : BRANDS_DATA) as typeof BRANDS_DATA;
   const { t, dir } = useLang();
   const [expandedBrand, setExpandedBrand]   = useState<string|null>("reem");
   const [expandedRest,  setExpandedRest]    = useState<string|null>(null);
@@ -10124,15 +10139,15 @@ function AdminRestaurants({}: PageProps) {
   const subLblRest = { active:t("نشط","Active"), warning:t("ينتهي قريباً","Expiring Soon"), danger:t("إنذار انتهاء","Expiry Alert"), expired:t("منتهي","Expired") };
   const planIcon   = { "فضي":"🥈","ذهبي":"🥇","بلاتيني":"💎" };
 
-  const totalRests   = BRANDS_DATA.reduce((s,b)=>s+b.restaurants.length,0);
-  const totalBranches = BRANDS_DATA.reduce((s,b)=>s+b.restaurants.reduce((ss,r)=>ss+r.branches.length,0),0);
+  const totalRests   = BRANDS.reduce((s,b)=>s+b.restaurants.length,0);
+  const totalBranches = BRANDS.reduce((s,b)=>s+b.restaurants.reduce((ss,r)=>ss+r.branches.length,0),0);
 
   return (
     <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-800">{t("الهيكل التشغيلي — العلامات والمطاعم والفروع","Operational Structure — Brands, Restaurants & Branches")}</h2>
-          <p className="text-gray-400 text-sm mt-0.5">{BRANDS_DATA.length} {t("علامة تجارية","brands")} · {totalRests} {t("مطعم","restaurants")} · {totalBranches} {t("فرع","branches")}</p>
+          <p className="text-gray-400 text-sm mt-0.5">{BRANDS.length} {t("علامة تجارية","brands")} · {totalRests} {t("مطعم","restaurants")} · {totalBranches} {t("فرع","branches")}</p>
         </div>
         <div className="flex gap-2">
           <Btn variant="ghost" onClick={()=>setShowAddRest("")}><Plus size={14}/> {t("مطعم جديد","New Restaurant")}</Btn>
@@ -10150,7 +10165,7 @@ function AdminRestaurants({}: PageProps) {
 
       {/* ── Upload Tab ── */}
       {restTab==="upload" && (()=>{
-        const selBrand = BRANDS_DATA.find(b=>b.id===uploadBrand)!;
+        const selBrand = BRANDS.find(b=>b.id===uploadBrand)!;
         const ups = brandUploads[uploadBrand] ?? { sales:false, materials:false, employees:false, suppliers:false };
 
         // per-restaurant employee upload state
@@ -10204,13 +10219,13 @@ function AdminRestaurants({}: PageProps) {
                 </div>
                 {uploadBrandFilter && (
                   <span className="text-[10px] text-gray-400">
-                    {BRANDS_DATA.filter(b=>!uploadBrandFilter||b.name.includes(uploadBrandFilter)).length} علامة
+                    {BRANDS.filter(b=>!uploadBrandFilter||b.name.includes(uploadBrandFilter)).length} علامة
                   </span>
                 )}
               </div>
               {/* Brand cards */}
               <div className="flex gap-2 flex-wrap">
-              {BRANDS_DATA.filter(b=>!uploadBrandFilter||b.name.includes(uploadBrandFilter)).map(b=>{
+              {BRANDS.filter(b=>!uploadBrandFilter||b.name.includes(uploadBrandFilter)).map(b=>{
                 const bUps = brandUploads[b.id] ?? { sales:false, materials:false, employees:false, suppliers:false };
                 const done = Object.values(bUps).filter(Boolean).length;
                 const total = 2 + b.restaurants.length;
@@ -10445,7 +10460,7 @@ function AdminRestaurants({}: PageProps) {
 
       {/* Brands accordion */}
       <div className="space-y-3">
-        {BRANDS_DATA.map(brand=>{
+        {BRANDS.map(brand=>{
           const isExpanded = expandedBrand===brand.id;
           const restCount  = brand.restaurants.length;
           const branchCount = brand.restaurants.reduce((s,r)=>s+r.branches.length,0);
@@ -11561,7 +11576,7 @@ function AdminAudit({}: PageProps) {
 }
 
 function AdminPermissions({}: PageProps) {
-  useAdminPermissions();
+  const { data: permsApi } = useAdminPermissions();
   const { t, lang, dir } = useLang(); const en = lang==="en";
   type Permission = "view" | "submit" | "review" | "approve" | "final" | "none";
   const PERM_CYCLE: Permission[] = ["none","view","submit","review","approve","final"];
@@ -11592,7 +11607,7 @@ function AdminPermissions({}: PageProps) {
     [t("أدمن","Admin")]:"bg-red-50 text-red-700",
   };
 
-  const [matrix, setMatrix] = useState<{module:string; perms: Permission[]}[]>([
+  const MATRIX_FALLBACK: {module:string; perms: Permission[]}[] = [
     { module:"المبيعات",         perms:["review","final","submit","none","none","approve"] },
     { module:"المصروفات",        perms:["review","final","submit","none","none","approve"] },
     { module:"المشتريات",        perms:["review","final","none","approve","submit","approve"] },
@@ -11604,7 +11619,10 @@ function AdminPermissions({}: PageProps) {
     { module:"تصدير ERP",        perms:["none","approve","none","none","none","approve"] },
     { module:"إدارة المستخدمين", perms:["none","none","none","none","none","approve"] },
     { module:"إدارة الاشتراكات", perms:["none","none","none","none","none","approve"] },
-  ]);
+  ];
+  const [matrix, setMatrix] = useState<{module:string; perms: Permission[]}[]>(
+    (((permsApi as any)?.matrix?.length>0) ? (permsApi as any).matrix : MATRIX_FALLBACK) as typeof MATRIX_FALLBACK
+  );
   const [editMode,  setEditMode]  = useState(false);
   const [saved,     setSaved]     = useState(false);
   const [changes,   setChanges]   = useState(0);
