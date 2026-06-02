@@ -6606,7 +6606,7 @@ function ExcelImportModal({ assets, setAssets, onClose }:{ assets:any[]; setAsse
 
 function AccAssets({ navigate }: PageProps) {
   const { t, lang, dir } = useLang();
-  usePlatformAssets();
+  const { data: apiAssetsPage } = usePlatformAssets();
   usePlatformAssetDrafts();
   const { drafts, discardDraft, confirmDraft } = useContext(AssetDraftContext);
   type AssetStatus = "pending_branch"|"pending_accountant"|"confirmed"|"registered";
@@ -6622,7 +6622,7 @@ function AccAssets({ navigate }: PageProps) {
   const CAT_ICON: Record<AssetCat,string> = { "معدات":"🔧","تقنية":"💻","أثاث":"🪑","مركبات":"🚗","أخرى":"📦" };
   const CAT_CLR:  Record<AssetCat,string> = { "معدات":"bg-blue-500","تقنية":"bg-purple-500","أثاث":"bg-amber-500","مركبات":"bg-green-500","أخرى":"bg-gray-400" };
 
-  const [assets, setAssets] = useState<AssetEntry[]>([
+  const ASSETS_FALLBACK: AssetEntry[] = [
     { id:"FA-001", name:"ثلاجة عرض كبيرة",    cat:"معدات", branch:"فرع الرياض - العليا",     cost:28000, book:21000, usefulLife:60,  case_:"branch_upload",  status:"pending_accountant", invNum:"INV-A001", submittedBy:"مدير الفرع: خالد العمري", date:"12 أكت", custodian:"خالد العمري",
       history:[{date:"12 أكت", from:"—",       to:"خالد العمري",   note:"تسجيل أولي عبر الموبايل",      by:"مدير الفرع"}] },
     { id:"FA-002", name:"نظام POS متكامل",    cat:"تقنية", branch:"فرع جدة - الحمراء",       cost:15000, book:9000,  usefulLife:36,  case_:"acc_register",   status:"pending_branch",     invNum:"INV-A002", submittedBy:"المحاسب: سارة الزهراني",  date:"11 أكت", custodian:"مدير الفرع — قيد التأكيد",
@@ -6645,7 +6645,9 @@ function AccAssets({ navigate }: PageProps) {
         {date:"01 مار", from:"—",              to:"طارق الرشيدي",  note:"شراء وتسجيل",                   by:"المحاسب"},
         {date:"05 أكت", from:"طارق الرشيدي",   to:"طارق الرشيدي",  note:"مراجعة سنوية — بدون تغيير",    by:"المحاسب"},
       ]},
-  ]);
+  ];
+  const apiAssetsList = (apiAssetsPage as any)?.data ?? (apiAssetsPage as any);
+  const [assets, setAssets] = useState<AssetEntry[]>(((apiAssetsList as any[])?.length > 0 ? (apiAssetsList as AssetEntry[]) : ASSETS_FALLBACK));
 
   const [expandedId,     setExpandedId]    = useState<string|null>(null);
   const [filterStatus,   setFilterStatus]  = useState<"الكل"|AssetStatus>("الكل");
@@ -7407,7 +7409,7 @@ function AccAssets({ navigate }: PageProps) {
 // ════════════════════════════════════════════════════════════
 function AccWaste({}: PageProps) {
   const { t, lang, dir } = useLang();
-  usePlatformWaste();
+  const { data: apiWaste } = usePlatformWaste();
   type WasteClass = "هدر"|"تالف";
   type Resp = "موظف"|"مطعم";
   type EmpAlloc = { empId:string; empName:string; amount:string };
@@ -7427,7 +7429,7 @@ function AccWaste({}: PageProps) {
   const [expandedId,   setExpandedId]   = useState<string|null>(null);
   const [expandedProd, setExpandedProd] = useState<Record<string,number|null>>({});
 
-  const [entries, setEntries] = useState<WasteEntry[]>([
+  const ENTRIES_FALLBACK: WasteEntry[] = [
     { id:"WD-001", branch:"فرع الرياض - العليا", date:"14 أكت", status:"pending",
       products:[
         { name:"دجاج طازج",   qty:3,  unit:"كجم",   unitPrice:35, class_:"تالف", resp:"موظف", hasImg:true,
@@ -7449,7 +7451,9 @@ function AccWaste({}: PageProps) {
         { name:"دجاج طازج",   qty:1,  unit:"كجم",   unitPrice:35, class_:"تالف", resp:"موظف", hasImg:true,
           empAllocs:[{empId:"1002",empName:"سارة الزهراني",amount:"35"}] },
       ]},
-  ]);
+  ];
+  const apiWasteList = (apiWaste as any)?.data ?? (apiWaste as any);
+  const [entries, setEntries] = useState<WasteEntry[]>(((apiWasteList as any[])?.length > 0 ? (apiWasteList as WasteEntry[]) : ENTRIES_FALLBACK));
 
   const updProd = (eid:string, pi:number, fn:(p:WasteProduct)=>WasteProduct) =>
     setEntries(prev=>prev.map(e=>e.id===eid?{...e,products:e.products.map((p,i)=>i===pi?fn(p):p)}:e));
@@ -7758,7 +7762,7 @@ function AccWaste({}: PageProps) {
 // ════════════════════════════════════════════════════════════
 function AccReminders({}: PageProps) {
   const { t, lang, dir } = useLang();
-  usePlatformReminders();
+  const { data: apiReminders } = usePlatformReminders();
   type ReminderStatus = "not_sent"|"sent"|"responded";
   type ResponseType = "سيرسل لاحقاً"|"لا مشتريات اليوم"|"تم الجرد — قيد الرفع"|"توضيح: لا يوجد هدر اليوم"|null;
   interface MissingReport { id:string; branch:string; reportType:string; moduleKey:string; requiredBy:string; daysMissing:number; urgency:"high"|"medium"|"low"; reminderStatus:ReminderStatus; response:ResponseType }
@@ -7779,7 +7783,7 @@ function AccReminders({}: PageProps) {
   const [broadcastModule, setBroadcastModule] = useState("");
   const [broadcastMsg,    setBroadcastMsg]    = useState("");
 
-  const [reminders, setReminders] = useState<MissingReport[]>([
+  const REMINDERS_FALLBACK: MissingReport[] = [
     { id:"R001", branch:"فرع الرياض - العليا",      reportType:"جرد المخزون اليومي",    moduleKey:"inventory_daily",   requiredBy:"14 أكت",  daysMissing:1, urgency:"high",   reminderStatus:"not_sent", response:null },
     { id:"R002", branch:"فرع جدة - الحمراء",        reportType:"تقرير المبيعات اليومي", moduleKey:"sales",             requiredBy:"14 أكت",  daysMissing:1, urgency:"high",   reminderStatus:"sent",     response:null },
     { id:"R003", branch:"فرع مكة - المعابدة",       reportType:"طلب الشراء الأسبوعي",   moduleKey:"purchases",         requiredBy:"13 أكت",  daysMissing:2, urgency:"medium", reminderStatus:"responded", response:"سيرسل لاحقاً" },
@@ -7788,7 +7792,9 @@ function AccReminders({}: PageProps) {
     { id:"R006", branch:"فرع جدة - العزيزية",       reportType:"تقرير المشتريات",        moduleKey:"purchases",         requiredBy:"12 أكت",  daysMissing:3, urgency:"medium", reminderStatus:"responded", response:"لا مشتريات اليوم" },
     { id:"R007", branch:"فرع الرياض - السليمانية",  reportType:"الجرد الشهري",           moduleKey:"inventory_monthly", requiredBy:"11 أكت",  daysMissing:4, urgency:"high",   reminderStatus:"not_sent", response:null },
     { id:"R008", branch:"فرع جدة - العزيزية",       reportType:"المصروفات اليومية",      moduleKey:"expenses",          requiredBy:"11 أكت",  daysMissing:4, urgency:"medium", reminderStatus:"sent",     response:null },
-  ]);
+  ];
+  const apiRemList = (apiReminders as any)?.data ?? (apiReminders as any);
+  const [reminders, setReminders] = useState<MissingReport[]>(((apiRemList as any[])?.length > 0 ? (apiRemList as MissingReport[]) : REMINDERS_FALLBACK));
   const [expandedId, setExpandedId] = useState<string|null>(null);
   const [responseOptions] = useState<ResponseType[]>(["سيرسل لاحقاً","لا مشتريات اليوم","تم الجرد — قيد الرفع","توضيح: لا يوجد هدر اليوم"]);
 
