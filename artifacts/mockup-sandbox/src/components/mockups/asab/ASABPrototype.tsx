@@ -8103,13 +8103,15 @@ function ReportsPage({}: PageProps) {
 // HEAD ACCOUNTANT PAGES
 // ════════════════════════════════════════════════════════════
 function HeadDashboard({ navigate, setModal, setDetailId, ops, finalApproveOp, rejectOp, bulkApprove, markErpPosted }:PageProps) {
-  useHeadDashboardPlatform();
+  const { data: apiHead } = useHeadDashboardPlatform();
   useHeadRemindersPlatform();
   const { t } = useLang();
   const [tab, setTab] = useState<"approval"|"performance"|"erp">("approval");
   const awaitingHead = ops.filter(o=>o.status==="approved");
   const finalApproved = ops.filter(o=>o.status==="final-approved");
   const rejected = ops.filter(o=>o.status==="rejected");
+  const headKpis = (apiHead as any)?.kpis ?? {};
+  const performanceRate = headKpis.performanceRatePct ?? 87;
 
   return (
     <div className="space-y-5">
@@ -8122,7 +8124,7 @@ function HeadDashboard({ navigate, setModal, setDetailId, ops, finalApproveOp, r
         <KpiCard label={t("معتمدة نهائياً","Final Approved")} value={String(finalApproved.filter(o=>!o.erpPosted).length)} sub={t("مُغلقة · تنتظر ERP · م4","Closed · Awaiting ERP · S4")} icon={<Lock size={18} className="text-emerald-600"/>} accent="emerald" onClick={()=>setTab("erp")}/>
         <KpiCard label={t("مُرحَّلة لـ ERP","Posted to ERP")} value={String(finalApproved.filter(o=>o.erpPosted).length)} sub={t("مُعالَجة · م5","Processed · S5")} icon={<ChevronsRight size={18} className="text-indigo-600"/>} accent="blue" onClick={()=>setTab("erp")}/>
         <KpiCard label={t("مرفوضة","Rejected")} value={String(rejected.length)} sub={t("خارج المسار","Off pipeline")} icon={<XCircle size={18} className="text-red-600"/>} accent="red" onClick={()=>setTab("approval")}/>
-        <KpiCard label={t("معدل الأداء","Performance Rate")} value="87%" sub={t("هذا الشهر","This Month")} icon={<TrendingUp size={18} className="text-purple-600"/>} accent="purple" onClick={()=>setTab("performance")}/>
+        <KpiCard label={t("معدل الأداء","Performance Rate")} value={`${performanceRate}%`} sub={t("هذا الشهر","This Month")} icon={<TrendingUp size={18} className="text-purple-600"/>} accent="purple" onClick={()=>setTab("performance")}/>
       </div>
       {/* Weekly performance chart */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
@@ -9219,11 +9221,17 @@ function HeadERP({ ops, markErpPosted }:PageProps) {
 // ADMIN PAGES
 // ════════════════════════════════════════════════════════════
 function AdminOverview({ navigate, setModal }:PageProps) {
-  useAdminOverview();
+  const { data: apiOverview } = useAdminOverview();
   const { t, dir } = useLang();
-  const totalRests   = BRANDS_DATA.reduce((s,b)=>s+b.restaurants.length,0);
-  const totalBranches = BRANDS_DATA.reduce((s,b)=>s+b.restaurants.reduce((ss,r)=>ss+r.branches.length,0),0);
+  const totalRestsLocal   = BRANDS_DATA.reduce((s,b)=>s+b.restaurants.length,0);
+  const totalBranchesLocal = BRANDS_DATA.reduce((s,b)=>s+b.restaurants.reduce((ss,r)=>ss+r.branches.length,0),0);
   const expiringBrands = BRANDS_DATA.filter(b=>b.subStatus==="warning"||b.subStatus==="danger"||b.subStatus==="expired");
+  const o = (apiOverview as any) ?? {};
+  const brandsCount      = o.brandsCount      ?? BRANDS_DATA.length;
+  const totalRests       = o.restaurantsCount ?? totalRestsLocal;
+  const totalBranches    = o.branchesCount    ?? totalBranchesLocal;
+  const activeUsers      = o.activeUsersCount ?? 7;
+  const expiringCount    = o.expiringSubscriptionsCount ?? expiringBrands.length;
 
   return (
     <div className="space-y-5" dir={dir}>
@@ -9236,10 +9244,10 @@ function AdminOverview({ navigate, setModal }:PageProps) {
       </div>
 
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label={t("علامات تجارية","Brands")} value={String(BRANDS_DATA.length)} sub={t("4 علامات نشطة","4 active brands")} icon={<span className="text-xl font-bold text-purple-600">B</span>} accent="purple"/>
+        <KpiCard label={t("علامات تجارية","Brands")} value={String(brandsCount)} sub={t("4 علامات نشطة","4 active brands")} icon={<span className="text-xl font-bold text-purple-600">B</span>} accent="purple"/>
         <KpiCard label={t("مطاعم وفروع","Restaurants & Branches")} value={`${totalRests} / ${totalBranches}`} sub={t("مطعم / فرع","restaurant / branch")} icon={<Home size={18} className="text-blue-600"/>} accent="blue"/>
-        <KpiCard label={t("مستخدمون نشطون","Active Users")} value="7" sub={t("5 محاسبين · 1 رئيس","5 accountants · 1 head")} icon={<Users size={18} className="text-emerald-600"/>} accent="emerald"/>
-        <KpiCard label={t("تحتاج تجديد","Need Renewal")} value={String(expiringBrands.length)} sub={t("علامات تجارية","brands")} icon={<AlertTriangle size={18} className="text-amber-500"/>} accent="amber"/>
+        <KpiCard label={t("مستخدمون نشطون","Active Users")} value={String(activeUsers)} sub={t("5 محاسبين · 1 رئيس","5 accountants · 1 head")} icon={<Users size={18} className="text-emerald-600"/>} accent="emerald"/>
+        <KpiCard label={t("تحتاج تجديد","Need Renewal")} value={String(expiringCount)} sub={t("علامات تجارية","brands")} icon={<AlertTriangle size={18} className="text-amber-500"/>} accent="amber"/>
       </div>
 
       <div className="grid grid-cols-2 gap-5">
