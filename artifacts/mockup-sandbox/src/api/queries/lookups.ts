@@ -15,3 +15,18 @@ export function useLookup(type: LookupType, params?: Record<string, unknown>) {
     staleTime: 5 * 60_000, // lookups change infrequently
   });
 }
+
+// Branch-scoped employee lookup (sales-variance assignment, etc.)
+export function useBranchEmployeesLookup(branchId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["lookups", "branch-employees", branchId] as const,
+    enabled: Boolean(branchId),
+    queryFn: async () => {
+      const res = await api.get<LookupRow[]>(
+        `/company/me/branches/${branchId}/employees/lookup`,
+      );
+      return res.data;
+    },
+    staleTime: 5 * 60_000,
+  });
+}

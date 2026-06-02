@@ -152,6 +152,29 @@ export function useFinalApprove() {
   });
 }
 
+// ─── Corrective operation (create a new op linked to a rejected/posted one) ──
+export function useCorrectOperation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      ...body
+    }: { id: string } & Record<string, unknown>) => {
+      const res = await api.post<Operation>(
+        `/operations/${id}/correction`,
+        body,
+      );
+      return res.data;
+    },
+    onSuccess: (op) => {
+      qc.invalidateQueries({ queryKey: ["operations"] });
+      qc.invalidateQueries({ queryKey: queryKeys.operationAudit(op.id) });
+      toast.success("تم إنشاء عملية تصحيح");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function cleanFilter<T extends object>(f: T): Partial<T> {
   const out: Record<string, unknown> = {};

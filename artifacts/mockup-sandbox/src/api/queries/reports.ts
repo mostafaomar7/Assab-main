@@ -24,6 +24,42 @@ export function useReports() {
   });
 }
 
+// ─── Individual report generators (shared §5 in BACKEND_API_SPEC) ───────────
+export type ReportKey =
+  | "profit-loss"
+  | "sales-summary"
+  | "expense-summary"
+  | "inventory-valuation"
+  | "payroll"
+  | "waste-analysis"
+  | "supplier-performance"
+  | "menu-engineering"
+  | "breakeven"
+  | "cash-flow";
+
+function makeReportGenerator(key: ReportKey) {
+  return function useGenerate() {
+    return useMutation({
+      mutationFn: async (body: Record<string, unknown> = {}) => {
+        const res = await api.post<unknown>(`/reports/${key}`, body);
+        return res.data;
+      },
+      onError: (e) => toast.error(getErrorMessage(e, "ar")),
+    });
+  };
+}
+
+export const useGenerateProfitLossReport = makeReportGenerator("profit-loss");
+export const useGenerateSalesSummaryReport = makeReportGenerator("sales-summary");
+export const useGenerateExpenseSummaryReport = makeReportGenerator("expense-summary");
+export const useGenerateInventoryValuationReport = makeReportGenerator("inventory-valuation");
+export const useGeneratePayrollReport = makeReportGenerator("payroll");
+export const useGenerateWasteAnalysisReport = makeReportGenerator("waste-analysis");
+export const useGenerateSupplierPerformanceReport = makeReportGenerator("supplier-performance");
+export const useGenerateMenuEngineeringReport = makeReportGenerator("menu-engineering");
+export const useGenerateBreakevenReport = makeReportGenerator("breakeven");
+export const useGenerateCashFlowReport = makeReportGenerator("cash-flow");
+
 export function useDownloadReport() {
   return useMutation({
     mutationFn: async ({

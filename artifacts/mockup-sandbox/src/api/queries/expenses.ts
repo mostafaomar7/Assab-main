@@ -23,6 +23,19 @@ export function useExpenseInvoices(filter: ExpenseFilter = {}) {
   });
 }
 
+export function useExpenseInvoiceAttachments(invoiceId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["expense-invoice", invoiceId, "attachments"] as const,
+    enabled: Boolean(invoiceId),
+    queryFn: async () => {
+      const res = await api.get<unknown>(
+        `/company/me/expense-invoices/${invoiceId}/attachments`,
+      );
+      return res.data;
+    },
+  });
+}
+
 export function useVerifyExpenseInvoice() {
   const qc = useQueryClient();
   return useMutation({

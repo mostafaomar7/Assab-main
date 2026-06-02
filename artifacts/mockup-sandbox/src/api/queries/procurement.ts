@@ -160,6 +160,45 @@ export function useSentOrders() {
   });
 }
 
+export function useCreateProcurementOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: {
+      supplierId?: string;
+      branchId?: string;
+      items: ProcurementOrderItem[];
+      notes?: string;
+    }) => {
+      const res = await api.post<ProcurementOrder>(
+        "/company/me/procurement/orders",
+        body,
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["procurement", "orders"] });
+      qc.invalidateQueries({ queryKey: queryKeys.procurementOverview });
+      toast.success("تم إنشاء الأمر");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+export function useDeleteProcurementOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/company/me/procurement/orders/${id}`);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["procurement", "orders"] });
+      qc.invalidateQueries({ queryKey: queryKeys.procurementOverview });
+      toast.success("تم حذف الأمر");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
 export function useUpdateOrder() {
   const qc = useQueryClient();
   return useMutation({
@@ -276,6 +315,38 @@ export function useItemPriceHistory(id: string | null | undefined) {
   });
 }
 
+export function useCreateProcurementItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Partial<ProcurementItem>) => {
+      const res = await api.post<ProcurementItem>(
+        "/company/me/procurement/items",
+        body,
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.procurementItems });
+      toast.success("تم إضافة الصنف");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+export function useDeleteProcurementItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/company/me/procurement/items/${id}`);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.procurementItems });
+      toast.success("تم حذف الصنف");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
 export function useUpdateProcurementItem() {
   const qc = useQueryClient();
   return useMutation({
@@ -310,6 +381,24 @@ export function useProcurementSuppliers() {
         | ProcurementSupplier[];
       return Array.isArray(d) ? d : (d.data ?? []);
     },
+  });
+}
+
+export function useCreateSupplier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Partial<ProcurementSupplier>) => {
+      const res = await api.post<ProcurementSupplier>(
+        "/company/me/suppliers",
+        body,
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.procurementSuppliers });
+      toast.success("تم إضافة المورد");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
   });
 }
 
