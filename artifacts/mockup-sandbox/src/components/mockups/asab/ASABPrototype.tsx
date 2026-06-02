@@ -10087,7 +10087,14 @@ const BRANDS_DATA = [
 function AdminRestaurants({}: PageProps) {
   const { data: brandsApi } = useAdminBrands();
   useAdminRestaurantSubscriptions();
-  const BRANDS = (((brandsApi as any)?.length>0) ? brandsApi : BRANDS_DATA) as typeof BRANDS_DATA;
+  // Only adopt the API shape when it includes nested restaurants/branches; otherwise
+  // fall back to the mock tree so the UI stays renderable while backend backfills nesting.
+  const apiBrands = brandsApi as any;
+  const apiHasNesting = Array.isArray(apiBrands)
+    && apiBrands.length > 0
+    && Array.isArray(apiBrands[0]?.restaurants)
+    && Array.isArray(apiBrands[0]?.restaurants?.[0]?.branches);
+  const BRANDS = (apiHasNesting ? apiBrands : BRANDS_DATA) as typeof BRANDS_DATA;
   const { t, dir } = useLang();
   const [expandedBrand, setExpandedBrand]   = useState<string|null>("reem");
   const [expandedRest,  setExpandedRest]    = useState<string|null>(null);
