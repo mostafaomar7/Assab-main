@@ -2,6 +2,9 @@ import { useEffect, useState, type ComponentType } from "react";
 import { modules as discoveredModules } from "./.generated/mockup-components";
 import { LoginPage } from "./auth/LoginPage";
 import { useAuth } from "./auth/AuthContext";
+import { OnboardingWizard } from "./auth/OnboardingWizard";
+import { InvitationAcceptPage } from "./auth/InvitationAcceptPage";
+import { SubscriptionExpiredBanner } from "./components/shared/SubscriptionExpiredBanner";
 
 type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 
@@ -315,6 +318,15 @@ function App() {
     );
   }
 
+  // Public routes (no auth) — onboarding + invitation accept.
+  const hash = window.location.hash;
+  if (!user && hash.startsWith("#/onboarding")) {
+    return <OnboardingWizard onDone={() => (window.location.hash = "#/login")} />;
+  }
+  if (!user && hash.startsWith("#/accept-invitation/")) {
+    return <InvitationAcceptPage onDone={() => (window.location.hash = "#/")} />;
+  }
+
   if (!user) {
     return <LoginPage />;
   }
@@ -322,14 +334,22 @@ function App() {
   const previewPath = getPreviewPath();
   if (previewPath) {
     return (
-      <PreviewRenderer
-        componentPath={previewPath}
-        modules={discoveredModules}
-      />
+      <>
+        <SubscriptionExpiredBanner />
+        <PreviewRenderer
+          componentPath={previewPath}
+          modules={discoveredModules}
+        />
+      </>
     );
   }
 
-  return <ASABLanding onLogout={() => void logout()} userName={user.name} />;
+  return (
+    <>
+      <SubscriptionExpiredBanner />
+      <ASABLanding onLogout={() => void logout()} userName={user.name} />
+    </>
+  );
 }
 
 export default App;

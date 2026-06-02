@@ -2725,14 +2725,15 @@ function SimplePage({ title, icon, desc }:{ title:string; icon:string; desc:stri
 function AccDashboard({ navigate, setModal, setDetailId, ops, approveOp, rejectOp, bulkApprove }:PageProps) {
   const { t, lang } = useLang();
   // Live data subscription — falls back to inline `ops` prop on empty / error.
-  useAccountantDashboardPlatform();
+  const { data: dashData } = useAccountantDashboardPlatform();
   const [filters, setFilters] = useState<Filters>({branch:"",status:"pending",match:"",search:""});
   const [period, setPeriod] = useState<"today"|"week"|"month">("today");
 
   const pending = ops.filter(o=>o.status==="pending");
   const approved = ops.filter(o=>o.status==="approved");
   const rejected = ops.filter(o=>o.status==="rejected");
-  const approvalRate = ops.length>0 ? Math.round((approved.length+ops.filter(o=>o.status==="final-approved").length)/ops.length*100) : 0;
+  const apiApprovalRate = (dashData as any)?.kpis?.approvalRate ?? (dashData as any)?.approvalRate;
+  const approvalRate = apiApprovalRate ?? (ops.length>0 ? Math.round((approved.length+ops.filter(o=>o.status==="final-approved").length)/ops.length*100) : 0);
   const overdueCount = pending.filter(o=>{
     const daysAgo = o.timeAgo.includes("يوم") ? parseInt(o.timeAgo) || 2 : o.timeAgo.includes("أمس") ? 1 : 0;
     return daysAgo >= 2;
@@ -2801,7 +2802,7 @@ function AccDashboard({ navigate, setModal, setDetailId, ops, approveOp, rejectO
             {label:t("المراجعة","Review"),done:ops.filter(o=>o.status!=="pending").length,total:ops.length,color:"bg-purple-500"},
             {label:t("الموافقة","Approval"),done:ops.filter(o=>o.status==="approved"||o.status==="final-approved").length,total:ops.length,color:"bg-emerald-500"},
             {label:t("التوثيق","Documentation"),done:ops.filter(o=>o.status==="final-approved"&&o.erpPosted).length,total:ops.filter(o=>o.status==="final-approved").length||1,color:"bg-blue-500"},
-            {label:t("الفروع المكتملة","Completed Branches"),done:4,total:8,color:"bg-cyan-500"},
+            {label:t("الفروع المكتملة","Completed Branches"),done:(dashData as any)?.completedBranches ?? 4,total:(dashData as any)?.totalBranches ?? 8,color:"bg-cyan-500"},
           ].map(({label,done,total,color})=>{
             const pct = Math.min(100,total>0?Math.round(done/total*100):0);
             return (
@@ -2950,12 +2951,12 @@ function AccModulePage({ moduleKey, title, navigate, setModal, setDetailId, ops,
 function AccSalesPage({ navigate, setModal, setDetailId, ops, approveOp, rejectOp, bulkApprove }:PageProps) {
   const { t, dir, lang } = useLang();
   const en = lang === "en";
-  useAccountantOperationsPlatform({ moduleKey: "sales" });
+  const { data: salesApi } = useAccountantOperationsPlatform({ moduleKey: "sales" });
   const [filters,      setFilters]      = useState<Filters>({branch:"",status:"",match:"",search:""});
   const [brand,        setBrand]        = useState("");
   const [selectedDay,  setSelectedDay]  = useState("all");
 
-  const DAY_OPTIONS = [
+  const FALLBACK_DAY_OPTIONS = [
     { label:t("الكل","All"),              val:"all",      ops:8, done:5 },
     { label:t("اليوم","Today"),           val:"today",    ops:3, done:1 },
     { label:t("أمس (14 أكت)","Yesterday (Oct 14)"), val:"d14", ops:4, done:4 },
@@ -2966,13 +2967,17 @@ function AccSalesPage({ navigate, setModal, setDetailId, ops, approveOp, rejectO
     { label:t("الأسبوع الماضي","Last Week"),          val:"lastWeek",  ops:14, done:12 },
     { label:t("الشهر الماضي","Last Month"),           val:"lastMonth", ops:48, done:40 },
   ];
+  const apiDayOptions = (salesApi as any)?.dayOptions;
+  const DAY_OPTIONS = (apiDayOptions?.length > 0 ? apiDayOptions : FALLBACK_DAY_OPTIONS) as any[];
 
   const mOps    = ops.filter(o=>o.moduleKey==="sales");
   const pending  = mOps.filter(o=>o.status==="pending");
   const filtered = applyFilters(ops, filters, "sales");
-  const selectedDayInfo = DAY_OPTIONS.find(d=>d.val===selectedDay);
+  const selectedDayInfo = DAY_OPTIONS.find((d:any)=>d.val===selectedDay);
 
-  const BRAND_OPTIONS = [t("الكل","All"),"برغر خليفة","بيتزا باكو","وسطاوي"];
+  const FALLBACK_BRAND_OPTIONS = [t("الكل","All"),"برغر خليفة","بيتزا باكو","وسطاوي"];
+  const apiBrandOptions = (salesApi as any)?.brandOptions;
+  const BRAND_OPTIONS = (apiBrandOptions?.length > 0 ? apiBrandOptions : FALLBACK_BRAND_OPTIONS) as any[];
   const allBrandVal = t("الكل","All");
 
   return (
@@ -3374,7 +3379,7 @@ function ConvertToAssetModal({
 function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, rejectOp, bulkApprove }:PageProps) {
   const { t, dir, lang } = useLang();
   const en = lang === "en";
-  useAccountantOperationsPlatform({ moduleKey: "expenses" });
+  const { data: expensesApi } = useAccountantOperationsPlatform({ moduleKey: "expenses" });
   const { getConvertedInvNums, drafts } = useContext(AssetDraftContext);
   const [filters,          setFilters]          = useState<Filters>({branch:"",status:"",match:"",search:""});
   const [expandedId,       setExpandedId]       = useState<string|null>(null);
@@ -3386,7 +3391,7 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
   const [convertModal,     setConvertModal]     = useState<{opId:string; invNum:string; vendor:string; desc:string; amount:number; branch:string; date:string}|null>(null);
   const convertedInvNums = getConvertedInvNums();
 
-  const EXP_DAY_OPTIONS = [
+  const FALLBACK_EXP_DAY_OPTIONS = [
     { label:t("الكل","All"),            val:"all"      },
     { label:t("اليوم","Today"),         val:"today"    },
     { label:t("أمس (14 أكت)","Yesterday (Oct 14)"), val:"d14" },
@@ -3396,6 +3401,8 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
     { label:t("الأسبوع الماضي","Last Week"),  val:"lastWeek" },
     { label:t("الشهر الماضي","Last Month"),   val:"lastMonth"},
   ];
+  const apiExpDayOptions = (expensesApi as any)?.dayOptions;
+  const EXP_DAY_OPTIONS = (apiExpDayOptions?.length > 0 ? apiExpDayOptions : FALLBACK_EXP_DAY_OPTIONS) as any[];
 
   const mOps    = ops.filter(o=>o.moduleKey==="expenses");
   const filtered = applyFilters(ops, filters, "expenses");
@@ -3404,15 +3411,19 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
   const toggleInvoiceVerify = (key:string) => setVerifiedInvoices(p=>({...p,[key]:!p[key]}));
 
   // Simulated batch invoices for each operation
-  const INVOICES: Record<string, {invNum:string; vendor:string; desc:string; amount:number; date:string; attachCount:number}[]> = {
+  const FALLBACK_INVOICES: Record<string, {invNum:string; vendor:string; desc:string; amount:number; date:string; attachCount:number}[]> = {
     default: [
       {invNum:"INV-001", vendor:"شركة الخليج للمواد",   desc:"مواد تنظيف وصيانة",   amount:850,  date:"12 أكت", attachCount:2},
       {invNum:"INV-002", vendor:"مستلزمات المطبخ",       desc:"أدوات خدمة وتغليف",  amount:420,  date:"12 أكت", attachCount:1},
       {invNum:"INV-003", vendor:"خدمات الصيانة السريعة", desc:"إصلاح معدات المطبخ", amount:1200, date:"13 أكت", attachCount:3},
     ],
   };
+  const apiInvoices = (expensesApi as any)?.invoices;
+  const INVOICES: Record<string, Array<{invNum:string; vendor:string; desc:string; amount:number; date:string; attachCount:number}>> = (apiInvoices && Object.keys(apiInvoices).length > 0 ? apiInvoices : FALLBACK_INVOICES) as Record<string, Array<{invNum:string; vendor:string; desc:string; amount:number; date:string; attachCount:number}>>;
   // Simulated attachment images (represented as colored placeholder tiles)
-  const ATTACH_LABELS = ["صورة الفاتورة الأمامية","صورة الباركود","صورة الختم والتوقيع","صورة المبلغ والإجمالي"];
+  const FALLBACK_ATTACH_LABELS = ["صورة الفاتورة الأمامية","صورة الباركود","صورة الختم والتوقيع","صورة المبلغ والإجمالي"];
+  const apiAttachLabels = (expensesApi as any)?.attachLabels;
+  const ATTACH_LABELS = (apiAttachLabels?.length > 0 ? apiAttachLabels : FALLBACK_ATTACH_LABELS) as any[];
 
   return (
     <div className="space-y-5" dir={dir}>
@@ -3759,24 +3770,28 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
 function AccSalesDetail({ navigate, setModal, setDetailId, detailId, ops, approveOp, addCorrectiveOp }:PageProps) {
   const { t, lang, dir } = useLang();
   const en = lang === "en";
-  useAccountantOperationsPlatform();
+  const { data: detailApi } = useAccountantOperationsPlatform();
   const op = ops.find(o=>o.id===detailId) || ops[0];
 
-  const RECON_EMP: Record<string,string> = {
+  const FALLBACK_RECON_EMP: Record<string,string> = {
     "1001":"أحمد الشمري","1002":"محمد العبدلي","1003":"خالد النجار",
     "1004":"سعد الغامدي","1005":"عبدالرحمن السيف","1006":"فيصل الحربي",
   };
+  const apiReconEmp = (detailApi as any)?.reconEmployees;
+  const RECON_EMP: Record<string,string> = (apiReconEmp && Object.keys(apiReconEmp).length > 0 ? apiReconEmp : FALLBACK_RECON_EMP) as any;
 
   const totalSales = op?.amount || 18340;
-  const [reconCash,      setReconCash]      = useState(4200);
-  const [reconBank,      setReconBank]      = useState(8500);
+  const [reconCash,      setReconCash]      = useState((detailApi as any)?.reconciliation?.cash ?? 4200);
+  const [reconBank,      setReconBank]      = useState((detailApi as any)?.reconciliation?.bank ?? 8500);
   const [reconEditMode,  setReconEditMode]  = useState(false);
-  const [reconDelivApps, setReconDelivApps] = useState([
+  const FALLBACK_DELIV_APPS = [
     { app:"طلبات",         icon:"🔴", val:980,  orig:980  },
     { app:"هنقرستيشن",     icon:"🟠", val:2800, orig:2800 },
     { app:"جاهز",          icon:"🟡", val:1200, orig:1200 },
     { app:"نينجا (Ninja)", icon:"⚫", val:660,  orig:660  },
-  ]);
+  ];
+  const apiDelivApps = (detailApi as any)?.reconciliation?.deliveryApps;
+  const [reconDelivApps, setReconDelivApps] = useState<any[]>((apiDelivApps?.length > 0 ? apiDelivApps : FALLBACK_DELIV_APPS) as any[]);
   type VEmp = { empId:string; empName:string; amount:string };
   const [varEmps, setVarEmps] = useState<VEmp[]>([{ empId:"", empName:"", amount:"" }]);
   const setVarEmpField = (i:number, field:keyof VEmp, val:string) =>
@@ -4305,7 +4320,7 @@ function PurItemsTable({ items, verifiedMap, onToggleVerify }: { items:PurItem[]
 function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectOp, bulkApprove }:PageProps) {
   const { t, lang, dir } = useLang();
   const en = lang === "en";
-  useAccountantOperationsPlatform({ moduleKey: "purchases" });
+  const { data: purchasesApi } = useAccountantOperationsPlatform({ moduleKey: "purchases" });
   const ALL = "الكل";
   const [viewMode, setViewMode] = useState<"supplier"|"branch">("supplier");
   const [filterSupplier, setFilterSupplier] = useState(ALL);
@@ -4319,15 +4334,19 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
   const [editingRecId,    setEditingRecId]    = useState<string|null>(null);
   const [purAttachModal,  setPurAttachModal]  = useState<{recId:string; invNum:string; idx:number; total:number}|null>(null);
 
-  const SUPPLIER_LIST = [...new Set(PUR_RECORDS.map(r=>r.supplier))];
-  const BRANCH_LIST   = [...new Set(PUR_RECORDS.map(r=>r.branch))];
+  // Use API purchases records when present, else fall back to inline PUR_RECORDS.
+  const apiPurRecords = (purchasesApi as any)?.purchases ?? (purchasesApi as any)?.records;
+  const EFFECTIVE_PUR_RECORDS = ((apiPurRecords as any)?.length > 0 ? apiPurRecords : PUR_RECORDS) as typeof PUR_RECORDS;
 
-  const filtered = PUR_RECORDS.filter(r=>{
+  const SUPPLIER_LIST = [...new Set(EFFECTIVE_PUR_RECORDS.map((r:any)=>r.supplier))];
+  const BRANCH_LIST   = [...new Set(EFFECTIVE_PUR_RECORDS.map((r:any)=>r.branch))];
+
+  const filtered = EFFECTIVE_PUR_RECORDS.filter((r:any)=>{
     if(filterSupplier!==ALL && r.supplier!==filterSupplier) return false;
     if(filterBranch!==ALL   && r.branch!==filterBranch)     return false;
     if(filterStatus!==ALL   && r.status!==filterStatus)     return false;
     if(filterMatch!==ALL    && r.match!==filterMatch)       return false;
-    if(search && !r.branch.includes(search)&&!r.supplier.includes(search)&&!r.invNum.includes(search)&&!r.items.some(it=>it.name.includes(search))) return false;
+    if(search && !r.branch.includes(search)&&!r.supplier.includes(search)&&!r.invNum.includes(search)&&!r.items.some((it: any)=>it.name.includes(search))) return false;
     return true;
   });
 
@@ -4804,7 +4823,10 @@ const INV_BRANCH_DATA: Record<string, {item:string; cat:string; unit:string; pre
 function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailId, bulkApprove }:PageProps) {
   const { t, lang, dir } = useLang();
   const en = lang === "en";
-  usePlatformInventory();
+  const { data: inventoryApi } = usePlatformInventory();
+  // Use API per-branch inventory rows when present, else inline INV_BRANCH_DATA.
+  const apiBranchInventory = (inventoryApi as any)?.branches ?? (inventoryApi as any)?.byBranch;
+  const EFFECTIVE_INV_BRANCH_DATA = (apiBranchInventory && Object.keys(apiBranchInventory).length > 0 ? apiBranchInventory : INV_BRANCH_DATA) as typeof INV_BRANCH_DATA;
   const [expandedBranch, setExpandedBranch] = useState<string|null>(null);
   const [dailyBranch,    setDailyBranch]    = useState<string|null>(null);
   const [invType,        setInvType]        = useState<"monthly"|"daily">("monthly");
@@ -4825,10 +4847,12 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
 
   /* ── Daily inventory — multi-employee variance assignment (per branch) ── */
   type DVEmp = { empId:string; empName:string; amount:string };
-  const INV_EMP: Record<string,string> = {
+  const FALLBACK_INV_EMP: Record<string,string> = {
     "1001":"أحمد الشمري","1002":"محمد العبدلي","1003":"خالد النجار",
     "1004":"سعد الغامدي","1005":"عبدالرحمن السيف","1006":"فيصل الحربي",
   };
+  const apiInvEmp = (inventoryApi as any)?.employees;
+  const INV_EMP: Record<string,string> = (apiInvEmp && Object.keys(apiInvEmp).length > 0 ? apiInvEmp : FALLBACK_INV_EMP) as any;
   const [dailyVarEmps, setDailyVarEmps] = useState<Record<string,DVEmp[]>>({});
   const getDailyEmps = (b:string): DVEmp[] => dailyVarEmps[b] || [{empId:"",empName:"",amount:""}];
   const setDailyEmps = (b:string, fn:(p:DVEmp[])=>DVEmp[]) =>
@@ -4842,7 +4866,7 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
   const exportExcel = (branch?:string) => { alert(branch?`تحميل Excel: جاري تنزيل جرد ${branch}...`:"تحميل Excel: جاري تنزيل جرد كل المطاعم..."); };
 
   // Count anomalies across all branches (change > 200% or < -50%)
-  const anomalyCount = Object.values(INV_BRANCH_DATA).flat().filter(it=>{
+  const anomalyCount = (Object.values(EFFECTIVE_INV_BRANCH_DATA).flat() as any[]).filter((it:any)=>{
     if(it.prev===0) return false;
     const pct = ((it.curr-it.prev)/it.prev)*100;
     return Math.abs(pct) > 100;
@@ -4920,13 +4944,13 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
         </div>
         {BRANCHES.slice(0,4).map((branch,bi)=>{
           const branchOp  = invOps.find(o=>o.branch===branch);
-          const items     = INV_BRANCH_DATA[branch] || [];
+          const items     = (EFFECTIVE_INV_BRANCH_DATA as any)[branch] || [];
           const isExpanded  = expandedBranch===branch;
           const isDailyOpen = dailyBranch===branch;
           const isFlagged   = flaggedBranches.has(branch);
           const isConfirmed = branchConfirmed.has(branch);
           const isSent      = sentToConfirm.has(branch);
-          const branchAnomalies = items.filter(it=>{
+          const branchAnomalies = items.filter((it: any)=>{
             if(it.prev===0) return false;
             return Math.abs(((it.curr-it.prev)/it.prev)*100) > 100;
           });
@@ -5027,7 +5051,7 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 bg-white">
-                      {items.map((it,j)=>{
+                      {items.map((it: any, j: number)=>{
                         const diff   = it.curr - it.prev;
                         const pct    = it.prev>0 ? Math.round((diff/it.prev)*100) : 0;
                         const isAnomaly = Math.abs(pct) > 100;

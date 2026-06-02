@@ -256,6 +256,27 @@ export function LoginPage() {
           نسيت كلمة المرور؟
         </button>
 
+        <button
+          type="button"
+          onClick={() => (window.location.hash = "#/onboarding")}
+          style={{
+            display: "block",
+            width: "100%",
+            background: "transparent",
+            border: "1px solid rgba(124,58,237,0.3)",
+            color: "#a78bfa",
+            fontSize: 12,
+            cursor: "pointer",
+            marginTop: 12,
+            padding: "10px",
+            borderRadius: 10,
+            fontFamily: "inherit",
+            fontWeight: 600,
+          }}
+        >
+          تسجيل شركة جديدة
+        </button>
+
         <p
           style={{
             fontSize: 11,

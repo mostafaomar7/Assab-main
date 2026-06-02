@@ -28,7 +28,7 @@ import {
   // Branch Manager
   useBranchOverview, useBranchEmployees, useBranchItems, useBranchPurchaseRequests,
   useBranchSuppliers, useBranchActiveShift, useBranchSubmitItemsCount, useBranchUpload,
-  useBranchRequestNewSupplier, useBranchOpenShift, useBranchCloseShift,
+  useBranchRequestNewSupplier, useBranchOpenShift, useBranchCloseShift, useBranchSettings,
   // Procurement
   useProcurementOverview, useProcurementOrders, useGroupedOrders, useSentOrders,
   useApproveOrder, useSendGroupedOrder, useProcurementItems, useProcurementSuppliers,
@@ -1460,11 +1460,11 @@ function CASubscription() {
       </div>
       <div className="bg-white rounded-2xl border border-purple-100 shadow-sm overflow-hidden">
         <div className="px-5 py-4 bg-gradient-to-l from-purple-600 to-blue-700 text-white flex items-center justify-between">
-          <div><div className="flex items-center gap-2"><span className="font-black text-xl">{t("احترافي","Professional")}</span><Badge className="bg-white/20 text-white text-[10px]">{t("الخطة الحالية","Current Plan")}</Badge></div><p className="text-white/70 text-xs mt-0.5">{t("تنتهي 15 يناير 2026","Expires Jan 15, 2026")}</p></div>
-          <p className="text-2xl font-black">{billing==="annual"?"4,800":"400"} <span className="text-sm font-normal text-white/60">{SAR}/{billing==="annual"?perYear:perMonth}</span></p>
+          <div><div className="flex items-center gap-2"><span className="font-black text-xl">{t(PLAN_AR[currentPlanName]||currentPlanName, currentPlanName)}</span><Badge className="bg-white/20 text-white text-[10px]">{t("الخطة الحالية","Current Plan")}</Badge></div><p className="text-white/70 text-xs mt-0.5">{t("تنتهي 15 يناير 2026","Expires Jan 15, 2026")}</p></div>
+          <p className="text-2xl font-black">{billing==="annual"?fmt(currentPlanPriceAnnual):fmt(currentPlanPriceMonthly)} <span className="text-sm font-normal text-white/60">{SAR}/{billing==="annual"?perYear:perMonth}</span></p>
         </div>
         <div className="p-5 grid grid-cols-3 gap-4">
-          {[[t("الفروع","Branches"),12,20,"bg-blue-500"],[t("المستخدمون","Users"),31,50,"bg-purple-500"],[t("التخزين (GB)","Storage (GB)"),2.4,10,"bg-emerald-500"]].map(([l,u,m,c])=>(
+          {[[t("الفروع","Branches"),branchesUsed,branchesMax,"bg-blue-500"],[t("المستخدمون","Users"),usersUsed,usersMax,"bg-purple-500"],[t("التخزين (GB)","Storage (GB)"),storageUsed,storageMax,"bg-emerald-500"]].map(([l,u,m,c])=>(
             <div key={String(l)}><div className="flex justify-between mb-1.5 text-xs font-semibold text-gray-600"><span>{l}</span><span>{u}/{m}</span></div><div className="w-full h-2 bg-gray-100 rounded-full"><div className={`h-2 rounded-full ${c}`} style={{width:`${Math.round((Number(u)/Number(m))*100)}%`}}/></div></div>
           ))}
         </div>
@@ -2126,6 +2126,9 @@ function HeadApproved({ ops }:{ ops:COp[] }) {
 function HeadBrands() {
   const { t, dir } = useCLang();
   const SAR = t("ر.س","SAR");
+  const { data: apiHeadDash } = useHeadDashboard();
+  const apiBrandSummary = (apiHeadDash?.brandSummary ?? []) as any[];
+  void apiBrandSummary; // backend list available; UI renders rich tree from BRANDS
   return (
     <div className="space-y-5" dir={dir}>
       <div><h2 className="text-xl font-bold text-gray-800">{t("أداء العلامات التجارية","Brand Performance")}</h2></div>
@@ -2187,12 +2190,23 @@ function HeadAccountants() {
 
 function HeadReports() {
   const { t, dir } = useCLang();
-  const reports=[
+  const { data: apiReports = [] } = useReports();
+  const downloadReportMut = useDownloadReport();
+  const REPORTS_INLINE = [
     {ar:"📊 تقرير الأرباح والخسائر", en:"📊 P&L Report",       dar:"P&L لكل علامة تجارية",   den:"P&L per brand",      file:"PL_Report_Mar2026.pdf"},
     {ar:"📈 مقارنة الفروع",          en:"📈 Branch Comparison", dar:"أداء كل فرع مقابل الهدف",den:"Each branch vs target",file:"Branch_Comparison_Mar2026.pdf"},
     {ar:"💰 ملخص المبيعات",          en:"💰 Sales Summary",     dar:"مبيعات شهرية وسنوية",    den:"Monthly & yearly sales",file:"Sales_Summary_Mar2026.pdf"},
     {ar:"📉 تحليل المصروفات",        en:"📉 Expenses Analysis", dar:"تفصيل مصروفات كل علامة",den:"Expenses breakdown",   file:"Expenses_Analysis_Mar2026.pdf"},
   ];
+  const reports = (apiReports as any[]).length > 0
+    ? (apiReports as any[]).map((r: any) => ({
+        ar: r.title || r.name || r.key,
+        en: r.titleEn || r.title || r.name || r.key,
+        dar: r.description || "",
+        den: r.descriptionEn || r.description || "",
+        file: r.key || r.id,
+      }))
+    : REPORTS_INLINE;
   return (
     <div className="space-y-5" dir={dir}>
       <div><h2 className="text-xl font-bold text-gray-800">{t("التقارير المالية","Financial Reports")}</h2></div>
@@ -2202,7 +2216,7 @@ function HeadReports() {
             <p className="font-bold text-gray-800">{t(r.ar, r.en)}</p>
             <p className="text-xs text-gray-400 mt-1">{t(r.dar, r.den)}</p>
             <div className="mt-3">
-              <button onClick={()=>alert(`⬇️ ${t("جار تحميل:","Downloading:")}\n${r.file}\n\n${t("سيبدأ التحميل خلال ثوانٍ...","Download will start in a moment...")}`)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-purple-100 hover:text-purple-700 transition-colors">
+              <button onClick={()=>downloadReportMut.mutate({ key: r.file, format: "pdf" })} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-purple-100 hover:text-purple-700 transition-colors">
                 <Download size={11}/> {t("تحميل PDF","Download PDF")}
               </button>
             </div>
@@ -4568,35 +4582,53 @@ const MY_BRANCH = { name:"فرع العليا", brand:"برغر التاج", cit
 
 function BranchOverview() {
   const { t, dir } = useCLang();
-  useBranchOverview();
+  const { data: apiOverview } = useBranchOverview();
+  const { data: apiEmployees = [] } = useBranchEmployees();
   const SAR = t("ر.س","SAR");
-  const pct=Math.round((MY_BRANCH.salesM/MY_BRANCH.target)*100);
-  const todaySales=18340;
-  const tasks=[
+  const apiKpis = (apiOverview?.kpis ?? {}) as Record<string, number | string>;
+  const apiBranch = apiOverview?.branch;
+  const apiSalesM   = apiBranch?.monthlySalesHalalas    != null ? Math.round(apiBranch.monthlySalesHalalas    / 100) : MY_BRANCH.salesM;
+  const apiExpM     = apiBranch?.monthlyExpensesHalalas != null ? Math.round(apiBranch.monthlyExpensesHalalas / 100) : MY_BRANCH.expM;
+  const apiTarget   = apiBranch?.monthlyTargetHalalas   != null ? Math.round(apiBranch.monthlyTargetHalalas   / 100) : MY_BRANCH.target;
+  const todaySales  = (apiKpis.todaySalesHalalas as number | undefined) != null
+    ? Math.round((apiKpis.todaySalesHalalas as number) / 100)
+    : 18340;
+  const branchName  = apiBranch?.name      || MY_BRANCH.name;
+  const branchBrand = apiBranch?.brandName || MY_BRANCH.brand;
+  const branchCity  = apiBranch?.city      || MY_BRANCH.city;
+  const pct = Math.round((apiSalesM/apiTarget)*100);
+  const TASKS_FALLBACK = [
     [t("رفع مبيعات الشفت الصباحي","Upload morning shift sales"),t("مكتمل","Done"),"done"],
     [t("رفع مصروفات اليوم","Upload today's expenses"),t("مكتمل","Done"),"done"],
     [t("جرد المخزون اليومي","Daily inventory count"),t("معلق","Pending"),"pending"],
     [t("إغلاق شفت المساء","Close evening shift"),t("لاحقاً","Later"),"later"],
   ];
-  const crew=[
+  const apiMissing = apiOverview?.todayUploads?.missing ?? [];
+  const tasks = apiMissing.length > 0
+    ? apiMissing.map((m: string) => [m, t("معلق","Pending"), "pending"] as [string,string,string])
+    : TASKS_FALLBACK;
+  const CREW_FALLBACK = [
     ["أنس محمد",t("كاشير","Cashier"),t("صباحي","Morning"),t("نشط","Active")],
     ["ليلى سالم",t("كاشير","Cashier"),t("مسائي","Evening"),t("قادم","Incoming")],
     ["فهد العمري",t("طاهٍ","Chef"),t("صباحي","Morning"),t("نشط","Active")],
     ["سارة الغامدي",t("خدمة","Service"),t("مسائي","Evening"),t("نشط","Active")],
   ];
+  const crew = (apiEmployees as any[]).length > 0
+    ? (apiEmployees as any[]).slice(0,4).map((e: any) => [e.name, e.role || "—", "", e.active ? t("نشط","Active") : t("غائب","Absent")] as [string,string,string,string])
+    : CREW_FALLBACK;
   return (
     <div className="space-y-5" dir={dir}>
-      <div><h2 className="text-xl font-bold text-gray-800">{t("لوحة فرع العليا","Al-Ulia Branch Dashboard")}</h2><p className="text-gray-400 text-sm">{MY_BRANCH.brand} · {MY_BRANCH.city}</p></div>
+      <div><h2 className="text-xl font-bold text-gray-800">{t("لوحة فرع العليا","Al-Ulia Branch Dashboard")} — {branchName}</h2><p className="text-gray-400 text-sm">{branchBrand} · {branchCity}</p></div>
       <div className="bg-gradient-to-l from-emerald-600 to-teal-700 rounded-2xl p-5 text-white">
-        <div className="flex items-center justify-between mb-3"><div><p className="font-black text-xl">{t("إنجاز الشهر","Monthly Achievement")}</p><p className="text-white/70 text-sm mt-0.5">{t("الهدف:","Target:")} {fmt(MY_BRANCH.target)} {SAR}</p></div><div className={dir==="rtl"?"text-left":"text-right"}><p className="text-3xl font-black">{pct}%</p><p className="text-white/60 text-xs">{t("من الهدف","of target")}</p></div></div>
+        <div className="flex items-center justify-between mb-3"><div><p className="font-black text-xl">{t("إنجاز الشهر","Monthly Achievement")}</p><p className="text-white/70 text-sm mt-0.5">{t("الهدف:","Target:")} {fmt(apiTarget)} {SAR}</p></div><div className={dir==="rtl"?"text-left":"text-right"}><p className="text-3xl font-black">{pct}%</p><p className="text-white/60 text-xs">{t("من الهدف","of target")}</p></div></div>
         <div className="w-full h-3 bg-white/20 rounded-full"><div className="h-3 bg-white rounded-full" style={{width:`${Math.min(100,pct)}%`}}/></div>
-        <div className="flex justify-between mt-2 text-xs text-white/60"><span>0</span><span>{fmt(MY_BRANCH.target)}</span></div>
+        <div className="flex justify-between mt-2 text-xs text-white/60"><span>0</span><span>{fmt(apiTarget)}</span></div>
       </div>
       <div className="grid grid-cols-4 gap-4">
         <KpiCard label={t("مبيعات اليوم","Today's Sales")}   value={fmt(todaySales)} sub={SAR} icon={<TrendingUp size={18} className="text-emerald-600"/>} accent="emerald" delta="+5.2%"/>
-        <KpiCard label={t("مبيعات الشهر","Monthly Sales")}   value={`${fmt(Math.round(MY_BRANCH.salesM/1000))}K`} sub={SAR} icon={<BarChart3 size={18} className="text-blue-600"/>} accent="blue"/>
-        <KpiCard label={t("مصروفات الشهر","Monthly Expenses")} value={`${fmt(Math.round(MY_BRANCH.expM/1000))}K`} sub={SAR} icon={<Wallet size={18} className="text-amber-600"/>} accent="amber"/>
-        <KpiCard label={t("صافي الربح","Net Profit")}         value={`${fmt(Math.round((MY_BRANCH.salesM-MY_BRANCH.expM)/1000))}K`} sub={SAR} icon={<CheckCircle2 size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label={t("مبيعات الشهر","Monthly Sales")}   value={`${fmt(Math.round(apiSalesM/1000))}K`} sub={SAR} icon={<BarChart3 size={18} className="text-blue-600"/>} accent="blue"/>
+        <KpiCard label={t("مصروفات الشهر","Monthly Expenses")} value={`${fmt(Math.round(apiExpM/1000))}K`} sub={SAR} icon={<Wallet size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("صافي الربح","Net Profit")}         value={`${fmt(Math.round((apiSalesM-apiExpM)/1000))}K`} sub={SAR} icon={<CheckCircle2 size={18} className="text-purple-600"/>} accent="purple"/>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
@@ -4892,19 +4924,29 @@ function BranchSuppliers() {
 
 function BranchSettings() {
   const { t, dir } = useCLang();
-  const [branchName, setBranchName] = useState(MY_BRANCH.name);
-  const [manager,    setManager]    = useState("فاطمة السالم");
-  const [phone,      setPhone]      = useState("+966 11 234 5678");
+  const { data: apiSettings } = useBranchSettings();
+  const [branchName, setBranchName] = useState(apiSettings?.branchName || MY_BRANCH.name);
+  const [manager,    setManager]    = useState(apiSettings?.managerName || "فاطمة السالم");
+  const [phone,      setPhone]      = useState(apiSettings?.phone || "+966 11 234 5678");
+  useEffect(()=>{
+    if (apiSettings) {
+      if (apiSettings.branchName)  setBranchName(apiSettings.branchName);
+      if (apiSettings.managerName) setManager(apiSettings.managerName);
+      if (apiSettings.phone)       setPhone(apiSettings.phone);
+    }
+  }, [apiSettings]);
+  const branchBrand = apiSettings?.brandName || MY_BRANCH.brand;
+  const branchCity  = apiSettings?.city      || MY_BRANCH.city;
   return (
     <div className="space-y-5" dir={dir}>
-      <div><h2 className="text-xl font-bold text-gray-800">{t("إعدادات الفرع","Branch Settings")}</h2><p className="text-gray-400 text-sm">{MY_BRANCH.brand}</p></div>
+      <div><h2 className="text-xl font-bold text-gray-800">{t("إعدادات الفرع","Branch Settings")}</h2><p className="text-gray-400 text-sm">{branchBrand}</p></div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
         <h3 className="font-bold text-gray-800 text-sm border-b border-gray-100 pb-2">{t("بيانات الفرع الأساسية","Basic Branch Info")}</h3>
         <div className="grid grid-cols-2 gap-4">
           <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("اسم الفرع","Branch Name")}</label><input value={branchName} onChange={e=>setBranchName(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
           <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("مدير الفرع","Branch Manager")}</label><input value={manager} onChange={e=>setManager(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
           <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("رقم الهاتف","Phone")}</label><input value={phone} onChange={e=>setPhone(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400" dir="ltr"/></div>
-          <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("المدينة","City")}</label><input value={MY_BRANCH.city} readOnly className="w-full text-sm border border-gray-100 rounded-xl px-3 py-2.5 bg-gray-50 text-gray-400"/></div>
+          <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("المدينة","City")}</label><input value={branchCity} readOnly className="w-full text-sm border border-gray-100 rounded-xl px-3 py-2.5 bg-gray-50 text-gray-400"/></div>
         </div>
         <div className="flex justify-end pt-2"><Btn variant="primary" onClick={()=>alert(`✅ ${t("تم حفظ إعدادات الفرع","Branch settings saved")}`)}><Check size={13}/> {t("حفظ التغييرات","Save Changes")}</Btn></div>
       </div>
@@ -4917,8 +4959,16 @@ function BranchSettings() {
 // ═══════════════════════════════════════════════════
 function ProcOverview({ navigate }:{ navigate:(p:string)=>void }) {
   const { t, dir } = useCLang();
-  useProcurementOverview();
+  const { data: apiOverview } = useProcurementOverview();
   const { data: apiOrders = [] } = useProcurementOrders();
+  const { data: apiSuppliers = [] } = useProcurementSuppliers();
+  const apiKpis = (apiOverview?.kpis ?? {}) as Record<string, number | string>;
+  const activeSuppliersCount = (apiKpis.activeSuppliersCount as number | undefined)
+    ?? (apiSuppliers as any[]).filter((s: any) => s.isActive).length
+    ?? 8;
+  const monthlyPurchasesK = (apiKpis.monthlyPurchasesHalalas as number | undefined) != null
+    ? `${Math.round(((apiKpis.monthlyPurchasesHalalas as number) / 100) / 1000)}K`
+    : "187K";
   const SAR = t("ر.س","SAR");
   const ORDERS_INLINE = [
     { id:"PO-001",supplier:"شركة المروج للتوريد", items:3,total:12400,status:"pending",  date:t("اليوم","Today")     },
@@ -4945,8 +4995,8 @@ function ProcOverview({ navigate }:{ navigate:(p:string)=>void }) {
       <div className="grid grid-cols-4 gap-4">
         <KpiCard label={t("أوامر معلقة","Pending Orders")} value={String(orders.filter(o=>o.status==="pending").length)} sub={t("تنتظر الاعتماد","awaiting approval")} icon={<Clock size={18} className="text-amber-600"/>} accent="amber"/>
         <KpiCard label={t("قيمة المعلقة","Pending Value")} value={fmt(totalPending)} sub={SAR} icon={<Wallet size={18} className="text-red-500"/>} accent="red"/>
-        <KpiCard label={t("موردون نشطون","Active Suppliers")} value="8" sub={t("مورد معتمد","approved suppliers")} icon={<Building2 size={18} className="text-blue-600"/>} accent="blue"/>
-        <KpiCard label={t("مشتريات الشهر","Monthly Purchases")} value="187K" sub={`${SAR} ${t("إجمالي","total")}`} icon={<ShoppingCart size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label={t("موردون نشطون","Active Suppliers")} value={String(activeSuppliersCount)} sub={t("مورد معتمد","approved suppliers")} icon={<Building2 size={18} className="text-blue-600"/>} accent="blue"/>
+        <KpiCard label={t("مشتريات الشهر","Monthly Purchases")} value={monthlyPurchasesK} sub={`${SAR} ${t("إجمالي","total")}`} icon={<ShoppingCart size={18} className="text-purple-600"/>} accent="purple"/>
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60"><h3 className="font-bold text-gray-900 text-sm">{t("أحدث أوامر الشراء","Latest Purchase Orders")}</h3></div>
@@ -5050,7 +5100,7 @@ function ProcSuppliers() {
       <div className="grid grid-cols-3 gap-4">
         <KpiCard label={t("موردون نشطون","Active Suppliers")} value={String(suppliers.filter(s=>s.active).length)} sub={t("مورد معتمد","approved")} icon={<Building2 size={18} className="text-blue-600"/>} accent="blue"/>
         <KpiCard label={t("إجمالي المشتريات","Total Purchases")} value={`${fmt(Math.round(suppliers.reduce((s,x)=>s+x.totalSpent,0)/1000))}K`} sub={SAR} icon={<Wallet size={18} className="text-purple-600"/>} accent="purple"/>
-        <KpiCard label={t("متوسط التقييم","Avg Rating")} value="4.4" sub={t("من 5 نجوم","/ 5 stars")} icon={<Star size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("متوسط التقييم","Avg Rating")} value={(suppliers.length > 0 ? (suppliers.reduce((s,x)=>s+(x.rating||0),0)/suppliers.length) : 4.4).toFixed(1)} sub={t("من 5 نجوم","/ 5 stars")} icon={<Star size={18} className="text-amber-600"/>} accent="amber"/>
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {suppliers.map(s=>(
