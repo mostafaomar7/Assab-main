@@ -65,6 +65,74 @@ export const queryKeys = {
   // Lookups
   lookup: (type: LookupType, params?: Record<string, unknown>) =>
     ["lookups", type, params ?? {}] as const,
+
+  // ─── Company Admin ──────────────────────────────────────────────────────────
+  companyAdminDashboard: ["company-admin", "dashboard"] as const,
+
+  // Subscription / plans
+  subscription: ["subscription"] as const,
+  plans: ["plans"] as const,
+
+  // Users / invitations
+  companyUsers: (filter?: CompanyUsersFilter) =>
+    ["company-users", { filter }] as const,
+  companyInvitations: ["company-invitations"] as const,
+
+  // Organization
+  companyBrands: ["company-brands"] as const,
+  companyModules: ["company-modules"] as const,
+  companySettings: ["company-settings"] as const,
+
+  // ─── Billing ────────────────────────────────────────────────────────────────
+  billingSummary: ["billing", "summary"] as const,
+  billingInvoices: (filter?: BillingInvoicesFilter) =>
+    ["billing", "invoices", { filter }] as const,
+  billingInvoice: (id: string) => ["billing", "invoices", id] as const,
+  paymentMethods: ["billing", "payment-methods"] as const,
+  billingAddress: ["billing", "address"] as const,
+
+  // ─── Support ────────────────────────────────────────────────────────────────
+  supportChannels: ["support", "channels"] as const,
+  supportTickets: (filter?: SupportTicketsFilter) =>
+    ["support", "tickets", { filter }] as const,
+  supportTicket: (id: string) => ["support", "tickets", id] as const,
+
+  // ─── Head ───────────────────────────────────────────────────────────────────
+  headDashboard: ["head", "dashboard"] as const,
+  accountantsPerformance: ["head", "accountants-performance"] as const,
+  headReminders: ["head", "reminders"] as const,
+  erpPreflight: ["erp", "preflight"] as const,
+  erpEligibleOperations: ["erp", "eligible-operations"] as const,
+  erpBatches: ["erp", "batches"] as const,
+  erpBatchStatus: (batchId: string) => ["erp", "batches", batchId, "status"] as const,
+
+  // ─── Branch Manager ─────────────────────────────────────────────────────────
+  branchOverview: ["branch", "overview"] as const,
+  branchEmployees: ["branch", "employees"] as const,
+  branchItems: ["branch", "items"] as const,
+  branchPurchaseRequests: ["branch", "purchase-requests"] as const,
+  branchSuppliers: ["branch", "suppliers"] as const,
+  branchSettings: ["branch", "settings"] as const,
+  branchActiveShift: ["branch", "shifts", "active"] as const,
+
+  // ─── Procurement ────────────────────────────────────────────────────────────
+  procurementOverview: ["procurement", "overview"] as const,
+  procurementOrders: (filter?: ProcurementOrdersFilter) =>
+    ["procurement", "orders", { filter }] as const,
+  procurementGroupedOrders: ["procurement", "orders", "grouped"] as const,
+  procurementSentOrders: ["procurement", "orders", "sent"] as const,
+  procurementItems: ["procurement", "items"] as const,
+  itemPriceHistory: (id: string) =>
+    ["procurement", "items", id, "price-history"] as const,
+  procurementSuppliers: ["procurement", "suppliers"] as const,
+  procurementReports: ["procurement", "reports"] as const,
+
+  // ─── Attachments ────────────────────────────────────────────────────────────
+  attachment: (id: string) => ["attachments", id] as const,
+
+  // ─── Cross-cutting ──────────────────────────────────────────────────────────
+  search: (q: string, type?: string) => ["search", { q, type }] as const,
+  auditLogs: (filter?: AuditLogsFilter) => ["audit-logs", { filter }] as const,
 };
 
 export type LookupType =
@@ -133,4 +201,44 @@ export interface EmployeeFilter {
 export interface CashFilter {
   branchId?: string;
   status?: "active" | "settled" | "discrepancy" | "all";
+}
+
+export interface CompanyUsersFilter {
+  role?: string;
+  status?: "active" | "inactive" | "all";
+  search?: string;
+  branchId?: string;
+}
+
+export interface BillingInvoicesFilter {
+  status?: "paid" | "open" | "overdue" | "void" | "all";
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface SupportTicketsFilter {
+  status?: "open" | "pending" | "resolved" | "closed" | "all";
+  search?: string;
+  page?: number;
+}
+
+export interface ProcurementOrdersFilter {
+  status?: "draft" | "approved" | "rejected" | "sent" | "all";
+  supplierId?: string;
+  brandId?: string;
+  branchId?: string;
+  search?: string;
+  page?: number;
+}
+
+export interface AuditLogsFilter {
+  actorId?: string;
+  action?: string;
+  entityType?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  pageSize?: number;
 }

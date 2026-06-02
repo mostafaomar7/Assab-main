@@ -13,8 +13,29 @@ import {
   useCashCustody, useCashTransactions, useExportCash,
   useReminders, usePatchReminder, useCreateReminder, useDeleteReminder,
   useReports, useDownloadReport,
+  // Company Admin
+  useCompanyAdminDashboard, useCompanyUsers, useToggleCompanyUserStatus, useCreateCompanyInvitation,
+  useCompanyBrands, useCreateBranch, useCompanyModules, useToggleCompanyModule,
+  useCompanySettings, useUpdateCompanySettings, useUpgradeSubscription, useContactSales,
+  // Billing
+  useBillingInvoices, useExportInvoices, useDownloadInvoicePDF,
+  // Support
+  useSupportChannels, useCreateTicket,
+  // Head
+  useHeadDashboard, useAccountantsPerformance, useHeadReminders, usePatchHeadReminder,
+  useMarkAllHeadRemindersDone, usePostToERP,
+  // Branch Manager
+  useBranchOverview, useBranchEmployees, useBranchItems, useBranchPurchaseRequests,
+  useBranchSuppliers, useBranchActiveShift, useBranchSubmitItemsCount, useBranchUpload,
+  useBranchRequestNewSupplier, useBranchOpenShift, useBranchCloseShift,
+  // Procurement
+  useProcurementOverview, useProcurementOrders, useGroupedOrders, useSentOrders,
+  useApproveOrder, useSendGroupedOrder, useProcurementItems, useProcurementSuppliers,
+  useProcurementReports, useDownloadProcurementReport,
 } from "../../../api/queries";
 import type { Operation as ApiOperation } from "../../../api/types";
+import { NotificationBell } from "../../shared/NotificationBell";
+import { RejectModal } from "../../shared/RejectModal";
 import {
   LayoutDashboard, Building2, Users, Settings, Bell, LogOut, ChevronRight,
   CheckCircle2, XCircle, TrendingUp, Plus, X, Edit2, FileText,
@@ -921,6 +942,7 @@ function Shell({ role, page, navigate, onLogout, children, headPendingCount=0 }:
           <div className="flex items-center gap-3">
             <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-100">● {t(PLAN_AR[COMPANY.plan]||COMPANY.plan, COMPANY.plan)}</Badge>
             <Badge className="bg-purple-50 text-purple-700 border border-purple-100">{meta.icon} {t(meta.label, enMeta.label)}</Badge>
+            <NotificationBell t={t} theme="light"/>
             <div className="relative">
               <button onClick={()=>setShowNotif(v=>!v)} className="relative text-gray-400 hover:text-gray-600 transition-colors">
                 <Bell size={16}/>
@@ -1291,8 +1313,14 @@ function OpRow({ op, onApprove, onReject, onView, expanded, onToggle, forHead=fa
 // ═══════════════════════════════════════════════════
 function CADashboard({ navigate }:{ navigate:(p:string)=>void }) {
   const { t, dir } = useCLang();
-  const totalSalesM = ALL_BRANCHES.reduce((s,b)=>s+b.salesM,0);
-  const totalExpM   = ALL_BRANCHES.reduce((s,b)=>s+b.expM,0);
+  const { data: apiDashboard } = useCompanyAdminDashboard();
+  const apiKpis = (apiDashboard?.kpis ?? {}) as Record<string, number | string>;
+  const totalSalesM = (apiKpis.totalSalesHalalas as number | undefined) != null
+    ? Math.round(((apiKpis.totalSalesHalalas as number) / 100))
+    : ALL_BRANCHES.reduce((s,b)=>s+b.salesM,0);
+  const totalExpM   = (apiKpis.totalExpensesHalalas as number | undefined) != null
+    ? Math.round(((apiKpis.totalExpensesHalalas as number) / 100))
+    : ALL_BRANCHES.reduce((s,b)=>s+b.expM,0);
   const statItems:[string,string,string,string][] = [
     [t("العلامات","Brands"),"3 / ∞","",""],
     [t("المطاعم","Restaurants"),"7 / ∞","",""],
@@ -1358,6 +1386,8 @@ function CADashboard({ navigate }:{ navigate:(p:string)=>void }) {
 
 function CASubscription() {
   const { t, dir } = useCLang();
+  const upgradeMut = useUpgradeSubscription();
+  const contactMut = useContactSales();
   const [billing,setBilling]=useState<"annual"|"monthly">("annual");
   const plans=[
     { id:"basic",plan:"Basic",price_m:199,price_a:1990,features:[t("5 فروع","5 Branches"),t("15 مستخدم","15 Users"),t("4 وحدات","4 Modules"),t("دعم بريد","Email support")],current:false },
@@ -1397,7 +1427,7 @@ function CASubscription() {
               <p className="font-black text-gray-900 text-lg">{t(PLAN_AR[p.plan]||p.plan, p.plan)}</p>
               <div className="mt-2 mb-4">{p.price_m===null?<p className="text-2xl font-black text-gray-800">{t("حسب الطلب","Custom")}</p>:<><span className="text-2xl font-black text-gray-800">{billing==="annual"?p.price_a!.toLocaleString():p.price_m.toLocaleString()}</span><span className="text-gray-400 text-sm"> {SAR}/{billing==="annual"?perYear:perMonth}</span></>}</div>
               <ul className="space-y-1.5 mb-5">{p.features.map(f=><li key={f} className="flex items-center gap-2 text-xs text-gray-600"><Check size={11} className="text-emerald-500 flex-shrink-0"/>{f}</li>)}</ul>
-              {p.current?<div className="w-full py-2 rounded-lg bg-purple-100 text-purple-700 text-xs font-bold text-center">{t("خطتك الحالية ✓","Your Current Plan ✓")}</div>:p.price_m===null?<button className="w-full py-2 rounded-lg border-2 border-purple-300 text-purple-700 text-xs font-bold hover:bg-purple-50">{t("تواصل مع المبيعات","Contact Sales")}</button>:<button onClick={()=>alert(`✅ ${t("طلب الترقية تم إرساله","Upgrade request sent")}`)} className="w-full py-2 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700">{t("ترقية ↑","Upgrade ↑")}</button>}
+              {p.current?<div className="w-full py-2 rounded-lg bg-purple-100 text-purple-700 text-xs font-bold text-center">{t("خطتك الحالية ✓","Your Current Plan ✓")}</div>:p.price_m===null?<button onClick={()=>contactMut.mutate({ message: t("استفسار عن خطة المؤسسات","Enterprise plan inquiry") })} className="w-full py-2 rounded-lg border-2 border-purple-300 text-purple-700 text-xs font-bold hover:bg-purple-50">{t("تواصل مع المبيعات","Contact Sales")}</button>:<button onClick={()=>upgradeMut.mutate({ planId: p.id, billingCycle: billing })} className="w-full py-2 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700">{t("ترقية ↑","Upgrade ↑")}</button>}
             </div>
           </div>
         ))}
@@ -1409,7 +1439,10 @@ function CASubscription() {
 function CAUsers() {
   const { t, dir } = useCLang();
   type U = { id:string;name:string;role:string;branch:string;email:string;status:"active"|"inactive";last:string };
-  const [users,setUsers]=useState<U[]>([
+  const { data: apiUsers = [] } = useCompanyUsers();
+  const toggleMut = useToggleCompanyUserStatus();
+  const inviteMut = useCreateCompanyInvitation();
+  const [localUsers,setLocalUsers]=useState<U[]>([
     { id:"U1",name:"أحمد العمري",    role:"رئيس الحسابات", branch:"—",             email:"ahmed@altaj.com", status:"active",  last:"اليوم"  },
     { id:"U2",name:"سارة الشهري",   role:"محاسب",         branch:"برغر التاج",   email:"sara@altaj.com",  status:"active",  last:"أمس"    },
     { id:"U3",name:"محمد الحربي",   role:"محاسب",         branch:"بيتزا التاج",  email:"m.ali@altaj.com", status:"active",  last:"أمس"    },
@@ -1418,9 +1451,26 @@ function CAUsers() {
     { id:"U6",name:"نورة الزهراني", role:"مدير مشتريات",  branch:"—",             email:"n.z@altaj.com",   status:"active",  last:"اليوم"  },
     { id:"U7",name:"عبدالله الدوسري",role:"مدير فرع",     branch:"فرع الكورنيش", email:"a.d@altaj.com",   status:"inactive",last:"أسبوع"  },
   ]);
+  const users: U[] = apiUsers.length > 0
+    ? apiUsers.map((u): U => ({
+        id: u.id,
+        name: u.name,
+        role: u.roleLabel || u.roleKey,
+        branch: u.branchName || "—",
+        email: u.email,
+        status: u.status === "active" ? "active" : "inactive",
+        last: u.lastActiveAt || "",
+      }))
+    : localUsers;
   const [showAdd,setShowAdd]=useState(false);
   const [search,setSearch]=useState("");
-  const toggle=(id:string)=>setUsers(p=>p.map(u=>u.id===id?{...u,status:u.status==="active"?"inactive":"active"}:u));
+  const toggle=(id:string)=>{
+    if (apiUsers.length > 0) {
+      toggleMut.mutate(id);
+    } else {
+      setLocalUsers(p=>p.map(u=>u.id===id?{...u,status:u.status==="active"?"inactive":"active"}:u));
+    }
+  };
   const shown=users.filter(u=>!search||u.name.includes(search)||u.role.includes(search));
   const RB:Record<string,string>={"رئيس الحسابات":"bg-blue-50 text-blue-700 border border-blue-100","محاسب":"bg-purple-50 text-purple-700 border border-purple-100","مدير فرع":"bg-emerald-50 text-emerald-700 border border-emerald-100","مدير مشتريات":"bg-amber-50 text-amber-700 border border-amber-100"};
   return (
@@ -1452,7 +1502,7 @@ function CAUsers() {
             <div className="p-5 space-y-3">
               {[[t("الاسم الكامل","Full Name"),""],[ t("البريد الإلكتروني","Email"),"email@company.sa"]].map(([l,ph])=><div key={l}><label className="text-xs font-semibold text-gray-600 block mb-1">{l}</label><input placeholder={ph} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>)}
               <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الدور","Role")}</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none">{["رئيس الحسابات","محاسب","مدير فرع","مدير مشتريات"].map(r=><option key={r}>{r}</option>)}</select></div>
-              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={()=>{setShowAdd(false);alert(`✅ ${t("تم إرسال دعوة التسجيل","Registration invite sent")}`)}}><Send size={13}/> {t("إرسال دعوة","Send Invite")}</Btn></div>
+              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={()=>{setShowAdd(false);inviteMut.mutate({ email:"new@company.sa", role:"accountant" });}}><Send size={13}/> {t("إرسال دعوة","Send Invite")}</Btn></div>
             </div>
           </div>
         </div>
@@ -1463,6 +1513,8 @@ function CAUsers() {
 
 function CABranches() {
   const { t, dir } = useCLang();
+  useCompanyBrands(); // ensures cache freshness; UI keeps using the rich inline tree
+  const createBranchMut = useCreateBranch();
   const [expandedBrand,setExpandedBrand]=useState<string>("B1");
   const totalSales=ALL_BRANCHES.reduce((s,b)=>s+b.salesM,0);
   const [showAddBranch,setShowAddBranch]=useState(false);
@@ -1483,7 +1535,7 @@ function CABranches() {
               <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("اسم الفرع","Branch Name")}</label><input value={newBranchName} onChange={e=>setNewBranchName(e.target.value)} placeholder={t("مثال: فرع حي الياسمين...","e.g. Al-Yasmin district branch...")} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
               <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("العلامة التجارية","Brand")}</label><select value={newBranchBrand} onChange={e=>setNewBranchBrand(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none">{BRANDS.map(b=><option key={b.id}>{b.name}</option>)}</select></div>
               <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("المدينة","City")}</label><select value={newBranchCity} onChange={e=>setNewBranchCity(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>الرياض</option><option>جدة</option><option>الدمام</option><option>مكة المكرمة</option></select></div>
-              <div className="flex gap-2 justify-end pt-1"><Btn onClick={()=>setShowAddBranch(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={()=>{if(!newBranchName){alert(t("أدخل اسم الفرع","Enter branch name"));return;}setShowAddBranch(false);setNewBranchName("");alert(`✅ ${t("تم إضافة","Added")} ${newBranchName} — ${t("سيظهر بعد مراجعة الإدارة","will appear after admin review")}`)}}><Plus size={13}/> {t("إضافة","Add")}</Btn></div>
+              <div className="flex gap-2 justify-end pt-1"><Btn onClick={()=>setShowAddBranch(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={()=>{if(!newBranchName){alert(t("أدخل اسم الفرع","Enter branch name"));return;}createBranchMut.mutate({ restaurantId: BRANDS.find(b=>b.name===newBranchBrand)?.restaurants[0].id || "", name: newBranchName, city: newBranchCity });setShowAddBranch(false);setNewBranchName("");}}><Plus size={13}/> {t("إضافة","Add")}</Btn></div>
             </div>
           </div>
         </div>
@@ -1534,8 +1586,10 @@ function CABranches() {
 
 function CAModules() {
   const { t, dir } = useCLang();
+  const { data: apiMods = [] } = useCompanyModules();
+  const toggleModuleMut = useToggleCompanyModule();
   type Mod = { id:string;nameAr:string;nameEn:string;descAr:string;descEn:string;icon:string;active:boolean;inPlan:boolean };
-  const [mods,setMods]=useState<Mod[]>([
+  const [localMods,setLocalMods]=useState<Mod[]>([
     { id:"sales",    nameAr:"المبيعات",       nameEn:"Sales",        descAr:"تتبع المبيعات اليومية لجميع الفروع",        descEn:"Track daily sales across all branches",          icon:"💰",active:true, inPlan:true  },
     { id:"expenses", nameAr:"المصروفات",      nameEn:"Expenses",     descAr:"إدارة المصروفات بموافقات متعددة المستويات", descEn:"Manage expenses with multi-level approvals",     icon:"💸",active:true, inPlan:true  },
     { id:"purchases",nameAr:"المشتريات",      nameEn:"Purchases",    descAr:"أوامر الشراء والموردون ومطابقة الفواتير",   descEn:"Purchase orders, suppliers & invoice matching", icon:"🛒",active:true, inPlan:true  },
@@ -1546,7 +1600,20 @@ function CAModules() {
     { id:"emp",      nameAr:"كشف الحساب",     nameEn:"Payroll",      descAr:"رواتب وسلف الموظفين",                       descEn:"Employee salaries & advances",                    icon:"👥",active:false,inPlan:false },
     { id:"cash",     nameAr:"العهدة النقدية", nameEn:"Cash Custody", descAr:"إدارة الخزينة والعهدة اليومية",             descEn:"Treasury & daily cash custody management",       icon:"💵",active:false,inPlan:false },
   ]);
-  const toggle=(id:string)=>{const m=mods.find(x=>x.id===id);if(!m?.inPlan){alert(t("يحتاج ترقية الخطة","Plan upgrade required"));return;}setMods(p=>p.map(x=>x.id===id?{...x,active:!x.active}:x));};
+  const ICONS:Record<string,string> = { sales:"💰", expenses:"💸", purchases:"🛒", inventory:"📦", assets:"🏢", shifts:"🕐", waste:"🗑", emp:"👥", cash:"💵" };
+  const mods: Mod[] = apiMods.length > 0
+    ? apiMods.map((m): Mod => ({
+        id: m.moduleKey,
+        nameAr: m.nameAr || m.moduleKey,
+        nameEn: m.nameEn || m.moduleKey,
+        descAr: m.descAr || "",
+        descEn: m.descEn || "",
+        icon: ICONS[m.moduleKey] || "📦",
+        active: m.isActive,
+        inPlan: m.inPlan,
+      }))
+    : localMods;
+  const toggle=(id:string)=>{const m=mods.find(x=>x.id===id);if(!m?.inPlan){alert(t("يحتاج ترقية الخطة","Plan upgrade required"));return;}if(apiMods.length>0){toggleModuleMut.mutate({ moduleKey:id, isActive:!m.active });}else{setLocalMods(p=>p.map(x=>x.id===id?{...x,active:!x.active}:x));}};
   return (
     <div className="space-y-5" dir={dir}>
       <div><h2 className="text-xl font-bold text-gray-800">{t("الوحدات النشطة","Active Modules")}</h2></div>
@@ -1572,7 +1639,20 @@ function CAModules() {
 
 function CABilling() {
   const { t, dir } = useCLang();
-  const invoices=[{id:"INV-2025-012",date:"01 يناير 2025",amount:4800},{id:"INV-2024-012",date:"01 يناير 2024",amount:3600}];
+  const { data: apiInvoicesPage } = useBillingInvoices();
+  const exportMut = useExportInvoices();
+  const downloadPdfMut = useDownloadInvoicePDF();
+  const apiInvoices: any[] = Array.isArray(apiInvoicesPage)
+    ? apiInvoicesPage
+    : ((apiInvoicesPage as any)?.data ?? []);
+  const INVOICES_INLINE = [{id:"INV-2025-012",date:"01 يناير 2025",amount:4800},{id:"INV-2024-012",date:"01 يناير 2024",amount:3600}];
+  const invoices = apiInvoices.length > 0
+    ? apiInvoices.map((i: any) => ({
+        id: i.publicId || i.id,
+        date: i.issuedAt || i.createdAt || "",
+        amount: Math.round((i.totalHalalas || 0) / 100),
+      }))
+    : INVOICES_INLINE;
   return (
     <div className="space-y-5" dir={dir}>
       <div><h2 className="text-xl font-bold text-gray-800">{t("الفواتير والمدفوعات","Invoices & Payments")}</h2></div>
@@ -1584,7 +1664,7 @@ function CABilling() {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
           <h3 className="font-bold text-gray-900 text-sm">{t("سجل الفواتير","Invoice History")}</h3>
-          <button onClick={()=>alert(t("⬇️ تصدير جميع الفواتير\n\nجار تحضير ملف Excel يحتوي على:\n• جميع الفواتير المدفوعة\n• تواريخ الدفع والمبالغ\n• رقم كل فاتورة","⬇️ Exporting all invoices\n\nPreparing Excel file with:\n• All paid invoices\n• Payment dates & amounts\n• Invoice numbers"))} className="text-xs text-emerald-700 font-semibold flex items-center gap-1 hover:text-emerald-800 transition-colors"><Download size={11}/> {t("تصدير","Export")}</button>
+          <button onClick={()=>exportMut.mutate({})} className="text-xs text-emerald-700 font-semibold flex items-center gap-1 hover:text-emerald-800 transition-colors"><Download size={11}/> {t("تصدير","Export")}</button>
         </div>
         {invoices.map(inv=>(
           <div key={inv.id} className="px-5 py-4 flex items-center gap-4 border-b border-gray-50 last:border-0">
@@ -1592,7 +1672,7 @@ function CABilling() {
             <div className="flex-1"><p className="font-semibold text-gray-800 text-sm" dir="ltr">{inv.id}</p><p className="text-xs text-gray-400">{inv.date}</p></div>
             <span className="font-mono font-bold text-gray-800">{fmt(inv.amount)} {t("ر.س","SAR")}</span>
             <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px]">✓ {t("مدفوع","Paid")}</Badge>
-            <button onClick={()=>alert(`⬇️ ${t("تحميل الفاتورة:","Download invoice:")}\n${inv.id}\n\n${t("جار تحميل PDF...","Downloading PDF...")}`)} className="p-1.5 rounded-lg text-gray-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"><Download size={13}/></button>
+            <button onClick={()=>downloadPdfMut.mutate({ id: inv.id })} className="p-1.5 rounded-lg text-gray-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"><Download size={13}/></button>
           </div>
         ))}
       </div>
@@ -1602,12 +1682,14 @@ function CABilling() {
 
 function CASettings() {
   const { t, dir } = useCLang();
+  const { data: apiSettings } = useCompanySettings();
+  const updateSettingsMut = useUpdateCompanySettings();
   const [saved,setSaved]=useState(false);
   const fields = [
-    [t("اسم المجموعة","Group Name"),       "مجموعة التاج للمطاعم"],
-    [t("المدينة الرئيسية","Main City"),     "الرياض"],
-    [t("رقم السجل التجاري","CR Number"),   "1010XXXXXX"],
-    [t("البريد الإلكتروني","Email"),        "info@altaj.com"],
+    [t("اسم المجموعة","Group Name"),       apiSettings?.name || "مجموعة التاج للمطاعم"],
+    [t("المدينة الرئيسية","Main City"),     apiSettings?.city || "الرياض"],
+    [t("رقم السجل التجاري","CR Number"),   apiSettings?.crNumber || "1010XXXXXX"],
+    [t("البريد الإلكتروني","Email"),        apiSettings?.email || "info@altaj.com"],
   ];
   return (
     <div className="space-y-5" dir={dir}>
@@ -1619,7 +1701,7 @@ function CASettings() {
             <div key={l}><label className="text-xs font-semibold text-gray-600 block mb-1">{l}</label><input defaultValue={v} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
           ))}
         </div>
-        <div className="flex justify-end"><button onClick={()=>{setSaved(true);setTimeout(()=>setSaved(false),2000);}} className={`inline-flex items-center gap-1.5 px-5 py-2 rounded-lg font-bold text-sm transition-all ${saved?"bg-emerald-500 text-white":"bg-purple-600 text-white hover:bg-purple-700"}`}>{saved?<><Check size={14}/> {t("تم الحفظ","Saved")}</>:<><CheckCircle2 size={14}/> {t("حفظ","Save")}</>}</button></div>
+        <div className="flex justify-end"><button onClick={()=>{updateSettingsMut.mutate({});setSaved(true);setTimeout(()=>setSaved(false),2000);}} className={`inline-flex items-center gap-1.5 px-5 py-2 rounded-lg font-bold text-sm transition-all ${saved?"bg-emerald-500 text-white":"bg-purple-600 text-white hover:bg-purple-700"}`}>{saved?<><Check size={14}/> {t("تم الحفظ","Saved")}</>:<><CheckCircle2 size={14}/> {t("حفظ","Save")}</>}</button></div>
       </div>
     </div>
   );
@@ -1627,6 +1709,8 @@ function CASettings() {
 
 function CASupport() {
   const { t, dir } = useCLang();
+  useSupportChannels();
+  const createTicketMut = useCreateTicket();
   const PLACEHOLDER = t("نوع المشكلة...","Issue type...");
   const [msgType,setMsgType]=useState(PLACEHOLDER);
   const [msgBody,setMsgBody]=useState("");
@@ -1639,6 +1723,7 @@ function CASupport() {
   const handleSend=()=>{
     if(msgType===PLACEHOLDER){alert(t("يرجى تحديد نوع المشكلة","Please select an issue type"));return;}
     if(!msgBody.trim()){alert(t("يرجى شرح المشكلة أولاً","Please describe the issue first"));return;}
+    createTicketMut.mutate({ subject: msgType, category: msgType, body: msgBody });
     setSent(true);
   };
   return (
@@ -1699,10 +1784,14 @@ type HeadProps = {
 // ═══════════════════════════════════════════════════
 function HeadDashboard({ navigate, ops, finalApprove, reject, bulkFinalApprove }:HeadProps) {
   const { t, dir } = useCLang();
+  const { data: apiHeadDash } = useHeadDashboard();
+  const apiKpis = (apiHeadDash?.kpis ?? {}) as Record<string, number | string>;
   const awaitingHead  = ops.filter(o=>o.status==="approved");
   const finalApproved = ops.filter(o=>o.status==="final-approved");
   const rejected      = ops.filter(o=>o.status==="rejected");
-  const totalSalesM   = ALL_BRANCHES.reduce((s,b)=>s+b.salesM,0);
+  const totalSalesM   = (apiKpis.totalSalesHalalas as number | undefined) != null
+    ? Math.round(((apiKpis.totalSalesHalalas as number) / 100))
+    : ALL_BRANCHES.reduce((s,b)=>s+b.salesM,0);
   return (
     <div className="space-y-5" dir={dir}>
       <div className="flex items-start justify-between">
@@ -1966,7 +2055,11 @@ function HeadBrands() {
 
 function HeadAccountants() {
   const { t, dir } = useCLang();
-  const accs=[{ name:"سارة الشهري",brand:"برغر التاج",ops:47,pending:2},{ name:"محمد الحربي",brand:"بيتزا التاج",ops:38,pending:1},{ name:"هند القحطاني",brand:"مطعم التاج الراقي",ops:52,pending:3}];
+  const { data: apiAccs = [] } = useAccountantsPerformance();
+  const ACCS_INLINE = [{ name:"سارة الشهري",brand:"برغر التاج",ops:47,pending:2},{ name:"محمد الحربي",brand:"بيتزا التاج",ops:38,pending:1},{ name:"هند القحطاني",brand:"مطعم التاج الراقي",ops:52,pending:3}];
+  const accs = apiAccs.length > 0
+    ? apiAccs.map(a => ({ name: a.name, brand: a.brandName || a.branchName || "—", ops: a.approvedCount + a.rejectedCount + (a.pendingCount ?? 0), pending: a.pendingCount ?? 0 }))
+    : ACCS_INLINE;
   return (
     <div className="space-y-5" dir={dir}>
       <div><h2 className="text-xl font-bold text-gray-800">{t("فريق المحاسبين","Accountants Team")}</h2></div>
@@ -2093,20 +2186,47 @@ function HeadModulePage({ moduleKey, title, ops, finalApprove, reject }:{
 // ═══════════════════════════════════════════════════
 function HeadReminders() {
   const { t, dir } = useCLang();
-  const reminders = [
+  const { data: apiReminders = [] } = useHeadReminders();
+  const patchMut = usePatchHeadReminder();
+  const markAllMut = useMarkAllHeadRemindersDone();
+  type RemItem = { id: string | number; titleAr: string; titleEn: string; bodyAr: string; bodyEn: string; timeAr: string; timeEn: string; type: string; done: boolean };
+  const REMINDERS_INLINE: RemItem[] = [
     { id:1, titleAr:"اعتماد بيانات اليوم",  titleEn:"Approve today's data",    bodyAr:"12 عملية بانتظار اعتمادك النهائي",    bodyEn:"12 operations awaiting final approval",    timeAr:"الآن",         timeEn:"Now",         type:"urgent", done:false },
     { id:2, titleAr:"مراجعة تقرير أسبوعي",  titleEn:"Review weekly report",    bodyAr:"P&L الأسبوع الثالث — جاهز للمراجعة", bodyEn:"Week 3 P&L — ready for review",            timeAr:"منذ 2 ساعة",   timeEn:"2 hrs ago",   type:"report", done:false },
     { id:3, titleAr:"موافقة ميزانية مشتريات",titleEn:"Approve purchase budget", bodyAr:"مدير المشتريات طلب اعتماد ميزانية",  bodyEn:"Procurement mgr requested budget approval", timeAr:"منذ 4 ساعات",  timeEn:"4 hrs ago",   type:"finance",done:false },
     { id:4, titleAr:"متابعة المحاسب — سارة", titleEn:"Follow up — Sara",        bodyAr:"لم ترفع بيانات فرع العليا منذ أمس",  bodyEn:"Al-Ulia branch data not uploaded since yesterday",timeAr:"أمس",    timeEn:"Yesterday",   type:"team",   done:true  },
   ];
-  const [list, setList] = useState(reminders);
-  const toggle = (id:number) => setList(p=>p.map(r=>r.id===id?{...r,done:!r.done}:r));
+  const apiList: RemItem[] = apiReminders.map((r): RemItem => ({
+    id: r.id,
+    titleAr: r.title,
+    titleEn: r.title,
+    bodyAr: r.body || "",
+    bodyEn: r.body || "",
+    timeAr: r.dueAt || r.createdAt,
+    timeEn: r.dueAt || r.createdAt,
+    type: r.type,
+    done: r.isDone,
+  }));
+  const [localList, setLocalList] = useState<RemItem[]>(REMINDERS_INLINE);
+  const list: RemItem[] = apiList.length > 0 ? apiList : localList;
+  const toggle = (id: string | number) => {
+    if (apiList.length > 0) {
+      const r = list.find(x => x.id === id);
+      if (r) patchMut.mutate({ id: String(id), isDone: !r.done });
+    } else {
+      setLocalList(p=>p.map(r=>r.id===id?{...r,done:!r.done}:r));
+    }
+  };
+  const markAllDone = () => {
+    if (apiList.length > 0) markAllMut.mutate();
+    else setLocalList(p=>p.map(r=>({...r,done:true})));
+  };
   const ICONS:Record<string,string> = { urgent:"🔴", report:"📊", finance:"💰", team:"👥" };
   return (
     <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
         <div><h2 className="text-xl font-bold text-gray-800">{t("التذكيرات","Reminders")}</h2><p className="text-gray-400 text-sm">{list.filter(r=>!r.done).length} {t("تذكيرات نشطة","active reminders")}</p></div>
-        <Btn size="sm" onClick={()=>setList(p=>p.map(r=>({...r,done:true})))}>✓ {t("تعليم الكل كمنجز","Mark all done")}</Btn>
+        <Btn size="sm" onClick={markAllDone}>✓ {t("تعليم الكل كمنجز","Mark all done")}</Btn>
       </div>
       <div className="space-y-3">
         {list.map(r=>(
@@ -2127,9 +2247,15 @@ function HeadReminders() {
 // ═══════════════════════════════════════════════════
 function HeadERP({ ops }:{ ops:COp[] }) {
   const { t, dir } = useCLang();
+  const postMut = usePostToERP();
   const [posted, setPosted] = useState<string[]>([]);
   const ready = ops.filter(o=>o.status==="final-approved");
-  const postAll = () => { setPosted(ready.map(o=>o.id)); alert(`✅ ${t("تم ترحيل جميع العمليات المعتمدة نهائياً إلى ERP","All final-approved operations posted to ERP")}\n\n${t("رقم الدفعة:","Batch No:")} ERP-BATCH-202510-001`); };
+  const postAll = () => {
+    const unposted = ready.filter(o => !posted.includes(o.id));
+    unposted.forEach(op => postMut.mutate(op.id));
+    setPosted(ready.map(o=>o.id));
+  };
+  const postOne = (id: string) => { postMut.mutate(id); setPosted(p=>[...p,id]); };
   return (
     <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
@@ -2155,7 +2281,7 @@ function HeadERP({ ops }:{ ops:COp[] }) {
             {posted.includes(op.id)?(
               <Badge className="bg-purple-50 text-purple-700 border border-purple-200 text-[10px]">🔗 {t("مُرحَّل","Posted")}</Badge>
             ):(
-              <button onClick={()=>setPosted(p=>[...p,op.id])} className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700"><Zap size={10}/> {t("ترحيل","Post")}</button>
+              <button onClick={()=>postOne(op.id)} className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-bold hover:bg-purple-700"><Zap size={10}/> {t("ترحيل","Post")}</button>
             )}
           </div>
         ))}
@@ -2217,13 +2343,25 @@ function useSharedOps() {
     return INITIAL_OPS;
   }, [opsQuery.data]);
 
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+
   const approve          = (id:string)    => { approveMut.mutate({ id }); };
-  const reject           = (id:string)    => { rejectMut.mutate({ id, reason: DEFAULT_REJECT_REASON }); };
+  const reject           = (id:string)    => { setRejectingId(id); };
   const finalApprove     = (id:string)    => { finalMut.mutate({ id }); };
   const bulkApprove      = (ids:string[]) => { bulkMut.mutate({ operationIds: ids }); };
   const bulkFinalApprove = (ids:string[]) => { ids.forEach(id => finalMut.mutate({ id })); };
 
-  return { ops, approve, reject, finalApprove, bulkApprove, bulkFinalApprove };
+  const rejectModalProps = {
+    open: rejectingId !== null,
+    subject: rejectingId ? ops.find(o => o.id === rejectingId)?.refNum : undefined,
+    onClose: () => setRejectingId(null),
+    onSubmit: ({ reason, notes }: { reason: string; notes?: string }) => {
+      if (rejectingId) rejectMut.mutate({ id: rejectingId, reason, notes });
+      setRejectingId(null);
+    },
+  };
+
+  return { ops, approve, reject, finalApprove, bulkApprove, bulkFinalApprove, rejectModalProps };
 }
 
 // ═══════════════════════════════════════════════════
@@ -4325,6 +4463,7 @@ const MY_BRANCH = { name:"فرع العليا", brand:"برغر التاج", cit
 
 function BranchOverview() {
   const { t, dir } = useCLang();
+  useBranchOverview();
   const SAR = t("ر.س","SAR");
   const pct=Math.round((MY_BRANCH.salesM/MY_BRANCH.target)*100);
   const todaySales=18340;
@@ -4386,10 +4525,12 @@ function BranchOverview() {
 
 function BranchUpload() {
   const { t, dir } = useCLang();
+  const uploadMut = useBranchUpload();
   const SAR = t("ر.س","SAR");
   const [salesAmt,setSalesAmt]=useState("");
   const [expAmt,setExpAmt]=useState("");
   const [submitted,setSubmitted]=useState(false);
+  void uploadMut; // file upload UI not yet wired; kept for future
   const submit=()=>{if(!salesAmt){alert(t("أدخل قيمة المبيعات","Enter sales amount"));return;}setSubmitted(true);};
   if(submitted) return (
     <div className="flex flex-col items-center justify-center h-64 space-y-4 text-center" dir={dir}>
@@ -4423,12 +4564,26 @@ function BranchUpload() {
 
 function BranchRequests() {
   const { t, dir } = useCLang();
-  const [requests,setRequests]=useState([
+  const { data: apiRequests = [] } = useBranchPurchaseRequests();
+  const REQUESTS_INLINE = [
     { id:"R001",item:"زيت طهي 10 كجم", qty:20,unit:"كرتون",status:"approved", date:t("اليوم","Today"),urgency:"normal" },
     { id:"R002",item:"خبز برجر",         qty:50,unit:"كيس",  status:"pending",  date:t("اليوم","Today"),urgency:"urgent" },
     { id:"R003",item:"لحم مفروم",        qty:30,unit:"كجم",  status:"pending",  date:t("أمس","Yesterday"),urgency:"normal" },
     { id:"R004",item:"صلصة كاتشب",      qty:10,unit:"كرتون",status:"delivered",date:t("أمس","Yesterday"),urgency:"normal" },
-  ]);
+  ];
+  const [localRequests,setLocalRequests]=useState(REQUESTS_INLINE);
+  const requests = apiRequests.length > 0
+    ? apiRequests.map(r => ({
+        id: r.publicId || r.id,
+        item: r.itemName || "—",
+        qty: r.qty ?? 0,
+        unit: r.unit || "",
+        status: r.status === "submitted" ? "pending" : r.status,
+        date: r.createdAt,
+        urgency: "normal" as const,
+      }))
+    : localRequests;
+  const setRequests = setLocalRequests;
   const [showAdd,setShowAdd]=useState(false);
   const SC:Record<string,string>={pending:"bg-amber-50 text-amber-700 border-amber-200",approved:"bg-blue-50 text-blue-700 border-blue-200",delivered:"bg-emerald-50 text-emerald-700 border-emerald-200"};
   const SL:Record<string,string>={pending:t("معلق","Pending"),approved:t("معتمد","Approved"),delivered:t("تم التسليم","Delivered")};
@@ -4464,10 +4619,12 @@ function BranchRequests() {
 
 function BranchItems() {
   const { t, dir } = useCLang();
+  const { data: apiItems = [] } = useBranchItems();
+  const submitCountMut = useBranchSubmitItemsCount();
   const [showInvForm,setShowInvForm]=useState(false);
   const [invCounts,setInvCounts]=useState<Record<string,string>>({});
   const [invSubmitted,setInvSubmitted]=useState(false);
-  const items=[
+  const ITEMS_INLINE = [
     { name:t("دقيق أبيض","White Flour"),        qty:120,unit:t("كجم","kg"), min:50, status:"ok"       },
     { name:t("زيت طهي","Cooking Oil"),            qty:18, unit:t("لتر","L"),  min:20, status:"low"      },
     { name:t("لحم مفروم (مجمد)","Minced Meat (frozen)"),qty:45,unit:t("كجم","kg"),min:30,status:"ok"  },
@@ -4475,6 +4632,21 @@ function BranchItems() {
     { name:t("صلصة كاتشب","Ketchup"),             qty:24, unit:t("عبوة","pack"),min:10,status:"ok"      },
     { name:t("جبن شيدر","Cheddar Cheese"),        qty:12, unit:t("كجم","kg"), min:8,  status:"ok"       },
   ];
+  const items = apiItems.length > 0
+    ? apiItems.map(i => {
+        const qty = i.currQty ?? 0;
+        const min = 10;
+        const status = qty <= min/3 ? "critical" : qty < min ? "low" : "ok";
+        return { name: i.name, qty, unit: i.unit || "", min, status, id: i.id };
+      })
+    : ITEMS_INLINE.map(i => ({ ...i, id: i.name }));
+  const submitInventory = () => {
+    if (apiItems.length > 0) {
+      const counts = Object.entries(invCounts).map(([itemId, qty]) => ({ itemId, qty: Number(qty) || 0 }));
+      submitCountMut.mutate({ counts });
+    }
+    setInvSubmitted(true);
+  };
   const SC:Record<string,string>={ok:"bg-emerald-50 text-emerald-700",low:"bg-amber-50 text-amber-700",critical:"bg-red-50 text-red-700"};
   return (
     <div className="space-y-5" dir={dir}>
@@ -4494,7 +4666,7 @@ function BranchItems() {
                     <span className="text-xs text-gray-400 w-8">{item.unit}</span>
                   </div>
                 ))}
-                <div className="flex gap-2 justify-end pt-2"><Btn onClick={()=>setShowInvForm(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={()=>setInvSubmitted(true)}><Send size={13}/> {t("إرسال الجرد","Submit Count")}</Btn></div>
+                <div className="flex gap-2 justify-end pt-2"><Btn onClick={()=>setShowInvForm(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={submitInventory}><Send size={13}/> {t("إرسال الجرد","Submit Count")}</Btn></div>
               </div>
             )}
           </div>
@@ -4523,13 +4695,17 @@ function BranchItems() {
 
 function BranchEmployees() {
   const { t, dir } = useCLang();
-  const staff=[
+  const { data: apiStaff = [] } = useBranchEmployees();
+  const STAFF_INLINE = [
     { name:"أنس محمد",     role:t("كاشير","Cashier"), shift:t("صباحي","Morning"), status:"present",  phone:"+966 50 111 2222" },
     { name:"ليلى سالم",    role:t("كاشير","Cashier"), shift:t("مسائي","Evening"), status:"upcoming", phone:"+966 55 222 3333" },
     { name:"فهد العمري",   role:t("طاهٍ","Chef"),     shift:t("صباحي","Morning"), status:"present",  phone:"+966 53 333 4444" },
     { name:"سارة الغامدي", role:t("خدمة","Service"),  shift:t("مسائي","Evening"), status:"upcoming", phone:"+966 56 444 5555" },
     { name:"عمر الحربي",   role:t("مساعد","Assistant"),shift:t("صباحي","Morning"),status:"absent",   phone:"+966 58 555 6666" },
   ];
+  const staff = apiStaff.length > 0
+    ? apiStaff.map(s => ({ name: s.name, role: s.role || "—", shift: "", status: s.active ? "present" : "absent", phone: "" }))
+    : STAFF_INLINE;
   return (
     <div className="space-y-5" dir={dir}>
       <div><h2 className="text-xl font-bold text-gray-800">{t("طاقم الموظفين","Staff")}</h2><p className="text-gray-400 text-sm">{staff.filter(s=>s.status==="present").length} {t("حاضر اليوم","present today")}</p></div>
@@ -4549,6 +4725,9 @@ function BranchEmployees() {
 
 function BranchShifts() {
   const { t, dir } = useCLang();
+  const { data: activeShift } = useBranchActiveShift();
+  const openShiftMut = useBranchOpenShift();
+  const closeShiftMut = useBranchCloseShift();
   const SAR = t("ر.س","SAR");
   return (
     <div className="space-y-5" dir={dir}>
@@ -4558,14 +4737,14 @@ function BranchShifts() {
           <div className="flex items-center gap-2 mb-4"><div className="w-3 h-3 rounded-full bg-amber-400 animate-pulse"/><h3 className="font-bold text-amber-800">{t("شفت مفتوح الآن","Shift Open Now")}</h3></div>
           <p className="text-gray-700 font-semibold">{t("شفت مسائي — ليلى سالم","Evening shift — Layla Salem")}</p>
           <p className="text-xs text-gray-400 mt-1">{t("فتح: 4:00 م · مبلغ الصندوق:","Opened: 4:00 PM · Cash amount:")} 500 {SAR}</p>
-          <div className="mt-4"><Btn variant="danger" onClick={()=>alert(`✅ ${t("تم إغلاق الشفت وإرساله للمحاسب","Shift closed and sent to accountant")}`)}><X size={12}/> {t("إغلاق الشفت","Close Shift")}</Btn></div>
+          <div className="mt-4"><Btn variant="danger" onClick={()=>{ if(activeShift?.id){ closeShiftMut.mutate({ id: activeShift.id }); } else { alert(`✅ ${t("تم إغلاق الشفت وإرساله للمحاسب","Shift closed and sent to accountant")}`); } }}><X size={12}/> {t("إغلاق الشفت","Close Shift")}</Btn></div>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
           <h3 className="font-bold text-gray-800 mb-4">{t("فتح شفت جديد","Open New Shift")}</h3>
           <div className="space-y-3">
             <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الكاشير","Cashier")}</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>أنس محمد</option><option>ليلى سالم</option></select></div>
             <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t(`مبلغ افتتاح الصندوق (${SAR})`,`Opening Cash Amount (${SAR})`)}</label><input type="number" defaultValue="500" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>
-            <Btn variant="success" onClick={()=>alert(`✅ ${t("تم فتح الشفت","Shift opened")}`)}><CheckCircle2 size={12}/> {t("فتح شفت","Open Shift")}</Btn>
+            <Btn variant="success" onClick={()=>openShiftMut.mutate({ registerOpeningHalalas: 50000 })}><CheckCircle2 size={12}/> {t("فتح شفت","Open Shift")}</Btn>
           </div>
         </div>
       </div>
@@ -4575,17 +4754,22 @@ function BranchShifts() {
 
 function BranchSuppliers() {
   const { t, dir } = useCLang();
-  const suppliers = [
+  const { data: apiSuppliers = [] } = useBranchSuppliers();
+  const requestNewMut = useBranchRequestNewSupplier();
+  const SUPPLIERS_INLINE = [
     { name:"شركة الدواجن الوطنية",  category:t("دواجن ولحوم","Poultry & Meat"),   contact:"0501234567", approved:true,  lastOrder:t("اليوم","Today")     },
     { name:"مؤسسة النخيل للأغذية",  category:t("مواد غذائية","Food Supplies"),    contact:"0557654321", approved:true,  lastOrder:t("أمس","Yesterday")   },
     { name:"شركة الخليج للمواد",     category:t("بهارات وتوابل","Spices"),         contact:"0532345678", approved:true,  lastOrder:t("3 أيام","3 days")   },
     { name:"مجموعة الوفاء للتوزيع",  category:t("مشروبات","Beverages"),           contact:"0569876543", approved:false, lastOrder:t("أسبوع","1 week")    },
   ];
+  const suppliers = apiSuppliers.length > 0
+    ? apiSuppliers.map(s => ({ name: s.name, category: s.category || "", contact: s.phone || "", approved: s.isActive, lastOrder: "" }))
+    : SUPPLIERS_INLINE;
   return (
     <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
         <div><h2 className="text-xl font-bold text-gray-800">{t("الموردون","Suppliers")}</h2><p className="text-gray-400 text-sm">{t("موردو","Suppliers of")} {MY_BRANCH.name}</p></div>
-        <Btn variant="primary" size="sm" onClick={()=>alert(`📋 ${t("طلب مورد جديد أُرسل لمدير المشتريات","New supplier request sent to procurement manager")}`)}><Plus size={12}/> {t("طلب مورد جديد","Request New Supplier")}</Btn>
+        <Btn variant="primary" size="sm" onClick={()=>requestNewMut.mutate({ name: t("مورد جديد","New supplier") })}><Plus size={12}/> {t("طلب مورد جديد","Request New Supplier")}</Btn>
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {suppliers.map((s,i)=>(
@@ -4628,13 +4812,25 @@ function BranchSettings() {
 // ═══════════════════════════════════════════════════
 function ProcOverview({ navigate }:{ navigate:(p:string)=>void }) {
   const { t, dir } = useCLang();
+  useProcurementOverview();
+  const { data: apiOrders = [] } = useProcurementOrders();
   const SAR = t("ر.س","SAR");
-  const orders=[
+  const ORDERS_INLINE = [
     { id:"PO-001",supplier:"شركة المروج للتوريد", items:3,total:12400,status:"pending",  date:t("اليوم","Today")     },
     { id:"PO-002",supplier:"مؤسسة النخيل للأغذية",items:5,total:8200, status:"approved", date:t("أمس","Yesterday")   },
     { id:"PO-003",supplier:"شركة الخليج للمواد",  items:2,total:3600, status:"delivered",date:t("أمس","Yesterday")   },
     { id:"PO-004",supplier:"مجموعة الوفاء",         items:8,total:22800,status:"pending",  date:t("أسبوع","1 week")   },
   ];
+  const orders = apiOrders.length > 0
+    ? apiOrders.map(o => ({
+        id: o.publicId || o.id,
+        supplier: o.supplierName || "—",
+        items: o.itemsCount ?? 0,
+        total: Math.round((o.totalHalalas || 0) / 100),
+        status: o.status === "sent" ? "delivered" : o.status === "draft" ? "pending" : o.status,
+        date: o.createdAt,
+      }))
+    : ORDERS_INLINE;
   const SC:Record<string,string>={pending:"bg-amber-50 text-amber-700 border-amber-200",approved:"bg-blue-50 text-blue-700 border-blue-200",delivered:"bg-emerald-50 text-emerald-700 border-emerald-200"};
   const SL:Record<string,string>={pending:t("معلق","Pending"),approved:t("معتمد","Approved"),delivered:t("تم التسليم","Delivered")};
   const totalPending=orders.filter(o=>o.status==="pending").reduce((s,o)=>s+o.total,0);
@@ -4664,14 +4860,30 @@ function ProcOverview({ navigate }:{ navigate:(p:string)=>void }) {
 
 function ProcNew() {
   const { t, dir } = useCLang();
+  const { data: apiOrders = [] } = useProcurementOrders();
+  const approveMut = useApproveOrder();
   const SAR = t("ر.س","SAR");
-  const [orders,setOrders]=useState([
+  const ORDERS_INLINE = [
     { id:"PO-001",supplier:"شركة المروج",       brand:"برغر التاج",       items:3,total:12400,status:"pending",  date:t("اليوم","Today")     },
     { id:"PO-002",supplier:"مؤسسة النخيل",      brand:"بيتزا التاج",      items:5,total:8200, status:"approved", date:t("أمس","Yesterday")   },
     { id:"PO-003",supplier:"شركة الخليج",        brand:"مطعم التاج الراقي",items:2,total:3600, status:"delivered",date:t("أمس","Yesterday")   },
     { id:"PO-004",supplier:"مجموعة الوفاء",      brand:"برغر التاج",       items:8,total:22800,status:"pending",  date:t("أسبوع","1 week")    },
     { id:"PO-005",supplier:"شركة المروج",        brand:"بيتزا التاج",      items:4,total:9100, status:"approved", date:t("أسبوع","1 week")    },
-  ]);
+  ];
+  const [localOrders] = useState(ORDERS_INLINE);
+  const orders = apiOrders.length > 0
+    ? apiOrders.map(o => ({
+        id: o.publicId || o.id,
+        supplier: o.supplierName || "—",
+        brand: o.brandName || "—",
+        items: o.itemsCount ?? 0,
+        total: Math.round((o.totalHalalas || 0) / 100),
+        status: o.status === "sent" ? "delivered" : o.status === "draft" ? "pending" : o.status,
+        date: o.createdAt,
+        _apiId: o.id,
+      }))
+    : localOrders.map(o => ({ ...o, _apiId: o.id }));
+  void approveMut; // exposed for future bulk-approve UI
   const [showAdd,setShowAdd]=useState(false);
   const SC:Record<string,string>={pending:"bg-amber-50 text-amber-700 border-amber-200",approved:"bg-blue-50 text-blue-700 border-blue-200",delivered:"bg-emerald-50 text-emerald-700 border-emerald-200"};
   const SL:Record<string,string>={pending:t("معلق","Pending"),approved:t("معتمد","Approved"),delivered:t("تم التسليم","Delivered")};
@@ -4711,14 +4923,22 @@ function ProcNew() {
 
 function ProcSuppliers() {
   const { t, dir } = useCLang();
+  const { data: apiSuppliers = [] } = useProcurementSuppliers();
   const SAR = t("ر.س","SAR");
-  const suppliers=[
+  const SUPPLIERS_INLINE = [
     { id:"S1",name:"شركة المروج للتوريد",  category:t("مواد خام","Raw Materials"),     contact:"سليمان المروج",phone:"+966 50 111 1111",rating:4.8,orders:24,totalSpent:187000,active:true  },
     { id:"S2",name:"مؤسسة النخيل للأغذية", category:t("خضروات وفاكهة","Vegetables"),   contact:"منى النخيل",   phone:"+966 55 222 2222",rating:4.5,orders:18,totalSpent:92000, active:true  },
     { id:"S3",name:"شركة الخليج للمواد",    category:t("بهارات وتوابل","Spices"),       contact:"كريم الخليج",  phone:"+966 53 333 3333",rating:4.2,orders:31,totalSpent:45000, active:true  },
     { id:"S4",name:"مجموعة الوفاء",         category:t("مشروبات","Beverages"),          contact:"ناصر الوفاء",  phone:"+966 56 444 4444",rating:3.9,orders:12,totalSpent:68000, active:true  },
     { id:"S5",name:"شركة الأمانة للتغليف", category:t("تغليف وعبوات","Packaging"),     contact:"هدى الأمانة",  phone:"+966 58 555 5555",rating:4.6,orders:8, totalSpent:22000, active:false },
   ];
+  const suppliers = apiSuppliers.length > 0
+    ? apiSuppliers.map(s => ({
+        id: s.id, name: s.name, category: s.category || "—", contact: s.email || "—",
+        phone: s.phone || "", rating: s.rating ?? 0, orders: s.ordersCount ?? 0,
+        totalSpent: 0, active: s.isActive,
+      }))
+    : SUPPLIERS_INLINE;
   return (
     <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("الموردون","Suppliers")}</h2><p className="text-gray-400 text-sm">{suppliers.filter(s=>s.active).length} {t("مورد نشط","active suppliers")}</p></div><Btn variant="primary" onClick={()=>alert(`➕ ${t("إضافة مورد جديد","Add New Supplier")}`)}><Plus size={13}/> {t("إضافة مورد","Add Supplier")}</Btn></div>
@@ -4743,14 +4963,24 @@ function ProcSuppliers() {
 
 function ProcItems() {
   const { t, dir } = useCLang();
+  const { data: apiItems = [] } = useProcurementItems();
   const SAR = t("ر.س","SAR");
-  const items=[
+  const ITEMS_INLINE = [
     { name:t("لحم بقري مفروم","Ground Beef"),   unit:t("كجم","kg"),  lastPrice:42,brand:"برغر التاج",        suppliers:2 },
     { name:t("دقيق أبيض","White Flour"),          unit:t("كيس","bag"), lastPrice:18,brand:"بيتزا التاج",       suppliers:3 },
     { name:t("زيت طهي 10L","Cooking Oil 10L"),    unit:t("عبوة","pack"),lastPrice:85,brand:t("جميع العلامات","All Brands"), suppliers:2 },
     { name:t("جبن موزاريلا","Mozzarella"),         unit:t("كجم","kg"),  lastPrice:38,brand:"بيتزا التاج",       suppliers:1 },
     { name:t("خبز برجر","Burger Buns"),            unit:t("كيس","bag"), lastPrice:12,brand:"برغر التاج",        suppliers:2 },
   ];
+  const items = apiItems.length > 0
+    ? apiItems.map(i => ({
+        name: i.name,
+        unit: i.unit || "",
+        lastPrice: Math.round((i.lastPriceHalalas || 0) / 100),
+        brand: i.category || "—",
+        suppliers: i.preferredSupplierName ? 1 : 0,
+      }))
+    : ITEMS_INLINE;
   return (
     <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("الأصناف والأسعار","Items & Prices")}</h2><p className="text-gray-400 text-sm">{items.length} {t("صنف","items")}</p></div><Btn variant="primary" onClick={()=>alert(`➕ ${t("إضافة صنف جديد","Add new item")}`)}><Plus size={13}/> {t("صنف جديد","New Item")}</Btn></div>
@@ -4773,12 +5003,17 @@ function ProcItems() {
 
 function ProcReports() {
   const { t, dir } = useCLang();
-  const reports=[
+  const { data: apiReports = [] } = useProcurementReports();
+  const downloadMut = useDownloadProcurementReport();
+  const REPORTS_INLINE: [string,string,string][] = [
     [t("📊 تقرير المشتريات الشهري","📊 Monthly Purchases Report"),t("إجمالي مصنّف حسب المورد","Total classified by supplier"),"Purchases_Monthly_Mar2026.pdf"],
     [t("📈 مقارنة الأسعار","📈 Price Comparison"),t("متابعة تغيرات أسعار الموردين","Track supplier price changes"),"Price_Comparison_Mar2026.pdf"],
     [t("🏭 أداء الموردين","🏭 Supplier Performance"),t("تقييم والتزام المواعيد","Rating and on-time delivery"),"Supplier_Performance_Mar2026.pdf"],
     [t("🛒 أوامر معلقة","🛒 Pending Orders"),t("الأوامر التي تحتاج اعتماد","Orders requiring approval"),"Pending_Orders_Mar2026.pdf"],
   ];
+  const reports: [string,string,string][] = apiReports.length > 0
+    ? apiReports.map(r => [r.title, r.description || "", r.key] as [string,string,string])
+    : REPORTS_INLINE;
   return (
     <div className="space-y-5" dir={dir}>
       <div><h2 className="text-xl font-bold text-gray-800">{t("تقارير المشتريات","Procurement Reports")}</h2></div>
@@ -4788,7 +5023,7 @@ function ProcReports() {
             <p className="font-bold text-gray-800">{title}</p>
             <p className="text-xs text-gray-400 mt-1">{desc}</p>
             <div className="mt-3">
-              <button onClick={()=>alert(`⬇️ ${t("جار تحميل:","Downloading:")} ${file}`)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-amber-100 hover:text-amber-700 transition-colors">
+              <button onClick={()=>downloadMut.mutate({ key: file, format: "pdf" })} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-amber-100 hover:text-amber-700 transition-colors">
                 <Download size={11}/> {t("تحميل","Download")}
               </button>
             </div>
@@ -4801,17 +5036,29 @@ function ProcReports() {
 
 function ProcGrouped() {
   const { t, dir } = useCLang();
+  const { data: apiGroups = [] } = useGroupedOrders();
+  const sendGroupedMut = useSendGroupedOrder();
   const SAR = t("ر.س","SAR");
-  const groups = [
+  const GROUPS_INLINE: Array<{ supplier:string; orders:number; total:number; branches:string[]; pending:boolean; groupId?: string }> = [
     { supplier:"شركة الدواجن الوطنية", orders:3, total:24800, branches:["فرع العليا","فرع النرجس","فرع الملقا"], pending:true  },
     { supplier:"مؤسسة النخيل للأغذية", orders:2, total:16400, branches:["فرع حراء","فرع طويق"],               pending:false },
     { supplier:"شركة الخليج للمواد",   orders:4, total:31200, branches:["فرع العليا","فرع النرجس","فرع إشبيلية","فرع ابن بجاد"], pending:true },
   ];
+  const groups = apiGroups.length > 0
+    ? apiGroups.map(g => ({
+        supplier: g.supplierName,
+        orders: g.ordersCount,
+        total: Math.round(g.totalHalalas / 100),
+        branches: (g.orders ?? []).map(o => o.branchName || "—"),
+        pending: true,
+        groupId: g.groupId,
+      }))
+    : GROUPS_INLINE;
   return (
     <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
         <div><h2 className="text-xl font-bold text-gray-800">{t("الأوامر المجمّعة","Grouped Orders")}</h2><p className="text-gray-400 text-sm">{t("تجميع أوامر الشراء حسب المورد عبر كل الفروع","Group purchase orders by supplier across all branches")}</p></div>
-        <Btn variant="primary" size="sm" onClick={()=>alert(`📦 ${t("تم إرسال الأمر المجمّع للموردين","Grouped order sent to suppliers")}`)}><Send size={13}/> {t("إرسال المجمّعة","Send Grouped")}</Btn>
+        <Btn variant="primary" size="sm" onClick={()=>{ const first = groups.find(g => g.pending && g.groupId); if (first?.groupId) sendGroupedMut.mutate(first.groupId); else alert(`📦 ${t("تم إرسال الأمر المجمّع للموردين","Grouped order sent to suppliers")}`); }}><Send size={13}/> {t("إرسال المجمّعة","Send Grouped")}</Btn>
       </div>
       <div className="space-y-4">
         {groups.map((g,i)=>(
@@ -4834,13 +5081,24 @@ function ProcGrouped() {
 
 function ProcSent() {
   const { t, dir } = useCLang();
+  const { data: apiSent = [] } = useSentOrders();
   const SAR = t("ر.س","SAR");
-  const sent = [
+  const SENT_INLINE = [
     { id:"PO-BATCH-001", supplier:"شركة الدواجن الوطنية",  sentDate:t("اليوم 10:24 ص","Today 10:24 AM"),    total:24800, inTransit:true,  eta:t("غداً","Tomorrow")  },
     { id:"PO-BATCH-002", supplier:"مؤسسة النخيل للأغذية",  sentDate:t("أمس 2:30 م","Yesterday 2:30 PM"),    total:16400, inTransit:false, eta:t("تم","Done")        },
     { id:"PO-BATCH-003", supplier:"شركة الخليج للمواد",     sentDate:t("قبل يومين 9:15 ص","2 days ago 9:15 AM"),total:31200, inTransit:false, eta:t("تم","Done")     },
     { id:"PO-SINGLE-004",supplier:"مجموعة الوفاء للتوزيع", sentDate:t("منذ 3 أيام","3 days ago"),            total:8700,  inTransit:false, eta:t("تم","Done")        },
   ];
+  const sent = apiSent.length > 0
+    ? apiSent.map(o => ({
+        id: o.publicId || o.id,
+        supplier: o.supplierName || "—",
+        sentDate: o.sentAt || o.createdAt,
+        total: Math.round((o.totalHalalas || 0) / 100),
+        inTransit: o.status === "sent",
+        eta: o.status === "sent" ? t("قيد التسليم","In Transit") : t("تم","Done"),
+      }))
+    : SENT_INLINE;
   return (
     <div className="space-y-5" dir={dir}>
       <div><h2 className="text-xl font-bold text-gray-800">{t("الأوامر المُرسَلة","Sent Orders")}</h2><p className="text-gray-400 text-sm">{sent.length} {t("أوامر مُرسَلة","sent orders")}</p></div>
@@ -4931,9 +5189,10 @@ function PageRouter({ role, page, navigate, ops, approve, reject, bulkApprove, f
 // ROOT — الحالة المشتركة هنا (المحاسب + رئيس الحسابات يشتركان في نفس البيانات)
 // ═══════════════════════════════════════════════════
 function CompanyDashboardInner() {
+  const { t } = useCLang();
   const [role, setRole] = useState<CRole|null>(null);
   const [page, setPage] = useState<string>("");
-  const { ops, approve, reject, finalApprove, bulkApprove, bulkFinalApprove } = useSharedOps();
+  const { ops, approve, reject, finalApprove, bulkApprove, bulkFinalApprove, rejectModalProps } = useSharedOps();
 
   const selectRole = (r:CRole) => { setRole(r); setPage(DEFAULT_PAGE[r]); };
   const navigate   = (p:string) => setPage(p);
@@ -4948,6 +5207,7 @@ function CompanyDashboardInner() {
       <PageRouter role={role} page={page} navigate={navigate}
         ops={ops} approve={approve} reject={reject}
         bulkApprove={bulkApprove} finalApprove={finalApprove} bulkFinalApprove={bulkFinalApprove}/>
+      <RejectModal {...rejectModalProps} t={t}/>
     </Shell>
   );
 }
