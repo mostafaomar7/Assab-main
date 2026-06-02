@@ -72,6 +72,10 @@ import {
   useCreateERPBatch,
 } from "../../../api/queries";
 
+import { SessionsList } from "../../shared/SessionsList";
+import { ChangePasswordModal } from "../../../auth/ChangePasswordModal";
+import { useLanguagePref } from "../../../auth/useLanguagePref";
+
 // ─────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────
@@ -11727,7 +11731,10 @@ function AdminPermissions({}: PageProps) {
 
 function AdminSettings({}: PageProps) {
   useAdminSettings();
-  const { t } = useLang();
+  const { t, lang, setLang } = useLang();
+  const langPrefMut = useLanguagePref();
+  const [showPwd,setShowPwd]=useState(false);
+  const [showSessions,setShowSessions]=useState(false);
   return (
     <div className="space-y-5"><h2 className="text-xl font-bold text-gray-800">{t("إعدادات النظام","System Settings")}</h2>
       <div className="grid grid-cols-2 gap-5">
@@ -11749,6 +11756,57 @@ function AdminSettings({}: PageProps) {
           </Card>
         ))}
       </div>
+
+      {/* ── Account Settings ─────────────────────── */}
+      <Card title={`👤 ${t("إعدادات الحساب","Account Settings")}`}>
+        <div className="p-4 flex flex-wrap gap-3">
+          <button
+            onClick={()=>setShowPwd(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 transition-colors">
+            <Lock size={14}/> {t("تغيير كلمة المرور","Change Password")}
+          </button>
+          <button
+            onClick={()=>setShowSessions(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors">
+            <Smartphone size={14}/> {t("جلسات نشطة","Active Sessions")}
+          </button>
+          <button
+            onClick={()=>{
+              const next = lang==="ar"?"en":"ar";
+              setLang(next);
+              langPrefMut.mutate({ language: next });
+            }}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 text-sm font-bold hover:bg-purple-100 transition-colors">
+            <Globe size={14}/> {lang==="ar"?"English":"عربي"}
+          </button>
+        </div>
+      </Card>
+
+      <ChangePasswordModal open={showPwd} onClose={()=>setShowPwd(false)}/>
+
+      {showSessions && (
+        <div
+          onClick={()=>setShowSessions(false)}
+          style={{
+            position:"fixed", inset:0, background:"rgba(15,28,53,0.7)",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            zIndex:100, padding:16,
+          }}>
+          <div onClick={e=>e.stopPropagation()} style={{ width:"100%", maxWidth:560 }}>
+            <SessionsList t={(ar,en)=>t(ar,en)}/>
+            <div style={{ marginTop:12, display:"flex", justifyContent:"flex-end" }}>
+              <button
+                onClick={()=>setShowSessions(false)}
+                style={{
+                  padding:"8px 16px", borderRadius:8, border:"1px solid #e2e8f0",
+                  background:"white", color:"#475569", fontSize:13, fontWeight:600, cursor:"pointer",
+                }}>
+                {t("إغلاق","Close")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

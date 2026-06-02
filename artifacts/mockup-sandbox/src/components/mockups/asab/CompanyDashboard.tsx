@@ -17,6 +17,7 @@ import {
   useCompanyAdminDashboard, useCompanyUsers, useToggleCompanyUserStatus, useCreateCompanyInvitation,
   useCompanyBrands, useCreateBranch, useCompanyModules, useToggleCompanyModule,
   useCompanySettings, useUpdateCompanySettings, useUpgradeSubscription, useContactSales,
+  useCompanySubscription, useCompanyPlans,
   // Billing
   useBillingInvoices, useExportInvoices, useDownloadInvoicePDF,
   // Support
@@ -36,6 +37,9 @@ import {
 import type { Operation as ApiOperation } from "../../../api/types";
 import { NotificationBell } from "../../shared/NotificationBell";
 import { RejectModal } from "../../shared/RejectModal";
+import { SessionsList } from "../../shared/SessionsList";
+import { ChangePasswordModal } from "../../../auth/ChangePasswordModal";
+import { useLanguagePref } from "../../../auth/useLanguagePref";
 import {
   LayoutDashboard, Building2, Users, Settings, Bell, LogOut, ChevronRight,
   CheckCircle2, XCircle, TrendingUp, Plus, X, Edit2, FileText,
@@ -875,6 +879,7 @@ function Shell({ role, page, navigate, onLogout, children, headPendingCount=0 }:
   const [showNotif,setShowNotif]=useState(false);
   const [notifs,setNotifs]=useState(SHELL_NOTIFICATIONS);
   const unreadCount=notifs.filter(n=>n.unread).length;
+  const langPrefMut = useLanguagePref();
   return (
     <div className="flex h-screen overflow-hidden" dir={dir}>
       <div className="w-60 flex-shrink-0 flex flex-col" style={{ background:SIDEBAR_GRAD }}>
@@ -923,7 +928,11 @@ function Shell({ role, page, navigate, onLogout, children, headPendingCount=0 }:
         </nav>
         <div className="p-3 border-t border-white/10 space-y-1">
           <button
-            onClick={()=>setLang(lang==="ar"?"en":"ar")}
+            onClick={()=>{
+              const next = lang==="ar"?"en":"ar";
+              setLang(next);
+              langPrefMut.mutate({ language: next });
+            }}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-white/50 hover:text-white/80 hover:bg-white/8 transition-all text-sm">
             <Globe size={14}/> {lang==="ar" ? "English" : "عربي"}
           </button>
@@ -1314,25 +1323,40 @@ function OpRow({ op, onApprove, onReject, onView, expanded, onToggle, forHead=fa
 function CADashboard({ navigate }:{ navigate:(p:string)=>void }) {
   const { t, dir } = useCLang();
   const { data: apiDashboard } = useCompanyAdminDashboard();
+  const { data: apiSub } = useCompanySubscription();
   const apiKpis = (apiDashboard?.kpis ?? {}) as Record<string, number | string>;
+  const apiTotals = (apiDashboard?.totals ?? {}) as Record<string, number>;
   const totalSalesM = (apiKpis.totalSalesHalalas as number | undefined) != null
     ? Math.round(((apiKpis.totalSalesHalalas as number) / 100))
     : ALL_BRANCHES.reduce((s,b)=>s+b.salesM,0);
   const totalExpM   = (apiKpis.totalExpensesHalalas as number | undefined) != null
     ? Math.round(((apiKpis.totalExpensesHalalas as number) / 100))
     : ALL_BRANCHES.reduce((s,b)=>s+b.expM,0);
+  const brandsCount      = apiTotals.brandsCount      ?? BRANDS.length;
+  const restaurantsCount = apiTotals.restaurantsCount ?? BRANDS.reduce((s,b)=>s+b.restaurants.length,0);
+  const branchesCount    = apiTotals.branchesCount    ?? ALL_BRANCHES.length;
+  const usersCount       = apiTotals.usersCount       ?? 31;
+  const usage = (apiSub?.usage ?? {}) as Record<string, { used: number; max: number | null }>;
+  const branchesMax = usage.branches?.max ?? 20;
+  const usersMax    = usage.users?.max    ?? 50;
+  const planPrice   = apiSub
+    ? Math.round((((apiSub as any).priceHalalas as number) ?? 0) / 100) || 4800
+    : 4800;
+  const daysRemaining = apiSub?.daysRemaining ?? 87;
+  const branchCompletionRate = (apiKpis.branchCompletionRate as number | undefined) ?? 83;
+  const branchesAboveTarget  = (apiKpis.branchesAboveTarget  as number | undefined) ?? 10;
   const statItems:[string,string,string,string][] = [
-    [t("العلامات","Brands"),"3 / ∞","",""],
-    [t("المطاعم","Restaurants"),"7 / ∞","",""],
-    [t("الفروع","Branches"),"12 / 20","",""],
-    [t("المستخدمون","Users"),"31 / 50","",""],
+    [t("العلامات","Brands"),       `${brandsCount} / ∞`,"",""],
+    [t("المطاعم","Restaurants"),   `${restaurantsCount} / ∞`,"",""],
+    [t("الفروع","Branches"),        `${branchesCount} / ${branchesMax}`,"",""],
+    [t("المستخدمون","Users"),       `${usersCount} / ${usersMax}`,"",""],
   ];
   return (
     <div className="space-y-5" dir={dir}>
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-800">{t("مرحباً،","Welcome,")} {COMPANY.name} 🏢</h2>
-          <p className="text-gray-400 text-sm mt-0.5">{t("خطة","Plan")} {t(PLAN_AR[COMPANY.plan]||COMPANY.plan, COMPANY.plan)} · 12 {t("فرع","branches")} · 3 {t("علامات تجارية","brands")}</p>
+          <p className="text-gray-400 text-sm mt-0.5">{t("خطة","Plan")} {t(PLAN_AR[COMPANY.plan]||COMPANY.plan, COMPANY.plan)} · {branchesCount} {t("فرع","branches")} · {brandsCount} {t("علامات تجارية","brands")}</p>
         </div>
         <button onClick={()=>navigate("ca-subscription")} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 shadow-sm">
           <CreditCard size={14}/> {t("إدارة الاشتراك","Manage Subscription")}
@@ -1342,7 +1366,7 @@ function CADashboard({ navigate }:{ navigate:(p:string)=>void }) {
         <div className="flex items-center justify-between">
           <div>
             <p className="font-bold text-lg">{t("خطة احترافي — نشطة ✅","Professional Plan — Active ✅")}</p>
-            <p className="text-white/70 text-sm mt-0.5">{t("تنتهي في 15 يناير 2026 · متبقي","Expires Jan 15, 2026 · ")} <span className="text-cyan-300 font-bold">87</span> {t("يوم","days remaining")}</p>
+            <p className="text-white/70 text-sm mt-0.5">{t("تنتهي في 15 يناير 2026 · متبقي","Expires Jan 15, 2026 · ")} <span className="text-cyan-300 font-bold">{daysRemaining}</span> {t("يوم","days remaining")}</p>
             <div className="flex items-center gap-6 mt-3">
               {statItems.map(([l,v])=>(
                 <div key={l}><p className="text-white/50 text-xs">{l}</p><p className="font-bold">{v}</p></div>
@@ -1350,7 +1374,7 @@ function CADashboard({ navigate }:{ navigate:(p:string)=>void }) {
             </div>
           </div>
           <div className={dir==="ltr"?"text-left":"text-right"}>
-            <p className="text-3xl font-black">4,800 <span className="text-base font-normal text-white/60">{t("ر.س/سنة","SAR/year")}</span></p>
+            <p className="text-3xl font-black">{fmt(planPrice)} <span className="text-base font-normal text-white/60">{t("ر.س/سنة","SAR/year")}</span></p>
             <button onClick={()=>navigate("ca-subscription")} className="mt-2 px-4 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-xs font-bold border border-white/30">{t("ترقية الخطة ↑","Upgrade Plan ↑")}</button>
           </div>
         </div>
@@ -1359,7 +1383,7 @@ function CADashboard({ navigate }:{ navigate:(p:string)=>void }) {
         <KpiCard label={t("إجمالي المبيعات الشهرية","Monthly Total Sales")} value={`${fmt(Math.round(totalSalesM/1000))}K`} sub={t("ر.س هذا الشهر","SAR this month")} icon={<TrendingUp size={18} className="text-emerald-600"/>} accent="emerald" delta="+8.2%"/>
         <KpiCard label={t("إجمالي المصروفات","Total Expenses")}            value={`${fmt(Math.round(totalExpM/1000))}K`}   sub={t("ر.س هذا الشهر","SAR this month")} icon={<Wallet size={18} className="text-red-500"/>}      accent="red"/>
         <KpiCard label={t("صافي الربح","Net Profit")}                       value={`${fmt(Math.round((totalSalesM-totalExpM)/1000))}K`} sub={t("ر.س","SAR")} icon={<BarChart3 size={18} className="text-purple-600"/>} accent="purple" delta="+12.4%"/>
-        <KpiCard label={t("معدل إنجاز الفروع","Branch Completion Rate")}    value="83%" sub={t("10 من 12 فرع فوق الهدف","10 of 12 branches above target")} icon={<CheckCircle2 size={18} className="text-blue-600"/>} accent="blue"/>
+        <KpiCard label={t("معدل إنجاز الفروع","Branch Completion Rate")}    value={`${branchCompletionRate}%`} sub={t(`${branchesAboveTarget} من ${branchesCount} فرع فوق الهدف`,`${branchesAboveTarget} of ${branchesCount} branches above target`)} icon={<CheckCircle2 size={18} className="text-blue-600"/>} accent="blue"/>
       </div>
       <div className="grid grid-cols-3 gap-4">
         {BRANDS.map(b=>{
@@ -1388,12 +1412,38 @@ function CASubscription() {
   const { t, dir } = useCLang();
   const upgradeMut = useUpgradeSubscription();
   const contactMut = useContactSales();
+  const { data: apiSub } = useCompanySubscription();
+  const { data: apiPlans = [] } = useCompanyPlans();
   const [billing,setBilling]=useState<"annual"|"monthly">("annual");
-  const plans=[
+  const PLANS_INLINE = [
     { id:"basic",plan:"Basic",price_m:199,price_a:1990,features:[t("5 فروع","5 Branches"),t("15 مستخدم","15 Users"),t("4 وحدات","4 Modules"),t("دعم بريد","Email support")],current:false },
     { id:"professional",plan:"Professional",price_m:400,price_a:4800,features:[t("20 فرعاً","20 Branches"),t("50 مستخدم","50 Users"),t("كل الوحدات","All modules"),t("مدير حساب","Account manager"),t("تقارير متقدمة","Advanced reports")],current:true },
     { id:"enterprise",plan:"Enterprise",price_m:null,price_a:null,features:[t("فروع غير محدودة","Unlimited branches"),t("مستخدمون غير محدودون","Unlimited users"),"SLA 99.9%",t("API مفتوح","Open API")],current:false },
   ];
+  const plans = apiPlans.length > 0
+    ? apiPlans.map(p => ({
+        id: p.id,
+        plan: p.name,
+        price_m: p.priceMonthlyHalalas != null ? Math.round(p.priceMonthlyHalalas / 100) : null,
+        price_a: p.priceAnnualHalalas  != null ? Math.round(p.priceAnnualHalalas  / 100) : null,
+        features: p.features ?? [],
+        current: p.isCurrent ?? false,
+      }))
+    : PLANS_INLINE;
+  const usage = (apiSub?.usage ?? {}) as Record<string, { used: number; max: number | null }>;
+  const branchesUsed = usage.branches?.used ?? 12;
+  const branchesMax  = usage.branches?.max  ?? 20;
+  const usersUsed    = usage.users?.used    ?? 31;
+  const usersMax     = usage.users?.max     ?? 50;
+  const storageUsed  = usage.storageGB?.used ?? 2.4;
+  const storageMax   = usage.storageGB?.max  ?? 10;
+  const currentPlanName = apiSub?.planName ?? "Professional";
+  const currentPlanPriceAnnual = (apiPlans.find(p => p.isCurrent)?.priceAnnualHalalas != null)
+    ? Math.round((apiPlans.find(p => p.isCurrent)!.priceAnnualHalalas as number) / 100)
+    : 4800;
+  const currentPlanPriceMonthly = (apiPlans.find(p => p.isCurrent)?.priceMonthlyHalalas != null)
+    ? Math.round((apiPlans.find(p => p.isCurrent)!.priceMonthlyHalalas as number) / 100)
+    : 400;
   const SAR = t("ر.س","SAR");
   const perYear = t("سنة","year"); const perMonth = t("شهر","mo");
   return (
@@ -1681,10 +1731,13 @@ function CABilling() {
 }
 
 function CASettings() {
-  const { t, dir } = useCLang();
+  const { t, dir, lang, setLang } = useCLang();
   const { data: apiSettings } = useCompanySettings();
   const updateSettingsMut = useUpdateCompanySettings();
+  const langPrefMut = useLanguagePref();
   const [saved,setSaved]=useState(false);
+  const [showPwd,setShowPwd]=useState(false);
+  const [showSessions,setShowSessions]=useState(false);
   const fields = [
     [t("اسم المجموعة","Group Name"),       apiSettings?.name || "مجموعة التاج للمطاعم"],
     [t("المدينة الرئيسية","Main City"),     apiSettings?.city || "الرياض"],
@@ -1703,6 +1756,58 @@ function CASettings() {
         </div>
         <div className="flex justify-end"><button onClick={()=>{updateSettingsMut.mutate({});setSaved(true);setTimeout(()=>setSaved(false),2000);}} className={`inline-flex items-center gap-1.5 px-5 py-2 rounded-lg font-bold text-sm transition-all ${saved?"bg-emerald-500 text-white":"bg-purple-600 text-white hover:bg-purple-700"}`}>{saved?<><Check size={14}/> {t("تم الحفظ","Saved")}</>:<><CheckCircle2 size={14}/> {t("حفظ","Save")}</>}</button></div>
       </div>
+
+      {/* ── Account Settings ─────────────────────── */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+        <h3 className="font-bold text-gray-800 text-sm border-b border-gray-100 pb-3">{t("إعدادات الحساب","Account Settings")}</h3>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={()=>setShowPwd(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 transition-colors">
+            <Lock size={14}/> {t("تغيير كلمة المرور","Change Password")}
+          </button>
+          <button
+            onClick={()=>setShowSessions(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors">
+            <Activity size={14}/> {t("جلسات نشطة","Active Sessions")}
+          </button>
+          <button
+            onClick={()=>{
+              const next = lang==="ar"?"en":"ar";
+              setLang(next);
+              langPrefMut.mutate({ language: next });
+            }}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 text-sm font-bold hover:bg-purple-100 transition-colors">
+            <Globe size={14}/> {lang==="ar"?"English":"عربي"}
+          </button>
+        </div>
+      </div>
+
+      <ChangePasswordModal open={showPwd} onClose={()=>setShowPwd(false)}/>
+
+      {showSessions && (
+        <div
+          onClick={()=>setShowSessions(false)}
+          style={{
+            position:"fixed", inset:0, background:"rgba(15,28,53,0.7)",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            zIndex:100, padding:16,
+          }}>
+          <div onClick={e=>e.stopPropagation()} style={{ width:"100%", maxWidth:560 }}>
+            <SessionsList t={t}/>
+            <div style={{ marginTop:12, display:"flex", justifyContent:"flex-end" }}>
+              <button
+                onClick={()=>setShowSessions(false)}
+                style={{
+                  padding:"8px 16px", borderRadius:8, border:"1px solid #e2e8f0",
+                  background:"white", color:"#475569", fontSize:13, fontWeight:600, cursor:"pointer",
+                }}>
+                {t("إغلاق","Close")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
