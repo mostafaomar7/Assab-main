@@ -49,6 +49,13 @@ import {
   useAdminSettings,
   useAdminReportsCatalog,
   useAdminDistribution,
+  useSuspendAdminCompany,
+  useActivateAdminCompany,
+  useUpgradeAdminCompany,
+  useRenewSubscription,
+  useChangeSubscriptionPlan,
+  useSuspendSubscription,
+  useActivateSubscription,
   // Branch (platform)
   useBranchOverviewPlatform,
   useBranchEmployeesPlatform,
@@ -10087,6 +10094,7 @@ const BRANDS_DATA = [
 function AdminRestaurants({}: PageProps) {
   const { data: brandsApi } = useAdminBrands();
   useAdminRestaurantSubscriptions();
+  const renewSubMut = useRenewSubscription();
   // Only adopt the API shape when it includes nested restaurants/branches; otherwise
   // fall back to the mock tree so the UI stays renderable while backend backfills nesting.
   const apiBrands = brandsApi as any;
@@ -10140,7 +10148,10 @@ function AdminRestaurants({}: PageProps) {
     r14:{ plan:"فضي",     status:"expired",  expires:"9 أكتوبر 2025",  daysLeft:-156,price:799  },
     r15:{ plan:"فضي",     status:"expired",  expires:"9 أكتوبر 2025",  daysLeft:-156,price:799  },
   });
-  const renewSub = (id:string) => setRestSubs(p=>({...p,[id]:{...p[id],status:"active",daysLeft:365,expires:"مارس 2027"}}));
+  const renewSub = (id:string) => {
+    setRestSubs(p=>({...p,[id]:{...p[id],status:"active",daysLeft:365,expires:"مارس 2027"}}));
+    renewSubMut.mutate({ id });
+  };
 
   const subClsRest = { active:"bg-emerald-50 text-emerald-700 border-emerald-200", warning:"bg-amber-50 text-amber-700 border-amber-200", danger:"bg-red-50 text-red-700 border-red-200", expired:"bg-red-100 text-red-800 border-red-300" };
   const subLblRest = { active:t("نشط","Active"), warning:t("ينتهي قريباً","Expiring Soon"), danger:t("إنذار انتهاء","Expiry Alert"), expired:t("منتهي","Expired") };
@@ -10603,6 +10614,10 @@ function AdminRestaurants({}: PageProps) {
 
 function AdminSubscriptions({}: PageProps) {
   useAdminSubscriptions(); // primes cache; component uses local state seeded from BRANDS_DATA.
+  const renewMut = useRenewSubscription();
+  const changePlanMut = useChangeSubscriptionPlan();
+  const suspendSubMut = useSuspendSubscription();
+  const activateSubMut = useActivateSubscription();
   const { t, dir } = useLang();
   const [subs, setSubs] = useState(BRANDS_DATA.map(b=>({...b})));
   const [expandedSub, setExpandedSub] = useState<string|null>(null);
@@ -10612,7 +10627,15 @@ function AdminSubscriptions({}: PageProps) {
   const statusCls = { active:"border-emerald-200 bg-emerald-50/20",warning:"border-amber-200 bg-amber-50/20",danger:"border-red-200 bg-red-50/20",expired:"border-red-300 bg-red-50/30" };
   const statusBadgeCls = { active:"bg-emerald-50 text-emerald-700",warning:"bg-amber-50 text-amber-700",danger:"bg-red-50 text-red-700",expired:"bg-red-100 text-red-800" };
   const statusLabel = { active:t("اشتراك نشط","Active Subscription"),warning:t("ينتهي قريباً","Expiring Soon"),danger:t("إنذار انتهاء","Expiry Alert"),expired:t("منتهي الاشتراك","Subscription Expired") };
-  const renew = (id:string) => setSubs(p=>p.map(s=>s.id===id?{...s,subStatus:"active" as const,daysLeft:365,expires:"14 مارس 2027"}:s) as typeof subs);
+  const renew = (id:string) => {
+    setSubs(p=>p.map(s=>s.id===id?{...s,subStatus:"active" as const,daysLeft:365,expires:"14 مارس 2027"}:s) as typeof subs);
+    renewMut.mutate({ id });
+  };
+  // Side-effect bindings — call when status toggles or plan is changed.
+  const onSuspendSub = (id: string) => suspendSubMut.mutate(id);
+  const onActivateSub = (id: string) => activateSubMut.mutate(id);
+  const onChangePlan = (id: string, plan: string) => changePlanMut.mutate({ id, plan });
+  void onSuspendSub; void onActivateSub; void onChangePlan;
 
   const totalRestaurants = subs.reduce((s,b)=>s+b.restaurants.length,0);
   const totalBranches    = subs.reduce((s,b)=>s+b.restaurants.reduce((ss,r)=>ss+r.branches.length,0),0);
@@ -10763,6 +10786,9 @@ const INITIAL_COMPANIES:CompanySub[] = [
 
 function AdminCompanies({ navigate }:PageProps) {
   const { data: apiCompanies } = useAdminCompanies();
+  const suspendMut = useSuspendAdminCompany();
+  const activateMut = useActivateAdminCompany();
+  const upgradeMut = useUpgradeAdminCompany();
   const { t, dir } = useLang();
   const apiCompaniesArr = (apiCompanies as any)?.data ?? (apiCompanies as any);
   const [companies, setCompanies] = useState<CompanySub[]>((apiCompaniesArr as any[])?.length > 0 ? (apiCompaniesArr as CompanySub[]) : INITIAL_COMPANIES);
@@ -10790,12 +10816,19 @@ function AdminCompanies({ navigate }:PageProps) {
   const totalBranches = companies.reduce((s,c)=>s+c.usedBranches,0);
   const totalUsers    = companies.reduce((s,c)=>s+c.users,0);
 
-  const suspend = (id:string) => setCompanies(p=>p.map(c=>c.id===id?{...c,status:"suspended" as const}:c));
-  const activate = (id:string) => setCompanies(p=>p.map(c=>c.id===id?{...c,status:"active" as const,daysLeft:365}:c));
+  const suspend = (id:string) => {
+    setCompanies(p=>p.map(c=>c.id===id?{...c,status:"suspended" as const}:c));
+    suspendMut.mutate(id);
+  };
+  const activate = (id:string) => {
+    setCompanies(p=>p.map(c=>c.id===id?{...c,status:"active" as const,daysLeft:365}:c));
+    activateMut.mutate(id);
+  };
   const doUpgrade = (id:string, plan:CompanyPlan) => {
     setCompanies(p=>p.map(c=>c.id===id?{...c,plan,maxUsers:COMPANY_PLANS_META[plan].maxUsers,monthlyRevenue:COMPANY_PLANS_META[plan].price}:c));
     setShowUpgrade(null);
     if(selected) setSelected(s=>s?{...s,plan,maxUsers:COMPANY_PLANS_META[plan].maxUsers}:s);
+    upgradeMut.mutate({ id, plan: plan as "Basic" | "Professional" | "Enterprise" });
   };
 
   return (
