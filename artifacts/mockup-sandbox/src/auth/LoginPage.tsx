@@ -2,12 +2,16 @@ import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useAuth } from "./AuthContext";
 import { getErrorMessage } from "../api/errors";
+import { ForgotPasswordPage } from "./ForgotPasswordPage";
 
 export function LoginPage() {
   const { login, loggingIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [forgotting, setForgotting] = useState(false);
+
+  if (forgotting) return <ForgotPasswordPage onDone={() => setForgotting(false)} />;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -232,6 +236,24 @@ export function LoginPage() {
           }}
         >
           {loggingIn ? "جاري الدخول..." : "تسجيل الدخول"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setForgotting(true)}
+          style={{
+            display: "block",
+            width: "100%",
+            background: "transparent",
+            border: "none",
+            color: "#94a3b8",
+            fontSize: 12,
+            cursor: "pointer",
+            marginTop: 14,
+            fontFamily: "inherit",
+          }}
+        >
+          نسيت كلمة المرور؟
         </button>
 
         <p

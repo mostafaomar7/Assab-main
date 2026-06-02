@@ -29,14 +29,37 @@ export const api: AxiosInstance = axios.create({
   },
 });
 
-// ─── Request: attach bearer token ────────────────────────────────────────────
+// ─── Request: attach bearer token + idempotency key for mutations ───────────
+const SAFE_METHODS = new Set(["get", "head", "options"]);
+
+function generateIdempotencyKey(): string {
+  // crypto.randomUUID is widely supported in modern browsers (Vite targets es2022)
+  const c = globalThis.crypto;
+  if (c && typeof c.randomUUID === "function") return c.randomUUID();
+  // Fallback (non-cryptographic but unique enough for idempotency)
+  return `idem_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 api.interceptors.request.use((config) => {
   const t = getTokens();
   if (t?.accessToken && config.headers) {
     config.headers.Authorization = `Bearer ${t.accessToken}`;
   }
+
+  // Auto-attach Idempotency-Key on mutations unless the caller already set one.
+  const method = (config.method ?? "get").toLowerCase();
+  if (!SAFE_METHODS.has(method) && config.headers) {
+    if (!config.headers["Idempotency-Key"] && !config.headers["idempotency-key"]) {
+      config.headers["Idempotency-Key"] = generateIdempotencyKey();
+    }
+  }
   return config;
 });
+
+/** Manually attach an Idempotency-Key (overrides the auto-generated one). */
+export function withIdempotencyKey(key: string): { headers: { "Idempotency-Key": string } } {
+  return { headers: { "Idempotency-Key": key } };
+}
 
 // ─── Response: 401 → refresh-once → retry; normalize errors ──────────────────
 let refreshing: Promise<string | null> | null = null;

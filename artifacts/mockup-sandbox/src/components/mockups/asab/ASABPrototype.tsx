@@ -64,6 +64,12 @@ import {
   useSupplierOrders,
   useSupplierItems,
   useSupplierReports,
+  // Mutation hooks (operations + ERP) — shared platform/company paths.
+  useApproveOperation,
+  useRejectOperation,
+  useFinalApprove,
+  useBulkApprove,
+  useCreateERPBatch,
 } from "../../../api/queries";
 
 // ─────────────────────────────────────────────
@@ -13154,36 +13160,62 @@ export function ASABPrototype() {
   // ─────────────────────────────────────────────────────────
   const now = () => new Date().toLocaleTimeString("ar-SA", { hour:"2-digit", minute:"2-digit" });
 
-  const approveOp = (id:string) => setOps(p=>p.map(o=>
-    o.id===id && o.status==="pending"
-      ? { ...o, status:"approved" as OpStatus,
-          approvedBy: appState.role==="head" ? "رئيس الحسابات" : "المحاسب المختص",
-          approvedAt: now() }
-      : o
-  ));
-  const rejectOp = (id:string, reason:string) => setOps(p=>p.map(o=>
-    o.id===id && (o.status==="pending" || o.status==="approved")
-      ? { ...o, status:"rejected" as OpStatus, rejectReason:reason,
-          rejectedBy: appState.role==="head" ? "رئيس الحسابات" : "المحاسب المختص",
-          rejectedAt: now() }
-      : o
-  ));
-  const finalApproveOp = (id:string) => setOps(p=>p.map(o=>
-    o.id===id && o.status==="approved"
-      ? { ...o, status:"final-approved" as OpStatus,
-          finalApprovedBy: "رئيس الحسابات",
-          finalApprovedAt: now() }
-      : o
-  ));
+  // ─── Live mutations (fire alongside optimistic local state) ──────────────
+  const approveMut      = useApproveOperation();
+  const rejectMut       = useRejectOperation();
+  const finalMut        = useFinalApprove();
+  const bulkApproveMut  = useBulkApprove();
+  const erpBatchMut     = useCreateERPBatch();
+
+  const approveOp = (id:string) => {
+    setOps(p=>p.map(o=>
+      o.id===id && o.status==="pending"
+        ? { ...o, status:"approved" as OpStatus,
+            approvedBy: appState.role==="head" ? "رئيس الحسابات" : "المحاسب المختص",
+            approvedAt: now() }
+        : o
+    ));
+    approveMut.mutate({ id });
+  };
+  const rejectOp = (id:string, reason:string) => {
+    setOps(p=>p.map(o=>
+      o.id===id && (o.status==="pending" || o.status==="approved")
+        ? { ...o, status:"rejected" as OpStatus, rejectReason:reason,
+            rejectedBy: appState.role==="head" ? "رئيس الحسابات" : "المحاسب المختص",
+            rejectedAt: now() }
+        : o
+    ));
+    rejectMut.mutate({ id, reason });
+  };
+  const finalApproveOp = (id:string) => {
+    setOps(p=>p.map(o=>
+      o.id===id && o.status==="approved"
+        ? { ...o, status:"final-approved" as OpStatus,
+            finalApprovedBy: "رئيس الحسابات",
+            finalApprovedAt: now() }
+        : o
+    ));
+    finalMut.mutate({ id });
+  };
   const bulkApprove = (ids:string[]) => {
     const set = new Set(ids);
     const ts = now();
+    // Partition ids by current status so we send the right call per group.
+    const pendingIds:string[] = [];
+    const approvedIds:string[] = [];
+    ops.forEach(o=>{
+      if(!set.has(o.id)) return;
+      if(o.status==="pending")  pendingIds.push(o.id);
+      if(o.status==="approved") approvedIds.push(o.id);
+    });
     setOps(p=>p.map(o=>{
       if(!set.has(o.id)) return o;
       if(o.status==="pending")  return {...o, status:"approved" as OpStatus, approvedBy:"المحاسب المختص", approvedAt:ts};
       if(o.status==="approved") return {...o, status:"final-approved" as OpStatus, finalApprovedBy:"رئيس الحسابات", finalApprovedAt:ts};
-      return o; // final-approved and rejected are immutable — skip silently
+      return o;
     }));
+    if (pendingIds.length > 0)  bulkApproveMut.mutate({ operationIds: pendingIds });
+    approvedIds.forEach(id => finalMut.mutate({ id }));
   };
 
   // Corrective operation: creates a new linked pending op referencing the original
@@ -13208,7 +13240,8 @@ export function ASABPrototype() {
     setOps(p=>[corrective, ...p]);
   };
 
-  // ERP posting: marks ops as posted with batch ID — separate from final-approval
+  // ERP posting: marks ops as posted with batch ID — separate from final-approval.
+  // Also creates an ERP batch on the backend so the operation set is recorded.
   const markErpPosted = (ids:string[], batchId:string) => {
     const set = new Set(ids);
     const postedAt = now();
@@ -13217,6 +13250,7 @@ export function ASABPrototype() {
         ? { ...o, erpPosted:true, erpBatchId:batchId, erpPostedAt:postedAt }
         : o
     ));
+    erpBatchMut.mutate({ operationIds: ids });
   };
 
   if(!appState.role) return (

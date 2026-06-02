@@ -1,4 +1,4 @@
-export { api, downloadBlob, APP_BASE_URL, type Page } from "./client";
+export { api, downloadBlob, withIdempotencyKey, APP_BASE_URL, type Page } from "./client";
 export { ApiError, isApiError, getErrorMessage } from "./errors";
 export { getTokens, setTokens, clearTokens, type Tokens } from "./tokens";
 export {
