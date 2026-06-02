@@ -8723,15 +8723,16 @@ function HeadModulePage({ moduleKey, navigate, setModal, setDetailId, ops, final
 }
 
 function HeadAccountants({}: PageProps) {
-  useAccountantsPerformancePlatform();
+  const { data: apiPerf } = useAccountantsPerformancePlatform();
   const { t, dir } = useLang();
   const [expandedAcc, setExpandedAcc] = useState<number|null>(null);
-  const accountants = [
+  const ACCOUNTANTS_FALLBACK = [
     { name:"أحمد محمد الشهري", branches:20, reviewed:250, approved:230, pending:5,  rate:92, prevRate:88, rating:4.8, avgTime:4.5,  level:t("ممتاز","Excellent"),   levelCls:"bg-emerald-100 text-emerald-700" },
     { name:"سارة العمري",      branches:20, reviewed:210, approved:197, pending:2,  rate:94, prevRate:95, rating:4.9, avgTime:3.8,  level:t("ممتاز","Excellent"),   levelCls:"bg-emerald-100 text-emerald-700" },
     { name:"محمد الحربي",      branches:20, reviewed:185, approved:128, pending:8,  rate:69, prevRate:64, rating:3.8, avgTime:8.2,  level:t("مقبول","Acceptable"),  levelCls:"bg-amber-100 text-amber-700"   },
     { name:"فاطمة السالم",     branches:20, reviewed:290, approved:284, pending:1,  rate:98, prevRate:97, rating:5.0, avgTime:2.9,  level:t("ممتاز","Excellent"),   levelCls:"bg-emerald-100 text-emerald-700" },
   ];
+  const accountants = (((apiPerf as any)?.length > 0 ? (apiPerf as any) : ACCOUNTANTS_FALLBACK)) as typeof ACCOUNTANTS_FALLBACK;
 
   const recentMovements = [
     [t("اعتماد مبيعات فرع العليا","Sales approval — Al-Alia branch"),t("قبل 12 دقيقة","12 min ago"),t("مبيعات","Sales")],
@@ -10571,7 +10572,7 @@ function AdminRestaurants({}: PageProps) {
 }
 
 function AdminSubscriptions({}: PageProps) {
-  useAdminSubscriptions();
+  useAdminSubscriptions(); // primes cache; component uses local state seeded from BRANDS_DATA.
   const { t, dir } = useLang();
   const [subs, setSubs] = useState(BRANDS_DATA.map(b=>({...b})));
   const [expandedSub, setExpandedSub] = useState<string|null>(null);
@@ -10731,9 +10732,10 @@ const INITIAL_COMPANIES:CompanySub[] = [
 ];
 
 function AdminCompanies({ navigate }:PageProps) {
-  useAdminCompanies();
+  const { data: apiCompanies } = useAdminCompanies();
   const { t, dir } = useLang();
-  const [companies, setCompanies] = useState<CompanySub[]>(INITIAL_COMPANIES);
+  const apiCompaniesArr = (apiCompanies as any)?.data ?? (apiCompanies as any);
+  const [companies, setCompanies] = useState<CompanySub[]>((apiCompaniesArr as any[])?.length > 0 ? (apiCompaniesArr as CompanySub[]) : INITIAL_COMPANIES);
   const [filter, setFilter]   = useState<"all"|CompanyPlan|"trial"|"suspended">("all");
   const [search, setSearch]   = useState("");
   const [selected, setSelected] = useState<CompanySub|null>(null);
@@ -11448,9 +11450,9 @@ function AdminReports({}: PageProps) {
 }
 
 function AdminAudit({}: PageProps) {
-  useAdminAuditLogs();
+  const { data: apiAuditLogs } = useAdminAuditLogs();
   const { t, lang, dir } = useLang(); const en = lang==="en";
-  const ALL_LOGS = [
+  const LOGS_FALLBACK = [
     {action:"إضافة مستخدم جديد",           user:"الأدمن",                        time:"10:30 ص",icon:"👤",type:"مستخدمين", date:"اليوم"},
     {action:"اعتماد نهائي لـ 45 عملية",    user:"خالد العمري — رئيس الحسابات",  time:"10:15 ص",icon:"✅",type:"اعتمادات",  date:"اليوم"},
     {action:"تجديد اشتراك مطعم هرفي",      user:"الأدمن",                        time:"9:45 ص", icon:"💳",type:"اشتراكات",  date:"اليوم"},
@@ -11461,6 +11463,8 @@ function AdminAudit({}: PageProps) {
     {action:"حذف مستخدم: عمر السعد",       user:"الأدمن",                        time:"أمس 11:00",icon:"🗑️",type:"مستخدمين",date:"أمس"},
     {action:"اعتماد طلب شراء PO-8821",     user:"سارة العمري",                   time:"أمس 09:15",icon:"🛒",type:"مشتريات",  date:"أمس"},
   ];
+  const apiLogsArr = (apiAuditLogs as any)?.data ?? (apiAuditLogs as any);
+  const ALL_LOGS = (((apiLogsArr as any)?.length > 0 ? (apiLogsArr as any) : LOGS_FALLBACK)) as typeof LOGS_FALLBACK;
   const allVal = t("الكل","All");
   const todayVal = t("اليوم","Today");
   const yestVal = t("أمس","Yesterday");
@@ -11926,7 +11930,10 @@ function BranchEmployees({}: PageProps) {
 
 function BranchItems({}: PageProps) {
   const { t } = useLang();
-  useBranchInventoryItemsPlatform();
+  const { data: apiItems } = useBranchInventoryItemsPlatform();
+  const ITEMS_FALLBACK = ["دجاج طازج","حليب طازج","خس","طماطم","بطاطس","زيت قلي","كاتشب","ماء معدني","عصير برتقال","خبز برجر"];
+  const apiNames = (apiItems as any)?.items ? (apiItems as any).items.map((i: any) => i.name) : [];
+  const items: string[] = apiNames.length > 0 ? apiNames : ITEMS_FALLBACK;
   return (
     <div className="space-y-5">
       <h2 className="text-xl font-bold text-gray-800">{t("الأصناف المحددة للجرد","Items for Inventory")}</h2>
@@ -11934,9 +11941,9 @@ function BranchItems({}: PageProps) {
         <Bell size={14} className="text-blue-600 flex-shrink-0"/>
         <p className="text-blue-700 text-xs">{t("هذه القائمة تم تحديدها بواسطة المحاسب وتزامنت تلقائياً.","This list was defined by the accountant and synced automatically.")}</p>
       </div>
-      <Card title={t("الأصناف — 10 أصناف","Items — 10 items")}>
+      <Card title={`${t("الأصناف —","Items —")} ${items.length} ${t("أصناف","items")}`}>
         <div className="p-4 grid grid-cols-3 gap-2">
-          {["دجاج طازج","حليب طازج","خس","طماطم","بطاطس","زيت قلي","كاتشب","ماء معدني","عصير برتقال","خبز برجر"].map((item,i)=>(
+          {items.map((item: string, i: number)=>(
             <div key={i} className="flex items-center gap-2 p-2.5 rounded-lg border border-gray-100 bg-gray-50">
               <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0">{i+1}</span>
               <span className="text-sm text-gray-700">{item}</span>
@@ -11950,12 +11957,14 @@ function BranchItems({}: PageProps) {
 
 function BranchSuppliers({}: PageProps) {
   const { t } = useLang();
-  useBranchSuppliersPlatform();
+  const { data: apiSuppliers } = useBranchSuppliersPlatform();
+  const SUPPLIERS_FALLBACK = [{name:"شركة الدواجن الوطنية",cat:"دواجن ولحوم",contact:"محمد العلي",phone:"0501234567"},{name:"مطاحن الملك",cat:"دقيق ومخبوزات",contact:"سعد الدوسري",phone:"0507654321"},{name:"مزرعة الخير",cat:"خضار وفواكه",contact:"فهد الشمري",phone:"0509876543"}];
+  const suppliers = (((apiSuppliers as any)?.length > 0 ? (apiSuppliers as any) : SUPPLIERS_FALLBACK)) as typeof SUPPLIERS_FALLBACK;
   return (
     <div className="space-y-5">
       <h2 className="text-xl font-bold text-gray-800">{t("الموردون","Suppliers")}</h2>
       <Card title={t("الموردون المعتمدون","Approved Suppliers")}>
-        {[{name:"شركة الدواجن الوطنية",cat:"دواجن ولحوم",contact:"محمد العلي",phone:"0501234567"},{name:"مطاحن الملك",cat:"دقيق ومخبوزات",contact:"سعد الدوسري",phone:"0507654321"},{name:"مزرعة الخير",cat:"خضار وفواكه",contact:"فهد الشمري",phone:"0509876543"}].map((s,i)=>(
+        {suppliers.map((s,i)=>(
           <div key={i} className="px-5 py-4 flex items-center gap-4 border-b border-gray-100 last:border-0 hover:bg-gray-50">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-400 to-cyan-400 flex items-center justify-center text-white font-bold">{s.name[0]}</div>
             <div className="flex-1"><p className="font-semibold text-sm text-gray-800">{s.name}</p><p className="text-xs text-gray-400">{s.cat} · {s.contact}</p></div>
@@ -11969,9 +11978,9 @@ function BranchSuppliers({}: PageProps) {
 
 function BranchUpload({}: PageProps) {
   const { t } = useLang();
-  useBranchUploadStatusPlatform();
+  const { data: apiUploadStatus } = useBranchUploadStatusPlatform();
   const [uploads, setUploads] = useState<Record<string,boolean>>({});
-  const reports = [
+  const REPORTS_FALLBACK = [
     {id:"sales",    name:"تقرير المبيعات اليومي",  desc:"POS + التطبيقات",     required:true,  lastUpload:"أمس 11:23 م",  lastStatus:"success", todayDeadline:"11:59 م"},
     {id:"inventory",name:"جرد المخزون اليومي",      desc:"10 أصناف محددة",      required:true,  lastUpload:"أمس 10:47 م",  lastStatus:"success", todayDeadline:"11:59 م"},
     {id:"cash",     name:"كشف حساب الصندوق",        desc:"نقدي + مدفوعات",      required:true,  lastUpload:"13 أكت 09:15 ص",lastStatus:"late",    todayDeadline:"10:00 ص"},
@@ -11979,6 +11988,8 @@ function BranchUpload({}: PageProps) {
     {id:"purchases",name:"طلبات الشراء",             desc:"الكميات والأصناف",    required:true,  lastUpload:"لم يُرفع بعد",  lastStatus:"missing", todayDeadline:"02:00 م"},
     {id:"expenses", name:"المصروفات اليومية",        desc:"فواتير + مستندات",    required:false, lastUpload:"أمس 08:55 م",  lastStatus:"success", todayDeadline:"اختياري"},
   ];
+  const apiReports = (apiUploadStatus as any)?.reports;
+  const reports = ((apiReports?.length > 0 ? apiReports : REPORTS_FALLBACK)) as typeof REPORTS_FALLBACK;
   const dueToday = reports.filter(r=>r.required && !uploads[r.id] && r.lastStatus!=="success");
   return (
     <div className="space-y-5">
@@ -12118,16 +12129,19 @@ const PROC_ITEMS: Record<string, PurItem[]> = {
 
 function ProcNewOrders({}: PageProps) {
   const { t } = useLang();
-  useProcurementOrdersPlatform({ status: "pending" });
-  const [orders, setOrders] = useState([
-    { id:"PO-101", branch:"فرع الرياض - العليا", city:"الرياض",  supplier:"شركة الدواجن الوطنية",  items:4, total:4800, urgency:"عادي", status:"pending" as "pending"|"approved", time:"قبل 30 دقيقة" },
-    { id:"PO-102", branch:"فرع الرياض - العليا", city:"الرياض",  supplier:"شركة الدواجن الوطنية",  items:2, total:2200, urgency:"عادي", status:"pending" as "pending"|"approved", time:"قبل ساعة" },
-    { id:"PO-103", branch:"فرع الرياض - العليا", city:"الرياض",  supplier:"مطاحن الملك",            items:3, total:1900, urgency:"عادي", status:"pending" as "pending"|"approved", time:"قبل ساعتين" },
-    { id:"PO-104", branch:"فرع جدة - الحمراء",   city:"جدة",     supplier:"شركة الدواجن الوطنية",  items:6, total:8200, urgency:"عاجل", status:"pending" as "pending"|"approved", time:"قبل ساعة" },
-    { id:"PO-105", branch:"فرع جدة - الحمراء",   city:"جدة",     supplier:"مزرعة الخير",            items:4, total:5400, urgency:"عاجل", status:"pending" as "pending"|"approved", time:"قبل ساعتين" },
-    { id:"PO-106", branch:"فرع مكة - المعابدة",  city:"مكة",     supplier:"مطاحن الملك",            items:3, total:3100, urgency:"عادي", status:"pending" as "pending"|"approved", time:"قبل ساعتين" },
-    { id:"PO-107", branch:"فرع الدمام",           city:"الدمام",  supplier:"مزرعة الخير",            items:5, total:5600, urgency:"عاجل", status:"pending" as "pending"|"approved", time:"قبل 3 ساعات" },
-  ]);
+  const { data: apiOrdersPage } = useProcurementOrdersPlatform({ status: "pending" });
+  type ProcOrder = { id:string; branch:string; city:string; supplier:string; items:number; total:number; urgency:string; status:"pending"|"approved"; time:string };
+  const ORDERS_FALLBACK: ProcOrder[] = [
+    { id:"PO-101", branch:"فرع الرياض - العليا", city:"الرياض",  supplier:"شركة الدواجن الوطنية",  items:4, total:4800, urgency:"عادي", status:"pending", time:"قبل 30 دقيقة" },
+    { id:"PO-102", branch:"فرع الرياض - العليا", city:"الرياض",  supplier:"شركة الدواجن الوطنية",  items:2, total:2200, urgency:"عادي", status:"pending", time:"قبل ساعة" },
+    { id:"PO-103", branch:"فرع الرياض - العليا", city:"الرياض",  supplier:"مطاحن الملك",            items:3, total:1900, urgency:"عادي", status:"pending", time:"قبل ساعتين" },
+    { id:"PO-104", branch:"فرع جدة - الحمراء",   city:"جدة",     supplier:"شركة الدواجن الوطنية",  items:6, total:8200, urgency:"عاجل", status:"pending", time:"قبل ساعة" },
+    { id:"PO-105", branch:"فرع جدة - الحمراء",   city:"جدة",     supplier:"مزرعة الخير",            items:4, total:5400, urgency:"عاجل", status:"pending", time:"قبل ساعتين" },
+    { id:"PO-106", branch:"فرع مكة - المعابدة",  city:"مكة",     supplier:"مطاحن الملك",            items:3, total:3100, urgency:"عادي", status:"pending", time:"قبل ساعتين" },
+    { id:"PO-107", branch:"فرع الدمام",           city:"الدمام",  supplier:"مزرعة الخير",            items:5, total:5600, urgency:"عاجل", status:"pending", time:"قبل 3 ساعات" },
+  ];
+  const apiOrdersList = (apiOrdersPage as any)?.data;
+  const [orders, setOrders] = useState<ProcOrder[]>(((apiOrdersList as any[])?.length > 0 ? (apiOrdersList as ProcOrder[]) : ORDERS_FALLBACK));
   const [groupBy, setGroupBy] = useState<"branch"|"supplier">("branch");
   const [expandedId, setExpandedId] = useState<string|null>(null);
   const [filterCity, setFilterCity]         = useState("الكل");
@@ -12398,11 +12412,11 @@ function ProcNewOrders({}: PageProps) {
 
 function ProcGrouped({}: PageProps) {
   const { t } = useLang();
-  useProcurementOrdersPlatform({ status: "approved", groupBy: "supplier" });
+  const { data: apiGroupedSup } = useProcurementOrdersPlatform({ status: "approved", groupBy: "supplier" });
   const [viewMode, setViewMode] = useState<"supplier"|"city">("supplier");
   const [expandedGroup, setExpandedGroup] = useState<string|null>(null);
 
-  const supplierGroups = [
+  const SUPPLIER_GROUPS_FALLBACK = [
     { key:"شركة الدواجن الوطنية", city:"الرياض / جدة / الدمام", branches:12, items:[
       {name:"دجاج طازج",   unit:"كجم", totalQty:680, maxCapacity:700, price:32},
       {name:"صدر دجاج",    unit:"كجم", totalQty:320, maxCapacity:300, price:45},
@@ -12421,6 +12435,8 @@ function ProcGrouped({}: PageProps) {
       {name:"فلفل",         unit:"كجم", totalQty:130,  maxCapacity:100, price:15},
     ], total:32100 },
   ];
+  const apiSupGroupsList = (apiGroupedSup as any)?.supplierGroups ?? (apiGroupedSup as any)?.data;
+  const supplierGroups = (((apiSupGroupsList as any[])?.length > 0 ? (apiSupGroupsList as any) : SUPPLIER_GROUPS_FALLBACK)) as typeof SUPPLIER_GROUPS_FALLBACK;
 
   const cityGroups = [
     { city:"الرياض",  ordersCount:3, total:8900,  suppliers:["شركة الدواجن الوطنية","مطاحن الملك"],     urgentCount:0 },
@@ -12625,14 +12641,16 @@ function SupOverview({ navigate }:PageProps) {
 }
 
 function SupNewOrders({}: PageProps) {
-  useSupplierOrders({ status: "pending" });
+  const { data: apiOrdersResp } = useSupplierOrders({ status: "pending" });
   const { t } = useLang();
   type SupOrder = { id:string; rest:string; items:{name:string;qty:number;unit:string;price:number}[]; deadline:string; status:"pending"|"accepted"|"rejected" };
-  const [orders, setOrders] = useState<SupOrder[]>([
+  const ORDERS_FALLBACK: SupOrder[] = [
     { id:"ORD-5501", rest:t("مطعم هرفي","Herfy Restaurant"), items:[{name:t("دجاج طازج","Fresh Chicken"),qty:200,unit:t("كجم","kg"),price:24}], deadline:t("غداً 8 ص","Tomorrow 8 AM"), status:"pending" },
     { id:"ORD-5500", rest:t("ماكدونالدز السعودية","McDonald's KSA"), items:[{name:t("دجاج مجمد","Frozen Chicken"),qty:500,unit:t("كجم","kg"),price:21}], deadline:t("بعد غد","Day after tomorrow"), status:"pending" },
     { id:"ORD-5499", rest:t("مطعم الريم","Al-Reem Restaurant"), items:[{name:t("قطع مشكلة","Mixed Cuts"),qty:150,unit:t("كجم","kg"),price:24}], deadline:t("اليوم 6 م","Today 6 PM"), status:"pending" },
-  ]);
+  ];
+  const apiOrders = (apiOrdersResp as any)?.data;
+  const [orders, setOrders] = useState<SupOrder[]>(apiOrders?.length > 0 ? apiOrders : ORDERS_FALLBACK);
   const accept = (id:string) => setOrders(p=>p.map(o=>o.id===id?{...o,status:"accepted" as const}:o));
   const reject = (id:string) => setOrders(p=>p.map(o=>o.id===id?{...o,status:"rejected" as const}:o));
 
@@ -12774,10 +12792,10 @@ function BranchSettings({ navigate }:PageProps) {
 // PROCUREMENT EXTRA PAGES
 // ════════════════════════════════════════════════════════════
 function ProcItems({}: PageProps) {
-  useProcurementItemsPlatform();
+  const { data: apiItems } = useProcurementItemsPlatform();
   const { t } = useLang();
   const [search, setSearch] = useState("");
-  const items = [
+  const ITEMS_FALLBACK = [
     {name:"دجاج طازج",unit:"كجم",category:"لحوم ودواجن",supplier:"شركة الدواجن الوطنية",avgPrice:24,lastOrder:"أمس",monthlyUsage:2400,stock:180},
     {name:"دجاج مجمد",unit:"كجم",category:"لحوم ودواجن",supplier:"شركة الدواجن الوطنية",avgPrice:21,lastOrder:"قبل 3 أيام",monthlyUsage:1800,stock:320},
     {name:"طحين قمح",unit:"كيس 50كجم",category:"مواد جافة",supplier:"مطاحن الملك",avgPrice:185,lastOrder:"الأسبوع الماضي",monthlyUsage:40,stock:12},
@@ -12785,6 +12803,7 @@ function ProcItems({}: PageProps) {
     {name:"طماطم طازجة",unit:"كرتون 10كجم",category:"خضروات وفواكه",supplier:"مزرعة الخير",avgPrice:45,lastOrder:"اليوم",monthlyUsage:300,stock:25},
     {name:"خس",unit:"كرتون",category:"خضروات وفواكه",supplier:"مزرعة الخير",avgPrice:38,lastOrder:"اليوم",monthlyUsage:120,stock:10},
   ];
+  const items = (((apiItems as any)?.length > 0 ? (apiItems as any) : ITEMS_FALLBACK)) as typeof ITEMS_FALLBACK;
   const filtered = items.filter(i=>!search||i.name.includes(search)||i.category.includes(search)||i.supplier.includes(search));
   const totalMonthly = filtered.reduce((s,i)=>s+i.avgPrice*i.monthlyUsage,0);
 
@@ -12846,12 +12865,12 @@ function ProcItems({}: PageProps) {
 }
 
 function ProcSuppliers({}: PageProps) {
-  useProcurementSuppliersPlatform();
+  const { data: apiSuppliers } = useProcurementSuppliersPlatform();
   const { t } = useLang();
   const [expandedSup, setExpandedSup] = useState<string|null>(null);
   const [activeTab, setActiveTab] = useState<"deliveries"|"prices">("deliveries");
 
-  const suppliers = [
+  const SUPPLIERS_FALLBACK = [
     { name:"شركة الدواجن الوطنية", category:"لحوم ودواجن", contact:"0553421100", rating:4.8, orders:42, monthlyTotal:148000, onTime:96, status:"نشط",
       deliveries:[
         {date:"14 أكتوبر 2025", items:"دجاج طازج 200كجم", status:"في الموعد", rating:5, note:"جودة ممتازة"},
@@ -12897,6 +12916,7 @@ function ProcSuppliers({}: PageProps) {
       ]
     },
   ];
+  const suppliers = (((apiSuppliers as any)?.length > 0 ? (apiSuppliers as any) : SUPPLIERS_FALLBACK)) as typeof SUPPLIERS_FALLBACK;
   const totalMonthly = suppliers.reduce((s,sup)=>s+sup.monthlyTotal,0);
 
   return (
@@ -13116,14 +13136,15 @@ function SupRejected({}: PageProps) {
 }
 
 function SupItems({}: PageProps) {
-  useSupplierItems();
+  const { data: apiItems } = useSupplierItems();
   const { t } = useLang();
-  const items = [
+  const ITEMS_FALLBACK = [
     {name:"دجاج طازج",unit:"كجم",minQty:50,maxQty:1000,price:24,available:true,leadTime:"24 ساعة"},
     {name:"دجاج مجمد",unit:"كجم",minQty:100,maxQty:5000,price:21,available:true,leadTime:"48 ساعة"},
     {name:"قطع مشكلة",unit:"كجم",minQty:50,maxQty:800,price:24,available:true,leadTime:"24 ساعة"},
     {name:"دجاج كامل",unit:"كجم",minQty:30,maxQty:500,price:22,available:false,leadTime:"48 ساعة"},
   ];
+  const items = (((apiItems as any)?.length > 0 ? (apiItems as any) : ITEMS_FALLBACK)) as typeof ITEMS_FALLBACK;
 
   return (
     <div className="space-y-5">
@@ -13166,12 +13187,14 @@ function SupItems({}: PageProps) {
 }
 
 function SupReports({}: PageProps) {
-  useSupplierReports();
+  const { data: apiReports } = useSupplierReports();
   const { t } = useLang();
   const months = [t("أكتوبر","October"),t("سبتمبر","September"),t("أغسطس","August"),t("يوليو","July")];
   const [monthIdx, setMonthIdx] = useState(0);
   const month = months[monthIdx];
-  const stats = {accepted:12,rejected:2,totalRevenue:285000,avgOrderValue:21923,topClient:"ماكدونالدز السعودية",onTime:94};
+  const STATS_FALLBACK = {accepted:12,rejected:2,totalRevenue:285000,avgOrderValue:21923,topClient:"ماكدونالدز السعودية",onTime:94};
+  const apiStats = (apiReports as any)?.monthlyStats?.[monthIdx] ?? (apiReports as any)?.kpis;
+  const stats = (apiStats ?? STATS_FALLBACK) as typeof STATS_FALLBACK;
 
   return (
     <div className="space-y-5">
