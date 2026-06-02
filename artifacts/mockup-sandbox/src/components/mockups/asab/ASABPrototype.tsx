@@ -56,6 +56,7 @@ import {
   useChangeSubscriptionPlan,
   useSuspendSubscription,
   useActivateSubscription,
+  useDeleteAdminUser,
   // Branch (platform)
   useBranchOverviewPlatform,
   useBranchEmployeesPlatform,
@@ -91,6 +92,7 @@ import { useLanguagePref } from "../../../auth/useLanguagePref";
 // TYPES
 // ─────────────────────────────────────────────
 interface AdminUserData {
+  id?: string;
   name: string; email: string; phone: string; role: string;
   brands: string[]; restaurants: string[]; branches: string[];
   modules: string[]; reportsTo: string;
@@ -9445,7 +9447,12 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
     if(brandFilter && !u.brands.includes(brandFilter)) return false;
     return true;
   });
-  const deleteUser = (email:string) => setUsers((prev:AdminUserData[])=>prev.filter(u=>u.email!==email));
+  const deleteUserMut = useDeleteAdminUser();
+  const deleteUser = (email:string) => {
+    const target = users.find(u=>u.email===email);
+    setUsers((prev:AdminUserData[])=>prev.filter(u=>u.email!==email));
+    if (target?.id) deleteUserMut.mutate(target.id);
+  };
 
   const byRole: Record<string,number> = {};
   users.forEach(u=>{ byRole[u.role]=(byRole[u.role]||0)+1; });

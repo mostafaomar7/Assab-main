@@ -2,7 +2,7 @@ import "./_group.css";
 import { useState, useMemo, useEffect, ReactNode, createContext, useContext, type MouseEvent as ReactMouseEvent } from "react";
 import {
   useOperations, useApproveOperation, useRejectOperation, useBulkApprove, useFinalApprove,
-  useVerifyExpenseInvoice, useConvertToAssetDraft,
+  useVerifyExpenseInvoice, useConvertToAssetDraft, useExpenseInvoiceAttachments,
   useAssetDrafts, useConfirmAssetDraft, useDiscardAssetDraft, useImportAssets, useCreateAsset, usePatchAsset, useAssets,
   useInventoryBranches, useInventoryCatalog, useSaveInventoryCatalog, useFlagInventoryBranch,
   useFlagInventoryItems, useSendInventoryNotification, useMarkInventoryConfirmed,
@@ -19,7 +19,7 @@ import {
   useCompanySettings, useUpdateCompanySettings, useUpgradeSubscription, useContactSales,
   useCompanySubscription, useCompanyPlans,
   // Billing
-  useBillingInvoices, useExportInvoices, useDownloadInvoicePDF,
+  useBillingInvoices, useExportInvoices, useDownloadInvoicePDF, useExportJobStatus,
   // Support
   useSupportChannels, useCreateTicket,
   // Head
@@ -1664,6 +1664,12 @@ function CABilling() {
   const { data: apiInvoicesPage } = useBillingInvoices();
   const exportMut = useExportInvoices();
   const downloadPdfMut = useDownloadInvoicePDF();
+  const [exportJobId, setExportJobId] = useState<string | null>(null);
+  useExportJobStatus(exportJobId, {
+    intervalMs: 4000,
+    filename: "invoices.xlsx",
+    onReady: () => setExportJobId(null),
+  });
   const apiInvoices: any[] = Array.isArray(apiInvoicesPage)
     ? apiInvoicesPage
     : ((apiInvoicesPage as any)?.data ?? []);
@@ -1686,7 +1692,12 @@ function CABilling() {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
           <h3 className="font-bold text-gray-900 text-sm">{t("سجل الفواتير","Invoice History")}</h3>
-          <button onClick={()=>exportMut.mutate({})} className="text-xs text-emerald-700 font-semibold flex items-center gap-1 hover:text-emerald-800 transition-colors"><Download size={11}/> {t("تصدير","Export")}</button>
+          <button
+            onClick={() => exportMut.mutate({}, { onSuccess: (res) => res?.jobId && setExportJobId(res.jobId) })}
+            disabled={Boolean(exportJobId)}
+            className="text-xs text-emerald-700 font-semibold flex items-center gap-1 hover:text-emerald-800 transition-colors disabled:opacity-50">
+            <Download size={11}/> {exportJobId ? t("جاري التحضير...","Preparing...") : t("تصدير","Export")}
+          </button>
         </div>
         {invoices.map(inv=>(
           <div key={inv.id} className="px-5 py-4 flex items-center gap-4 border-b border-gray-50 last:border-0">
@@ -2725,6 +2736,8 @@ function AccCompanyExpenses({ ops, approve, reject, bulkApprove }:{ ops:COp[]; a
   const [convertModal,     setConvertModal]     = useState<{opId:string;invNum:string;vendor:string;desc:string;amount:number;branch:string;date:string}|null>(null);
 
   const verifyMut = useVerifyExpenseInvoice();
+  // Prime attachments for the expanded invoice (the hook is enabled only when an id is provided).
+  useExpenseInvoiceAttachments(expandedId);
 
   const convertedInvNums = getConvertedInvNums();
   const mOps = ops.filter(o=>o.module==="expenses");

@@ -134,6 +134,37 @@ export function useExportInvoices() {
   });
 }
 
+// Polls the async export job until it returns a binary (file ready).
+// Returns null while still queued/processing (server replies 404 until ready).
+export function useExportJobStatus(jobId: string | null | undefined, opts?: {
+  intervalMs?: number;
+  filename?: string;
+  onReady?: () => void;
+}) {
+  return useQuery({
+    queryKey: ["exports", "job", jobId] as const,
+    enabled: Boolean(jobId),
+    refetchInterval: opts?.intervalMs ?? 4000,
+    queryFn: async () => {
+      try {
+        await downloadBlob(
+          `/company/me/exports/${jobId}/download`,
+          opts?.filename ?? `export-${jobId}.xlsx`,
+        );
+        opts?.onReady?.();
+        toast.success("تم تحميل ملف التصدير");
+        return { ready: true } as const;
+      } catch (e: unknown) {
+        const status = (e as { response?: { status?: number } } | undefined)
+          ?.response?.status;
+        if (status === 404) return { ready: false } as const;
+        toast.error(getErrorMessage(e, "ar"));
+        throw e;
+      }
+    },
+  });
+}
+
 export function usePayInvoice() {
   const qc = useQueryClient();
   return useMutation({
