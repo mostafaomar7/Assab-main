@@ -1,0 +1,134 @@
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { toast } from "sonner";
+import { api } from "../client";
+import type {
+  Asset,
+  AssetDraft,
+  AssetImportResult,
+} from "../types/company";
+import type { Page } from "../types";
+import { getErrorMessage } from "../errors";
+import { queryKeys, type AssetFilter } from "./keys";
+
+export function useAssets(filter: AssetFilter = {}) {
+  return useQuery({
+    queryKey: queryKeys.assets(filter),
+    queryFn: async () => {
+      const res = await api.get<Page<Asset>>("/company/me/assets", {
+        params: filter,
+      });
+      return res.data;
+    },
+  });
+}
+
+export function useCreateAsset() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: Omit<Asset, "id" | "publicId" | "confirmed" | "confirmedAt">) => {
+      const res = await api.post<Asset>("/company/me/assets", payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["assets"] });
+      toast.success("تم إضافة الأصل");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+export function usePatchAsset() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: Partial<Asset>;
+    }) => {
+      const res = await api.patch<Asset>(`/company/me/assets/${id}`, patch);
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["assets"] });
+      toast.success("تم تحديث الأصل");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+export function useImportAssets() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await api.post<AssetImportResult>(
+        "/company/me/assets/import",
+        form,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
+      return res.data;
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["assets"] });
+      toast.success(`تم استيراد ${data.createdRows} أصل من ${data.parsedRows}`);
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+// ─── Asset Drafts (from expense conversions) ─────────────────────────────────
+export function useAssetDrafts() {
+  return useQuery({
+    queryKey: queryKeys.assetDrafts,
+    queryFn: async () => {
+      const res = await api.get<AssetDraft[]>("/company/me/asset-drafts");
+      return res.data;
+    },
+  });
+}
+
+export function useConfirmAssetDraft() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      draftId,
+      overrides,
+    }: {
+      draftId: string;
+      overrides?: Partial<Asset>;
+    }) => {
+      const res = await api.post<Asset>(
+        `/company/me/asset-drafts/${draftId}/confirm`,
+        overrides,
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.assetDrafts });
+      qc.invalidateQueries({ queryKey: ["assets"] });
+      toast.success("تم تأكيد المسودة");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+export function useDiscardAssetDraft() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (draftId: string) => {
+      await api.post(`/company/me/asset-drafts/${draftId}/discard`);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.assetDrafts });
+      toast.success("تم تجاهل المسودة");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}

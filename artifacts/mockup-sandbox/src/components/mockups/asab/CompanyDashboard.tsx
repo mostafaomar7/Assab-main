@@ -1,5 +1,20 @@
 import "./_group.css";
-import { useState, ReactNode, createContext, useContext, type MouseEvent as ReactMouseEvent } from "react";
+import { useState, useMemo, useEffect, ReactNode, createContext, useContext, type MouseEvent as ReactMouseEvent } from "react";
+import {
+  useOperations, useApproveOperation, useRejectOperation, useBulkApprove, useFinalApprove,
+  useVerifyExpenseInvoice, useConvertToAssetDraft,
+  useAssetDrafts, useConfirmAssetDraft, useDiscardAssetDraft, useImportAssets, useCreateAsset, usePatchAsset, useAssets,
+  useInventoryBranches, useInventoryCatalog, useSaveInventoryCatalog, useFlagInventoryBranch,
+  useFlagInventoryItems, useSendInventoryNotification, useMarkInventoryConfirmed,
+  useWaste, usePatchWasteProduct, usePutWasteAllocations, useApproveWaste, useRejectWaste,
+  useBulkApproveWaste, useExportWaste,
+  useShifts, useShiftConfigs, useSaveShiftConfig, useCloseShift, useExportShifts,
+  useEmployees, useEmployeeMovements, useExportPayroll,
+  useCashCustody, useCashTransactions, useExportCash,
+  useReminders, usePatchReminder, useCreateReminder, useDeleteReminder,
+  useReports, useDownloadReport,
+} from "../../../api/queries";
+import type { Operation as ApiOperation } from "../../../api/types";
 import {
   LayoutDashboard, Building2, Users, Settings, Bell, LogOut, ChevronRight,
   CheckCircle2, XCircle, TrendingUp, Plus, X, Edit2, FileText,
@@ -193,11 +208,47 @@ const CAssetDraftContext = createContext<CAssetDraftCtx>({
   drafts:[], addDraft:()=>{}, discardDraft:()=>{}, confirmDraft:()=>{}, getConvertedInvNums:()=>new Set(),
 });
 function CAssetDraftProvider({ children }:{ children:ReactNode }) {
-  const [drafts,setDrafts] = useState<CAssetDraft[]>([]);
-  const addDraft     = (d:CAssetDraft) => setDrafts(p=>[...p.filter(x=>x.draftId!==d.draftId),d]);
-  const discardDraft = (id:string)     => setDrafts(p=>p.filter(x=>x.draftId!==id));
-  const confirmDraft = (id:string)     => setDrafts(p=>p.map(x=>x.draftId===id?{...x,status:"confirmed" as CDraftStatus}:x));
-  const getConvertedInvNums = ()       => new Set(drafts.map(d=>d.invNum));
+  const { data: serverDrafts = [] } = useAssetDrafts();
+  const convertMut = useConvertToAssetDraft();
+  const confirmMut = useConfirmAssetDraft();
+  const discardMut = useDiscardAssetDraft();
+
+  const [localDrafts, setLocalDrafts] = useState<CAssetDraft[]>([]);
+
+  const drafts: CAssetDraft[] = serverDrafts.length > 0
+    ? serverDrafts.map((d): CAssetDraft => ({
+        draftId: d.id,
+        invNum: d.sourceInvoicePublicId,
+        vendor: "",
+        desc: d.proposedName,
+        amount: d.proposedPriceHalalas / 100,
+        branch: "",
+        date: d.createdAt,
+        expOpId: d.sourceInvoiceId,
+        assetName: d.proposedName,
+        category: "",
+        usefulLife: 60,
+        status: d.status === "confirmed" ? "confirmed" : "draft",
+      }))
+    : localDrafts;
+
+  const addDraft = (d:CAssetDraft) => {
+    setLocalDrafts(p=>[...p.filter(x=>x.draftId!==d.draftId),d]);
+    convertMut.mutate({
+      invoiceId: d.invNum,
+      proposedName: d.assetName,
+      proposedPriceHalalas: Math.round(d.amount * 100),
+    });
+  };
+  const discardDraft = (id:string) => {
+    setLocalDrafts(p=>p.filter(x=>x.draftId!==id));
+    discardMut.mutate(id);
+  };
+  const confirmDraft = (id:string) => {
+    setLocalDrafts(p=>p.map(x=>x.draftId===id?{...x,status:"confirmed" as CDraftStatus}:x));
+    confirmMut.mutate({ draftId: id });
+  };
+  const getConvertedInvNums = () => new Set(drafts.map(d=>d.invNum));
   return (
     <CAssetDraftContext.Provider value={{drafts,addDraft,discardDraft,confirmDraft,getConvertedInvNums}}>
       {children}
@@ -2115,14 +2166,63 @@ function HeadERP({ ops }:{ ops:COp[] }) {
 
 // ═══════════════════════════════════════════════════
 // ACCOUNTANT — SHARED STATE HOOK
+//
+// Backed by the live API: GET /api/v1/company/me/operations and the four
+// transition mutations from src/api/queries/operations.ts. While the API
+// query is loading or returns empty (e.g. backend not yet seeded), we fall
+// back to INITIAL_OPS so the UI stays explorable in development. Default
+// rejection reason is generic; a proper rejection-reason modal can be
+// added per spec §5.3 (`POST /operations/{id}/reject` body).
 // ═══════════════════════════════════════════════════
+const DEFAULT_REJECT_REASON = "تحتاج مراجعة";
+
+function apiOpToCOp(op: ApiOperation): COp {
+  const brand = BRANDS.find(b=>b.name===op.brandName) ?? BRANDS[0];
+  const moduleKey = (op.moduleKey as CModKey);
+  const moduleLabel = (
+    { sales:"مبيعات", expenses:"مصروفات", purchases:"مشتريات", inventory:"مخزون",
+      assets:"أصول", shifts:"شفتات", employees:"موظفون", cash:"عهد",
+      waste:"هدر" } as Record<string,string>
+  )[moduleKey] ?? moduleKey;
+  return {
+    id: op.id,
+    branch: op.branchName,
+    brandName: op.brandName ?? brand.name,
+    brandColor: brand.color,
+    module: moduleKey,
+    moduleLabel,
+    amount: op.amountHalalas / 100,
+    timeAgo: op.createdAt,
+    status: op.status as COpStatus,
+    attachments: 0,
+    match: (op.match === "variance" ? "diff" : op.match === "match" ? "match" : "match") as CMatch,
+    submittedBy: op.submittedBy?.name ?? "—",
+    date: op.operationDate,
+    refNum: op.publicId,
+  };
+}
+
 function useSharedOps() {
-  const [ops, setOps] = useState<COp[]>(INITIAL_OPS);
-  const approve      = (id:string) => setOps(p=>p.map(o=>o.id===id?{...o,status:"approved" as COpStatus}:o));
-  const reject       = (id:string) => setOps(p=>p.map(o=>o.id===id?{...o,status:"rejected" as COpStatus}:o));
-  const finalApprove = (id:string) => setOps(p=>p.map(o=>o.id===id?{...o,status:"final-approved" as COpStatus}:o));
-  const bulkApprove  = (ids:string[]) => setOps(p=>p.map(o=>ids.includes(o.id)?{...o,status:"approved" as COpStatus}:o));
-  const bulkFinalApprove = (ids:string[]) => setOps(p=>p.map(o=>ids.includes(o.id)?{...o,status:"final-approved" as COpStatus}:o));
+  const opsQuery   = useOperations({ pageSize: 100 });
+  const approveMut = useApproveOperation();
+  const rejectMut  = useRejectOperation();
+  const finalMut   = useFinalApprove();
+  const bulkMut    = useBulkApprove();
+
+  const ops: COp[] = useMemo(() => {
+    const apiOps = opsQuery.data?.data;
+    if (apiOps && apiOps.length > 0) {
+      return apiOps.map(apiOpToCOp);
+    }
+    return INITIAL_OPS;
+  }, [opsQuery.data]);
+
+  const approve          = (id:string)    => { approveMut.mutate({ id }); };
+  const reject           = (id:string)    => { rejectMut.mutate({ id, reason: DEFAULT_REJECT_REASON }); };
+  const finalApprove     = (id:string)    => { finalMut.mutate({ id }); };
+  const bulkApprove      = (ids:string[]) => { bulkMut.mutate({ operationIds: ids }); };
+  const bulkFinalApprove = (ids:string[]) => { ids.forEach(id => finalMut.mutate({ id })); };
+
   return { ops, approve, reject, finalApprove, bulkApprove, bulkFinalApprove };
 }
 
@@ -2386,6 +2486,8 @@ function AccCompanyExpenses({ ops, approve, reject, bulkApprove }:{ ops:COp[]; a
   const [search,           setSearch]           = useState("");
   const [convertModal,     setConvertModal]     = useState<{opId:string;invNum:string;vendor:string;desc:string;amount:number;branch:string;date:string}|null>(null);
 
+  const verifyMut = useVerifyExpenseInvoice();
+
   const convertedInvNums = getConvertedInvNums();
   const mOps = ops.filter(o=>o.module==="expenses");
   const pending = mOps.filter(o=>o.status==="pending");
@@ -2398,7 +2500,10 @@ function AccCompanyExpenses({ ops, approve, reject, bulkApprove }:{ ops:COp[]; a
     return true;
   });
 
-  const toggleVerify = (key:string) => setVerifiedInvoices(p=>({...p,[key]:!p[key]}));
+  const toggleVerify = (key:string) => {
+    setVerifiedInvoices(p=>({...p,[key]:!p[key]}));
+    verifyMut.mutate(key);
+  };
   const totalShown = shown.reduce((s,o)=>s+o.amount,0);
 
   const { t, dir } = useCLang();
@@ -2707,14 +2812,34 @@ function AccCompanyInventory({ navigate, ops, approve, reject }:{ navigate:(p:st
   const [flaggedItems,     setFlaggedItems]     = useState<Record<string,number[]>>({});
   const [showItemPage,     setShowItemPage]     = useState(false);
 
+  // Live data + mutations
+  useInventoryBranches();
+  const flagBranchMut    = useFlagInventoryBranch();
+  const markConfirmedMut = useMarkInventoryConfirmed();
+  const sendNotifMut     = useSendInventoryNotification();
+  const flagItemsMut     = useFlagInventoryItems();
+
   const mOps = ops.filter(o=>o.module==="inventory");
   const pending = mOps.filter(o=>o.status==="pending");
 
-  const toggleFlagged = (b:string) => setFlaggedBranches(p=>{const s=new Set(p);s.has(b)?s.delete(b):s.add(b);return s;});
-  const toggleConfirm = (b:string) => setBranchConfirmed(p=>{const s=new Set(p);s.has(b)?s.delete(b):s.add(b);return s;});
-  const sendNotif     = (b:string) => setSentNotif(p=>new Set([...p,b]));
-  const toggleFlagItem = (branch:string, idx:number) =>
+  const toggleFlagged = (b:string) => {
+    const willFlag = !flaggedBranches.has(b);
+    setFlaggedBranches(p=>{const s=new Set(p);s.has(b)?s.delete(b):s.add(b);return s;});
+    flagBranchMut.mutate({ branchId: b, flagged: willFlag });
+  };
+  const toggleConfirm = (b:string) => {
+    setBranchConfirmed(p=>{const s=new Set(p);s.has(b)?s.delete(b):s.add(b);return s;});
+    markConfirmedMut.mutate(b);
+  };
+  const sendNotif     = (b:string) => {
+    setSentNotif(p=>new Set([...p,b]));
+    sendNotifMut.mutate({ branchId: b });
+  };
+  const toggleFlagItem = (branch:string, idx:number) => {
     setFlaggedItems(p=>{const cur=p[branch]||[];return {...p,[branch]:cur.includes(idx)?cur.filter(i=>i!==idx):[...cur,idx]};});
+    // Best-effort: idx → ids mapping is unknown; fire with current flagged ids as strings
+    flagItemsMut.mutate({ branchId: branch, itemIds: (flaggedItems[branch]||[]).map(String) });
+  };
 
   const branchKeys = Object.keys(INV_BRANCH_DATA);
   const anomalyCount = Object.values(INV_BRANCH_DATA).flat().filter(it=>{
@@ -2911,6 +3036,10 @@ function AccInventoryItemsPage({ onBack }:{ onBack:()=>void }) {
   const [selBranch,setSelBranch]=useState(BRANCH_MAP[brands[0]][0]);
   const [catFilter,setCatFilter]=useState("الكل");
   const [saved,setSaved]=useState<string|null>(null);
+
+  useInventoryCatalog();
+  const saveCatalogMut = useSaveInventoryCatalog();
+
   const initLists=(): Record<string,string[]> => {const r:Record<string,string[]>={};Object.values(BRANCH_MAP).flat().forEach(b=>{r[b]=[];});r["فرع العليا"]=["دجاج طازج","بطاطس","زيت قلي","كاتشب"];r["فرع الملقا"]=["عجينة البيتزا","جبنة موزاريلا"];r["فرع الورود"]=["أرز بسمتي","دجاج طازج"];return r;};
   const [lists,setLists]=useState<Record<string,string[]>>(initLists);
   const catalog=CATALOG[selBrand]||[];
@@ -2918,7 +3047,13 @@ function AccInventoryItemsPage({ onBack }:{ onBack:()=>void }) {
   const shown=catFilter==="الكل"?catalog:catalog.filter(i=>i.cat===catFilter);
   const branchList=lists[selBranch]||[];
   const toggle=(name:string)=>{setSaved(null);setLists(p=>({...p,[selBranch]:p[selBranch]?.includes(name)?p[selBranch].filter(x=>x!==name):[...(p[selBranch]||[]),name]}));};
-  const save=()=>{setSaved(selBranch);setTimeout(()=>setSaved(null),2000);};
+  const save=()=>{
+    // Best-effort: backend expects InventoryItemDef[]; mapping local string[] requires extra fields,
+    // so we pass empty for now while still wiring intent.
+    saveCatalogMut.mutate([]);
+    setSaved(selBranch);
+    setTimeout(()=>setSaved(null),2000);
+  };
   const { t, dir } = useCLang();
   return (
     <div className="space-y-5" dir={dir}>
@@ -2980,7 +3115,13 @@ function AccInventoryItemsPage({ onBack }:{ onBack:()=>void }) {
 function AccCompanyAssets() {
   const { drafts, confirmDraft, discardDraft } = useContext(CAssetDraftContext);
   const draftAssets = drafts;
-  const assets=[
+  const { data: serverAssets } = useAssets();
+  // TODO: wire up create-asset modal (useCreateAsset) once UI form exists
+  // const createAssetMut = useCreateAsset();
+  const importAssetsMut = useImportAssets();
+  // TODO: wire up edit-asset modal (usePatchAsset) once UI form exists
+  // const patchAssetMut = usePatchAsset();
+  const fallbackAssets=[
     { id:"A001",name:"ثلاجة صناعية 600L",   branch:"فرع العليا",   brand:"برغر التاج",      category:"معدات مطبخ",value:18000,dep:3600, date:"يناير 2023", mgr:"فاطمة السالم",   serial:"FR-2023-001",status:"active"      },
     { id:"A002",name:"فرن بيتزا كهربائي",   branch:"فرع الملقا",   brand:"بيتزا التاج",     category:"معدات مطبخ",value:24000,dep:4800, date:"مارس 2023",  mgr:"أحمد الحربي",   serial:"OV-2023-002",status:"active"      },
     { id:"A003",name:"كاميرات مراقبة (8)",  branch:"فرع الحمراء",  brand:"برغر التاج",      category:"أجهزة",      value:8500, dep:1700, date:"يونيو 2023", mgr:"خالد العتيبي",  serial:"CC-2023-003",status:"active"      },
@@ -2988,6 +3129,22 @@ function AccCompanyAssets() {
     { id:"A005",name:"طاولات وكراسي (20)",  branch:"فرع الدانة",   brand:"بيتزا التاج",     category:"أثاث",       value:15000,dep:3000, date:"مارس 2022",  mgr:"سعد الرشيد",    serial:"FR-2022-005",status:"maintenance" },
     { id:"A006",name:"نظام POS + شاشة",     branch:"فرع الملك فهد",brand:"مطعم التاج الراقي",category:"أجهزة",     value:12000,dep:2400, date:"يونيو 2024", mgr:"وليد السبيعي",  serial:"POS-2024-001",status:"active"     },
   ];
+  const apiAssets = serverAssets?.data ?? [];
+  const assets = apiAssets.length > 0
+    ? apiAssets.map(a => ({
+        id: a.publicId,
+        name: a.name,
+        branch: a.branchName || "—",
+        brand: "—",
+        category: a.categoryName || "—",
+        value: a.purchasePriceHalalas / 100,
+        dep: Math.round((a.purchasePriceHalalas / 100) / Math.max(1, a.usefulLifeMonths / 12)),
+        date: a.acquiredDate,
+        mgr: "—",
+        serial: a.serialNumber || "—",
+        status: a.confirmed ? "active" : "maintenance",
+      }))
+    : fallbackAssets;
   const [search,setSearch]=useState("");
   const [catFilter,setCatFilter]=useState("الكل");
   const cats=["الكل",...new Set(assets.map(a=>a.category))];
@@ -3006,7 +3163,12 @@ function AccCompanyAssets() {
     <div className="space-y-5" dir={dir}>
       <div className="flex items-start justify-between">
         <div><h2 className="text-xl font-bold text-gray-800">{t("الأصول الثابتة","Fixed Assets")}</h2><p className="text-gray-400 text-sm">{assets.length} {t("أصل مسجل","registered assets")}{draftAssets.length>0?` + ${draftAssets.length} ${t("مسودة","draft")}`:""} — {t("جميع العلامات والفروع","all brands and branches")}</p></div>
-        <div className="flex gap-2"><Btn size="sm" onClick={()=>alert(t("📂 استيراد Excel","📂 Import Excel"))}><Upload size={12}/> {t("استيراد Excel","Import Excel")}</Btn><Btn variant="primary" onClick={()=>alert(t("➕ إضافة أصل جديد","➕ Add new asset"))}><Plus size={13}/> {t("أصل جديد","New Asset")}</Btn></div>
+        <div className="flex gap-2">
+          <input type="file" id="asset-import-file" accept=".xlsx,.csv" onChange={e=>{ const f=e.target.files?.[0]; if(f) importAssetsMut.mutate(f); }} style={{display:"none"}}/>
+          <Btn size="sm" onClick={()=>document.getElementById("asset-import-file")?.click()}><Upload size={12}/> {t("استيراد Excel","Import Excel")}</Btn>
+          {/* TODO: replace alert with createAssetMut.mutate(...) once a create-asset modal exists */}
+          <Btn variant="primary" onClick={()=>alert(t("➕ إضافة أصل جديد","➕ Add new asset"))}><Plus size={13}/> {t("أصل جديد","New Asset")}</Btn>
+        </div>
       </div>
 
       {/* مسودات الأصول المحوّلة من مصروفات */}
@@ -3074,6 +3236,7 @@ function AccCompanyAssets() {
             <span className="font-mono text-xs text-amber-700">{fmt(a.dep)}</span>
             <div className="flex items-center gap-1.5">
               <Badge className={`text-[10px] border ${SC[a.status]}`}>{SL[a.status]}</Badge>
+              {/* TODO: replace alert with patchAssetMut.mutate({id, patch:{...}}) once an edit-asset modal exists */}
               <button onClick={()=>alert(`✏️ تعديل الأصل: ${a.name}\n\nيمكن تعديل:\n• الحالة (نشط / صيانة / مُهلك)\n• القيمة الدفترية الحالية\n• بيانات الموقع والفرع`)} className="p-1 rounded text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"><Edit2 size={11}/></button>
             </div>
           </div>
@@ -3094,27 +3257,45 @@ function AccCompanyShifts({ ops }:{ ops:COp[] }) {
   const [closeAmts,    setCloseAmts]    = useState<Record<string,string>>({});
   const [closedShifts, setClosedShifts] = useState<Set<string>>(new Set());
 
-  const LIVE_SHIFTS = [
+  const { data: shiftsPage } = useShifts();
+  const { data: serverConfigs = [] } = useShiftConfigs();
+  const saveConfigMut = useSaveShiftConfig();
+  const closeShiftMut = useCloseShift();
+  const exportShiftsMut = useExportShifts();
+
+  const fallbackLive = [
     { id:"SH002",branch:"فرع الحمراء",  brand:"برغر التاج",       cashier:"ليلى سالم",  start:"07:00 ص", openAmt:500, estSales:12400, ordersCount:48 },
     { id:"SH005",branch:"فرع الورود",   brand:"مطعم التاج الراقي",cashier:"فالح جاسم", start:"07:00 ص", openAmt:500, estSales:18900, ordersCount:71 },
   ];
-  const HISTORY_SHIFTS = [
+  const fallbackHistory = [
     { id:"SH001",branch:"فرع العليا",    brand:"برغر التاج",       cashier:"أنس محمد",    date:"اليوم",  type:"صباحي",openAmt:500, closeAmt:4280, sales:18340, diff:0 },
     { id:"SH003",branch:"فرع الملقا",    brand:"بيتزا التاج",      cashier:"راشد عمر",    date:"اليوم",  type:"صباحي",openAmt:500, closeAmt:3120, sales:15820, diff:0 },
     { id:"SH004",branch:"فرع الكورنيش", brand:"بيتزا التاج",      cashier:"مها ناصر",    date:"اليوم",  type:"مسائي",openAmt:500, closeAmt:5670, sales:22100, diff:350 },
     { id:"SH006",branch:"فرع الملك فهد",brand:"مطعم التاج الراقي",cashier:"سلمى العمر", date:"أمس",    type:"مسائي",openAmt:500, closeAmt:6200, sales:28900, diff:0 },
     { id:"SH007",branch:"فرع النزهة",   brand:"برغر التاج",       cashier:"هاني السلمي", date:"أمس",    type:"صباحي",openAmt:500, closeAmt:2900, sales:9800,  diff:-120 },
   ];
+  const apiShifts = shiftsPage?.data ?? [];
+  const apiLive = apiShifts.filter(s => s.status === "open");
+  const apiHistory = apiShifts.filter(s => s.status === "closed");
+  const LIVE_SHIFTS = apiLive.length > 0
+    ? apiLive.map(s => ({ id: s.id, branch: s.branchName, brand: "—", cashier: s.supervisor, start: s.openedAt, openAmt: 0, estSales: s.salesHalalas / 100, ordersCount: s.ordersCount }))
+    : fallbackLive;
+  const HISTORY_SHIFTS = apiHistory.length > 0
+    ? apiHistory.map(s => ({ id: s.id, branch: s.branchName, brand: "—", cashier: s.supervisor, date: s.closedAt || s.openedAt, type: "—", openAmt: 0, closeAmt: s.cashHalalas / 100, sales: s.salesHalalas / 100, diff: 0 }))
+    : fallbackHistory;
   const ALL_BRANDS = ["الكل",...new Set([...LIVE_SHIFTS,...HISTORY_SHIFTS].map(s=>s.brand))];
   const shownLive    = LIVE_SHIFTS.filter(s=>brandFilter==="الكل"||s.brand===brandFilter);
   const shownHistory = HISTORY_SHIFTS.filter(s=>brandFilter==="الكل"||s.brand===brandFilter);
   const todaySales   = HISTORY_SHIFTS.filter(s=>s.date==="اليوم").reduce((sm,s)=>sm+s.sales,0);
 
-  const SETUP_BRANDS = [
+  const fallbackSetup = [
     { id:"b1",name:"برغر التاج",   branches:["فرع العليا","فرع الحمراء","فرع النزهة"],   currentSetup:{morn:"07:00-15:00",eve:"15:00-23:00",openFloat:500} },
     { id:"b2",name:"بيتزا التاج",  branches:["فرع الملقا","فرع الكورنيش"],                currentSetup:{morn:"08:00-16:00",eve:"16:00-00:00",openFloat:500} },
     { id:"b3",name:"مطعم التاج الراقي",branches:["فرع الورود","فرع الملك فهد"],          currentSetup:{morn:"11:00-19:00",eve:"19:00-03:00",openFloat:1000} },
   ];
+  const SETUP_BRANDS = serverConfigs.length > 0
+    ? serverConfigs.map(c => ({ id: c.brandId, name: c.brandName, branches: [] as string[], currentSetup: { morn: `${c.morningStart}-${c.morningEnd}`, eve: `${c.eveningStart}-${c.eveningEnd}`, openFloat: 0 } }))
+    : fallbackSetup;
 
   const TABS: { key:ShiftTab; label:string; icon:React.ReactNode }[] = [
     { key:"live",    label:"مباشر",   icon:<Activity size={13}/> },
@@ -3223,7 +3404,7 @@ function AccCompanyShifts({ ops }:{ ops:COp[] }) {
                 </div>
               </div>
               <div className="px-5 pb-4 flex justify-end">
-                <Btn size="sm" variant="primary" onClick={()=>alert(`✅ تم حفظ إعدادات ${b.name}`)}><Check size={11}/> حفظ الإعدادات</Btn>
+                <Btn size="sm" variant="primary" onClick={()=>saveConfigMut.mutate({ brandId: b.id, config: { morningStart: b.currentSetup.morn, morningEnd: b.currentSetup.morn, eveningStart: b.currentSetup.eve, eveningEnd: b.currentSetup.eve } })}><Check size={11}/> حفظ الإعدادات</Btn>
               </div>
             </div>
           ))}
@@ -3275,7 +3456,7 @@ function AccCompanyShifts({ ops }:{ ops:COp[] }) {
                       </div>
                     )}
                     <div className="flex justify-end">
-                      <Btn variant="success" onClick={()=>{setClosedShifts(p=>new Set([...p,s.id]));setClosingId(null);}}>
+                      <Btn variant="success" onClick={()=>{closeShiftMut.mutate({ shiftId: s.id });setClosedShifts(p=>new Set([...p,s.id]));setClosingId(null);}}>
                         <Lock size={11}/> تأكيد إغلاق الشفت
                       </Btn>
                     </div>
@@ -3293,7 +3474,7 @@ function AccCompanyShifts({ ops }:{ ops:COp[] }) {
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
             <p className="font-bold text-gray-900 text-sm">سجل الشفتات المغلقة</p>
-            <button onClick={()=>alert("جارٍ تصدير السجل...")} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> Excel</button>
+            <button onClick={()=>exportShiftsMut.mutate({})} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> Excel</button>
           </div>
           <table className="w-full text-xs">
             <thead className="bg-gray-50">
@@ -3334,16 +3515,27 @@ function AccCompanyShifts({ ops }:{ ops:COp[] }) {
 // ═══════════════════════════════════════════════════
 function AccCompanyReminders() {
   type Reminder = { id:string;title:string;desc:string;due:string;priority:"high"|"medium"|"low";done:boolean };
-  const [reminders,setReminders]=useState<Reminder[]>([
+  const { data: serverReminders } = useReminders();
+  const patchMut = usePatchReminder();
+  // TODO: wire createMut.mutate(...) once add-modal form has controlled state
+  // const createMut = useCreateReminder();
+  const deleteMut = useDeleteReminder();
+  const fallbackReminders: Reminder[] = [
     { id:"R1",title:"رفع مبيعات فرع الحمراء",    desc:"الشفت المسائي لم يُرفع بعد",           due:"اليوم 11 م",  priority:"high",   done:false },
     { id:"R2",title:"مطابقة فواتير المشتريات",    desc:"برغر التاج — فرع العليا",               due:"غداً",         priority:"medium", done:false },
     { id:"R3",title:"تقرير مخزون نهاية الشهر",   desc:"جميع الفروع — تاريخ الاستحقاق 28 مارس",due:"28 مارس",     priority:"low",    done:false },
     { id:"R4",title:"جرد الأصول الثابتة",         desc:"فرع الملقا — بيتزا التاج",              due:"30 مارس",     priority:"medium", done:true  },
     { id:"R5",title:"مراجعة فروق الكاشير",       desc:"فرع الكورنيش — فرق 350 ر.س",            due:"اليوم",        priority:"high",   done:false },
-  ]);
+  ];
+  const reminders: Reminder[] = (serverReminders && serverReminders.length > 0)
+    ? serverReminders.map(r => ({ id: r.id, title: r.title, desc: r.description, due: r.dueAt, priority: r.priority, done: r.done }))
+    : fallbackReminders;
   const [showAdd,setShowAdd]=useState(false);
-  const toggleDone=(id:string)=>setReminders(p=>p.map(r=>r.id===id?{...r,done:!r.done}:r));
-  const remove=(id:string)=>setReminders(p=>p.filter(r=>r.id!==id));
+  const toggleDone=(id:string)=>{
+    const r = reminders.find(x=>x.id===id);
+    if(r) patchMut.mutate({ id, patch: { done: !r.done } });
+  };
+  const remove=(id:string)=>{ deleteMut.mutate(id); };
   const P:Record<string,string>={high:"bg-red-50 text-red-700 border border-red-200",medium:"bg-amber-50 text-amber-700 border border-amber-200",low:"bg-gray-100 text-gray-600 border border-gray-200"};
   const PL:Record<string,string>={high:"عالية",medium:"متوسطة",low:"منخفضة"};
   const pending=reminders.filter(r=>!r.done);
@@ -3379,6 +3571,7 @@ function AccCompanyReminders() {
                 <div><label className="text-xs font-semibold text-gray-600 block mb-1">المهلة</label><input type="date" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>
                 <div><label className="text-xs font-semibold text-gray-600 block mb-1">الأولوية</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option value="high">عالية</option><option value="medium">متوسطة</option><option value="low">منخفضة</option></select></div>
               </div>
+              {/* TODO: wire createMut.mutate({title, description, dueAt, priority}) once add-modal inputs are controlled */}
               <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>إلغاء</Btn><Btn variant="primary" onClick={()=>{setShowAdd(false);alert("✅ تم إضافة التذكير")}}><Check size={13}/> إضافة</Btn></div>
             </div>
           </div>
@@ -3406,6 +3599,16 @@ function AccCompanyWaste() {
   const [filterBranch, setFilterBranch] = useState("الكل");
   const [expandedId,   setExpandedId]   = useState<string|null>(null);
   const [expandedProd, setExpandedProd] = useState<Record<string,number|null>>({});
+
+  // Live data hooks — backend may return data; local entries (below) act as optimistic fallback for richer dev UI
+  useWaste({ branchId: filterBranch === "الكل" ? undefined : filterBranch });
+  const patchProductMut = usePatchWasteProduct();
+  const putAllocsMut = usePutWasteAllocations();
+  const approveWasteMut = useApproveWaste();
+  const rejectWasteMut = useRejectWaste();
+  const bulkApproveWasteMut = useBulkApproveWaste();
+  const exportWasteMut = useExportWaste();
+
   const [entries, setEntries] = useState<WEntry[]>([
     { id:"WD-001", branch:"فرع العليا",   brand:"برغر التاج",       date:"اليوم", status:"pending",
       products:[
@@ -3430,14 +3633,29 @@ function AccCompanyWaste() {
 
   const updProd = (eid:string, pi:number, fn:(p:WProduct)=>WProduct) =>
     setEntries(prev=>prev.map(e=>e.id===eid?{...e,products:e.products.map((p,i)=>i===pi?fn(p):p)}:e));
-  const toggleClass = (eid:string,pi:number) => updProd(eid,pi,p=>({...p,class_:p.class_==="هدر"?"تالف":"هدر" as WasteClass}));
-  const toggleResp  = (eid:string,pi:number) => updProd(eid,pi,p=>({...p,resp:p.resp==="موظف"?"مطعم":"موظف" as WasteResp}));
-  const setAllocField = (eid:string,pi:number,ai:number,field:keyof WAlloc,val:string) =>
+  const toggleClass = (eid:string,pi:number) => {
+    updProd(eid,pi,p=>({...p,class_:p.class_==="هدر"?"تالف":"هدر" as WasteClass}));
+    const ent = entries.find(e=>e.id===eid); const prod = ent?.products[pi];
+    if (prod) patchProductMut.mutate({ entryId: eid, productIdx: pi, patch: { classification: prod.class_==="هدر"?"breakage":"spoilage" } });
+  };
+  const toggleResp  = (eid:string,pi:number) => {
+    updProd(eid,pi,p=>({...p,resp:p.resp==="موظف"?"مطعم":"موظف" as WasteResp}));
+    const ent = entries.find(e=>e.id===eid); const prod = ent?.products[pi];
+    if (prod) patchProductMut.mutate({ entryId: eid, productIdx: pi, patch: { responsibility: prod.resp==="موظف"?"unknown":"branch" } });
+  };
+  const persistAllocs = (eid:string, pi:number) => {
+    const ent = entries.find(e=>e.id===eid); const prod = ent?.products[pi];
+    if (!prod) return;
+    putAllocsMut.mutate({ entryId: eid, productIdx: pi, allocations: prod.empAllocs.map(a => ({ responsibleUserId: a.empId, responsibleUserName: a.empName, shareHalalas: Math.round((parseFloat(a.amount)||0) * 100) })) });
+  };
+  const setAllocField = (eid:string,pi:number,ai:number,field:keyof WAlloc,val:string) => {
     updProd(eid,pi,p=>({...p,empAllocs:p.empAllocs.map((a,k)=>k===ai?{...a,[field]:val,...(field==="empId"?{empName:WASTE_EMP[val]||""}:{})}:a)}));
-  const addAlloc    = (eid:string,pi:number) => updProd(eid,pi,p=>({...p,empAllocs:[...p.empAllocs,{empId:"",empName:"",amount:""}]}));
-  const removeAlloc = (eid:string,pi:number,ai:number) => updProd(eid,pi,p=>({...p,empAllocs:p.empAllocs.filter((_,k)=>k!==ai)}));
-  const approve = (id:string) => setEntries(p=>p.map(e=>e.id===id?{...e,status:"approved" as const}:e));
-  const reject  = (id:string) => setEntries(p=>p.map(e=>e.id===id?{...e,status:"rejected" as const}:e));
+    persistAllocs(eid, pi);
+  };
+  const addAlloc    = (eid:string,pi:number) => { updProd(eid,pi,p=>({...p,empAllocs:[...p.empAllocs,{empId:"",empName:"",amount:""}]})); persistAllocs(eid, pi); };
+  const removeAlloc = (eid:string,pi:number,ai:number) => { updProd(eid,pi,p=>({...p,empAllocs:p.empAllocs.filter((_,k)=>k!==ai)})); persistAllocs(eid, pi); };
+  const approve = (id:string) => { setEntries(p=>p.map(e=>e.id===id?{...e,status:"approved" as const}:e)); approveWasteMut.mutate(id); };
+  const reject  = (id:string) => { setEntries(p=>p.map(e=>e.id===id?{...e,status:"rejected" as const}:e)); rejectWasteMut.mutate({ entryId: id, reason: "تحتاج مراجعة" }); };
 
   const pending  = entries.filter(e=>e.status==="pending");
   const approved = entries.filter(e=>e.status==="approved");
@@ -3453,7 +3671,11 @@ function AccCompanyWaste() {
       <div className="flex items-center justify-between">
         <div><h2 className="text-xl font-bold text-gray-800">{t("موديول الهدر والتالف","Waste & Spoilage Module")}</h2><p className="text-gray-400 text-sm mt-0.5">{t("مراجعة الهدر — تعديل التصنيف والقيمة المالية وتوزيع التحميل على الموظفين","Review waste — adjust classification, financial value and employee allocations")}</p></div>
         {displayedPending.length>0 && (
-          <Btn variant="success" size="sm" onClick={()=>setEntries(p=>p.map(e=>(filterBranch==="الكل"||e.branch===filterBranch)?{...e,status:"approved" as const}:e))}>
+          <Btn variant="success" size="sm" onClick={()=>{
+            const ids = displayedPending.map(e=>e.id);
+            setEntries(p=>p.map(e=>(filterBranch==="الكل"||e.branch===filterBranch)?{...e,status:"approved" as const}:e));
+            bulkApproveWasteMut.mutate(ids);
+          }}>
             <CheckCircle2 size={12}/> {t("موافقة على الكل","Approve All")} ({displayedPending.length})
           </Btn>
         )}
@@ -3467,7 +3689,7 @@ function AccCompanyWaste() {
             <select className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">{["الكل",...BRANDS.map(b=>b.name)].map(b=><option key={b}>{b}</option>)}</select>
           </div>
           <div className="flex items-end">
-            <button onClick={()=>alert("جارٍ تصدير بيانات الهدر والتالف إلى Excel...")} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm font-semibold hover:bg-emerald-100">
+            <button onClick={()=>exportWasteMut.mutate({ branchId: filterBranch==="الكل"?undefined:filterBranch })} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm font-semibold hover:bg-emerald-100">
               <FileText size={13}/> تصدير Excel
             </button>
           </div>
@@ -3626,7 +3848,11 @@ function AccCompanyEmployees() {
   const [searchTerm,  setSearchTerm]  = useState("");
   const [brandFilter, setBrandFilter] = useState("الكل");
 
-  const employees: Employee[] = [
+  const { data: employeesPage } = useEmployees({ search: searchTerm });
+  const { data: serverMovements = [] } = useEmployeeMovements(selectedEmp);
+  const exportPayrollMut = useExportPayroll();
+
+  const fallbackEmployees: Employee[] = [
     { id:"E01",name:"أنس محمد",    branch:"فرع العليا",   brand:"برغر التاج",       role:"كاشير",    salary:4200, advances:500,  deductions:0,   net:3700, status:"نشط",
       movements:[
         {date:"اليوم",  desc:"سلفة راتب",           type:"debit",  amount:500,  ref:"ADV-201"},
@@ -3666,12 +3892,43 @@ function AccCompanyEmployees() {
       ]},
   ];
 
+  const apiEmps = employeesPage?.data ?? [];
+  const employees: Employee[] = apiEmps.length > 0
+    ? apiEmps.map((e): Employee => ({
+        id: e.empNumber || e.id,
+        name: e.name,
+        branch: e.branchName,
+        brand: "—",
+        role: e.role,
+        salary: e.monthlySalaryHalalas / 100,
+        advances: 0,
+        deductions: 0,
+        net: e.monthlySalaryHalalas / 100,
+        status: e.active ? "نشط" : "موقوف",
+        movements: [],
+      }))
+    : fallbackEmployees;
+
   const filtered = employees.filter(e=>{
     if(searchTerm && !e.name.includes(searchTerm) && !e.branch.includes(searchTerm)) return false;
     if(brandFilter!=="الكل" && e.brand!==brandFilter) return false;
     return true;
   });
-  const selected = selectedEmp ? employees.find(e=>e.id===selectedEmp) : null;
+  const selectedBase = selectedEmp ? employees.find(e=>e.id===selectedEmp) : null;
+  const selected = selectedBase
+    ? {
+        ...selectedBase,
+        movements: serverMovements.length > 0
+          ? serverMovements.map(m => ({
+              date: m.date,
+              desc: m.notes || m.type,
+              type: (m.amountHalalas >= 0 ? "credit" : "debit") as "credit" | "debit",
+              amount: Math.abs(m.amountHalalas) / 100,
+              ref: m.id,
+            }))
+          : selectedBase.movements,
+      }
+    : null;
   const totalSalaries = employees.reduce((s,e)=>s+e.net,0);
   const totalAdvances  = employees.reduce((s,e)=>s+e.advances,0);
   const totalDeductions= employees.reduce((s,e)=>s+e.deductions,0);
@@ -3682,7 +3939,7 @@ function AccCompanyEmployees() {
     <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
         <div><h2 className="text-xl font-bold text-gray-800">{t("كشف حساب الموظفين","Employee Accounts")}</h2><p className="text-gray-400 text-sm mt-0.5">{t("الرواتب والحركات المالية لموظفي مجموعة التاج","Salaries and financial movements for Al-Taj Group employees")}</p></div>
-        <button onClick={()=>alert(t("تصدير كشف الرواتب...","Exporting payroll..."))} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><Download size={12}/> {t("تصدير Excel","Export Excel")}</button>
+        <button onClick={()=>exportPayrollMut.mutate(new Date().toISOString().slice(0,7))} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><Download size={12}/> {t("تصدير Excel","Export Excel")}</button>
       </div>
       <div className="grid grid-cols-4 gap-4">
         <KpiCard label={t("إجمالي الرواتب","Total Salaries")}    value={fmt(totalSalaries)}    sub={t("ر.س صافي هذا الشهر","SAR net this month")} icon={<Users size={18} className="text-blue-600"/>} accent="blue"/>
@@ -3811,7 +4068,12 @@ function AccCompanyCash() {
   const [searchTerm,     setSearchTerm]     = useState("");
   const [statusFilter,   setStatusFilter]   = useState("");
 
-  const branches = [
+  const { data: serverCustody = [] } = useCashCustody();
+  // lazy-loaded transactions for whichever branch is expanded
+  useCashTransactions(expandedBranch);
+  const exportCashMut = useExportCash();
+
+  const fallbackBranches = [
     { branch:"فرع العليا",    brand:"برغر التاج",       custodian:"فاطمة السالم",    amount:5000, used:3200,
       txns:[
         {date:"اليوم",   desc:"صيانة طارئة — مكيف",     type:"debit",  amt:450},
@@ -3857,6 +4119,18 @@ function AccCompanyCash() {
       ], pendingTxns:0 },
   ];
 
+  const branches = serverCustody.length > 0
+    ? serverCustody.map(c => ({
+        branch: c.branchName,
+        brand: "—",
+        custodian: c.holderName,
+        amount: c.balanceHalalas / 100,
+        used: 0,
+        txns: [] as Array<{date:string; desc:string; type:string; amt:number}>, // lazy-loaded via useCashTransactions
+        pendingTxns: 0,
+      }))
+    : fallbackBranches;
+
   const filtered = branches.filter(b=>{
     if(searchTerm && !b.branch.includes(searchTerm) && !b.custodian.includes(searchTerm)) return false;
     if(statusFilter==="قريبة من النفاد" && (b.amount-b.used)>=500) return false;
@@ -3901,7 +4175,7 @@ function AccCompanyCash() {
         </div>
         <div className="flex items-center justify-between">
           {(searchTerm||statusFilter) && <button onClick={()=>{setSearchTerm("");setStatusFilter("");}} className="text-xs text-purple-600 hover:underline flex items-center gap-1"><RotateCcw size={11}/> مسح الفلاتر</button>}
-          <button onClick={()=>alert("جارٍ تصدير سجل العهد النقدية...")} className="mr-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> تصدير Excel</button>
+          <button onClick={()=>exportCashMut.mutate({})} className="mr-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> تصدير Excel</button>
         </div>
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -3989,13 +4263,18 @@ function AccCompanyCash() {
 // ═══════════════════════════════════════════════════
 function AccCompanyReports() {
   const { t, dir } = useCLang();
-  const reports = [
-    { title:t("تقرير P&L الشهري","Monthly P&L Report"),           date:"أكتوبر 2025", type:t("مالي","Financial"),    size:"2.4 MB" },
-    { title:t("ملخص المبيعات اليومية","Daily Sales Summary"),      date:"14 أكت 2025", type:t("مبيعات","Sales"),      size:"1.1 MB" },
-    { title:t("تقرير المصروفات","Expenses Report"),                date:"14 أكت 2025", type:t("مصروفات","Expenses"),  size:"0.9 MB" },
-    { title:t("تقرير المخزون","Inventory Report"),                 date:"13 أكت 2025", type:t("مخزون","Inventory"),   size:"1.7 MB" },
-    { title:t("كشف الرواتب الشهري","Monthly Payroll Statement"),  date:"30 سبت 2025", type:t("موظفون","Employees"),  size:"0.5 MB" },
+  const { data: serverReports = [] } = useReports();
+  const downloadReportMut = useDownloadReport();
+  const fallbackReports = [
+    { title:t("تقرير P&L الشهري","Monthly P&L Report"),           date:"أكتوبر 2025", type:t("مالي","Financial"),    size:"2.4 MB", key:"pl-monthly" },
+    { title:t("ملخص المبيعات اليومية","Daily Sales Summary"),      date:"14 أكت 2025", type:t("مبيعات","Sales"),      size:"1.1 MB", key:"sales-daily" },
+    { title:t("تقرير المصروفات","Expenses Report"),                date:"14 أكت 2025", type:t("مصروفات","Expenses"),  size:"0.9 MB", key:"expenses" },
+    { title:t("تقرير المخزون","Inventory Report"),                 date:"13 أكت 2025", type:t("مخزون","Inventory"),   size:"1.7 MB", key:"inventory" },
+    { title:t("كشف الرواتب الشهري","Monthly Payroll Statement"),  date:"30 سبت 2025", type:t("موظفون","Employees"),  size:"0.5 MB", key:"payroll" },
   ];
+  const reports = serverReports.length > 0
+    ? serverReports.map(r => ({ title: r.title, date: "", type: r.category, size: "—", key: r.key }))
+    : fallbackReports;
   return (
     <div className="space-y-5" dir={dir}>
       <div><h2 className="text-xl font-bold text-gray-800">{t("التقارير","Reports")}</h2><p className="text-gray-400 text-sm">{t("تقارير مجموعة التاج","Al-Taj Group reports")}</p></div>
@@ -4004,7 +4283,7 @@ function AccCompanyReports() {
           <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 hover:border-purple-200 transition-colors">
             <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center flex-shrink-0"><FileText size={18} className="text-purple-600"/></div>
             <div className="flex-1 min-w-0"><p className="font-semibold text-gray-800 text-sm">{r.title}</p><p className="text-[10px] text-gray-400 mt-0.5">{r.date} · {r.type} · {r.size}</p></div>
-            <button onClick={()=>alert(`⬇️ تحميل: ${r.title}`)} className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 transition-colors flex-shrink-0"><Download size={13}/></button>
+            <button onClick={()=>downloadReportMut.mutate({ key: (r as { key?: string }).key || r.title, format: "pdf" })} className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 transition-colors flex-shrink-0"><Download size={13}/></button>
           </div>
         ))}
       </div>

@@ -1,5 +1,7 @@
 import { useEffect, useState, type ComponentType } from "react";
 import { modules as discoveredModules } from "./.generated/mockup-components";
+import { LoginPage } from "./auth/LoginPage";
+import { useAuth } from "./auth/AuthContext";
 
 type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 
@@ -112,8 +114,17 @@ function getPreviewPath(): string | null {
   return match ? match[1] : null;
 }
 
-// ─── ASAB Landing Page ────────────────────────────────────────────────────────
-function ASABLanding() {
+// Map a backend defaultPage hint to a known mockup slug. Backend can return
+// either a full slug ("asab/CompanyDashboard") or a short hint ("dashboard").
+function resolveLandingSlug(defaultPage: string | null, role: string | undefined): string {
+  if (defaultPage && defaultPage.includes("/")) return defaultPage;
+  if (role === "admin") return "asab/ASABPrototype";
+  // Every company role lands in CompanyDashboard (it routes internally by role).
+  return "asab/CompanyDashboard";
+}
+
+// ─── ASAB Landing Page (only shown for logged-in users — picks a dashboard) ──
+function ASABLanding({ onLogout, userName }: { onLogout: () => void; userName: string }) {
   const dashboards = [
     {
       slug: "asab/ASABPrototype",
@@ -143,15 +154,6 @@ function ASABLanding() {
     },
   ] as const;
 
-  const features = [
-    { icon: "📊", text: "تقارير مالية متكاملة" },
-    { icon: "✅", text: "خط اعتماد 6 مراحل" },
-    { icon: "🔔", text: "إشعارات فورية" },
-    { icon: "🔗", text: "تصدير ERP" },
-    { icon: "🌙", text: "واجهة عربية RTL" },
-    { icon: "📱", text: "متوافق مع الجوال" },
-  ];
-
   return (
     <div
       dir="rtl"
@@ -163,31 +165,47 @@ function ASABLanding() {
         flexDirection: "column",
       }}
     >
-      {/* ── Header ── */}
-      <header style={{ textAlign: "center", padding: "56px 32px 40px" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-          <div style={{
-            width: 52, height: 52, borderRadius: 16,
-            background: "linear-gradient(135deg, #7C3AED, #00D9FF)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 22, fontWeight: 900, color: "white",
-          }}>ع</div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 32, fontWeight: 900, color: "white", lineHeight: 1 }}>
-              عصب <span style={{ color: "#00D9FF", fontFamily: "system-ui" }}>ASAB</span>
-            </div>
-            <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>نظام الإدارة المالية</div>
-          </div>
+      {/* Top bar: user + logout */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "16px 32px",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
+        <button
+          onClick={onLogout}
+          style={{
+            background: "rgba(239,68,68,0.1)",
+            border: "1px solid rgba(239,68,68,0.3)",
+            color: "#fca5a5",
+            padding: "6px 14px",
+            borderRadius: 8,
+            fontSize: 12,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          خروج
+        </button>
+        <div style={{ fontSize: 13, color: "#94a3b8" }}>
+          مرحباً، <span style={{ color: "white", fontWeight: 600 }}>{userName}</span>
         </div>
+      </div>
+
+      {/* Header */}
+      <header style={{ textAlign: "center", padding: "32px 32px 24px" }}>
         <h1 style={{ fontSize: 18, color: "#94a3b8", fontWeight: 400, margin: "0 0 8px" }}>
           نظام إدارة مالية المطاعم المتكامل
         </h1>
         <p style={{ fontSize: 13, color: "#475569", margin: 0 }}>
-          النموذج التفاعلي الكامل — اختر الداشبورد للبدء
+          اختر الداشبورد للبدء
         </p>
       </header>
 
-      {/* ── Dashboard Cards ── */}
+      {/* Dashboard Cards */}
       <main style={{ flex: 1, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "0 24px 48px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, width: "100%", maxWidth: 880 }}>
           {dashboards.map((d) => (
@@ -206,22 +224,9 @@ function ASABLanding() {
                 position: "relative",
                 overflow: "hidden",
               }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,255,255,0.07)";
-                (e.currentTarget as HTMLAnchorElement).style.borderColor = d.color;
-                (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,255,255,0.04)";
-                (e.currentTarget as HTMLAnchorElement).style.borderColor = d.border;
-                (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
-              }}
             >
-              {/* Gradient background layer */}
               <div style={{ position: "absolute", inset: 0, borderRadius: 20, background: d.gradient, pointerEvents: "none" }} />
-
               <div style={{ position: "relative" }}>
-                {/* Icon & Title */}
                 <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
                   <div style={{
                     width: 48, height: 48, borderRadius: 14,
@@ -234,13 +239,9 @@ function ASABLanding() {
                     <div style={{ fontSize: 12, color: d.color, fontWeight: 600, marginTop: 2 }}>{d.subtitle}</div>
                   </div>
                 </div>
-
-                {/* Description */}
                 <p style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.7, margin: "0 0 16px" }}>
                   {d.description}
                 </p>
-
-                {/* Roles */}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
                   {d.roles.map((r) => (
                     <span key={r} style={{
@@ -251,11 +252,7 @@ function ASABLanding() {
                     }}>{r}</span>
                   ))}
                 </div>
-
-                {/* Badge */}
                 <p style={{ fontSize: 10, color: "#475569", margin: "0 0 20px" }}>{d.badge}</p>
-
-                {/* CTA Button */}
                 <div style={{
                   display: "inline-flex", alignItems: "center", gap: 8,
                   background: d.color, color: "white",
@@ -270,34 +267,18 @@ function ASABLanding() {
         </div>
       </main>
 
-      {/* ── Feature Pills ── */}
-      <section style={{ textAlign: "center", padding: "0 24px 40px" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, maxWidth: 600, margin: "0 auto" }}>
-          {features.map((f) => (
-            <span key={f.text} style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 99, padding: "6px 14px",
-              fontSize: 12, color: "#94a3b8",
-            }}>
-              <span>{f.icon}</span>{f.text}
-            </span>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Footer ── */}
       <footer style={{ textAlign: "center", padding: "16px 24px 32px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
         <p style={{ fontSize: 12, color: "#334155", margin: 0 }}>
-          عصب ASAB · نظام إدارة مالية المطاعم · النسخة التجريبية 2.0 · جميع الحقوق محفوظة
+          عصب ASAB · نظام إدارة مالية المطاعم · النسخة التجريبية 2.0
         </p>
       </footer>
     </div>
   );
 }
 
-// ─── App — listens to hash changes for SPA navigation ────────────────────────
+// ─── App — auth-aware shell ──────────────────────────────────────────────────
 function App() {
+  const { user, initializing, defaultPage, logout } = useAuth();
   const [, forceUpdate] = useState(0);
 
   useEffect(() => {
@@ -306,8 +287,39 @@ function App() {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
-  const previewPath = getPreviewPath();
+  // After a fresh login, auto-redirect to the role-appropriate landing.
+  useEffect(() => {
+    if (!user || !defaultPage) return;
+    if (getPreviewPath()) return; // user is already navigated somewhere
+    const slug = resolveLandingSlug(defaultPage, user.role);
+    window.location.hash = `#/preview/${slug}`;
+  }, [user, defaultPage]);
 
+  if (initializing) {
+    return (
+      <div
+        dir="rtl"
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(145deg, #0A1628 0%, #0F1C35 40%, #1B3A6B 100%)",
+          fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif",
+          color: "#94a3b8",
+          fontSize: 14,
+        }}
+      >
+        جاري التحميل...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
+
+  const previewPath = getPreviewPath();
   if (previewPath) {
     return (
       <PreviewRenderer
@@ -317,7 +329,7 @@ function App() {
     );
   }
 
-  return <ASABLanding />;
+  return <ASABLanding onLogout={() => void logout()} userName={user.name} />;
 }
 
 export default App;
