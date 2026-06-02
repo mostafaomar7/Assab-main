@@ -11072,7 +11072,7 @@ function AdminCompanies({ navigate }:PageProps) {
 }
 
 function AdminReports({}: PageProps) {
-  useAdminReportsCatalog();
+  const { data: apiReportsCatalog } = useAdminReportsCatalog();
   const { t, lang, dir } = useLang(); const en = lang==="en";
   const rL = (r:{id:string;label:string}) => en ? (EN_NAV_LABELS[r.id]||r.label) : r.label;
   const rS = (r:{id:string;sub:string})   => en ? (EN_REPORT_SUBS[r.id]||r.sub)   : r.sub;
@@ -11097,7 +11097,9 @@ function AdminReports({}: PageProps) {
     { id:"op-profit",    label:"الربحية التشغيلية",        sub:"مؤشرات الأداء ومقارنات القطاع",      icon:"🏆", tc:"text-indigo-700", bc:"bg-indigo-50",brd:"border-indigo-200" },
     { id:"menu-eng",     label:"هندسة القوائم",            sub:"مؤشرات الأداء ومقارنات القطاع",      icon:"🍽️", tc:"text-cyan-700",   bc:"bg-cyan-50",  brd:"border-cyan-200"   },
   ];
-  const allReports = [...coreReports,...specializedReports];
+  const apiCatalog = (apiReportsCatalog as any[]) ?? [];
+  const allReportsFallback = [...coreReports,...specializedReports];
+  const allReports = (apiCatalog.length > 0 ? apiCatalog as any : allReportsFallback) as typeof allReportsFallback;
 
   const RESTAURANTS = [
     { id:"r1", name:"مطعم الريم — العليا",   owner:"فيصل الريم",             email:"faisal@reem.sa"        },

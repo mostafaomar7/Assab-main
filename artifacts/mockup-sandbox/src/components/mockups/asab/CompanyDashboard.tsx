@@ -1786,17 +1786,26 @@ function CASettings() {
 
 function CASupport() {
   const { t, dir } = useCLang();
-  useSupportChannels();
+  const { data: apiChannels } = useSupportChannels();
   const createTicketMut = useCreateTicket();
   const PLACEHOLDER = t("نوع المشكلة...","Issue type...");
   const [msgType,setMsgType]=useState(PLACEHOLDER);
   const [msgBody,setMsgBody]=useState("");
   const [sent,setSent]=useState(false);
-  const channels=[
+  const CHANNELS_FALLBACK=[
     {ic:"💬",label:t("الدردشة الفورية","Live Chat"),       d:t("9 ص — 9 م","9 AM — 9 PM"),   b:t("متاح الآن","Available now"),    action:()=>alert(t("✅ سيتم فتح نافذة الدردشة — متاح الآن","✅ Chat window opening — available now"))},
     {ic:"📞",label:t("الاتصال","Call"),                    d:"800 123 4567",                    b:t("أيام العمل","Business days"),  action:()=>alert(`📞 ${t("يمكنك الاتصال على:","You can call:")} 800 123 4567\n${t("أيام العمل 9 ص — 5 م","Business days 9 AM — 5 PM")}`)},
     {ic:"📧",label:t("البريد","Email"),                    d:"support@asab.sa",                 b:t("خلال 24 ساعة","Within 24 hrs"),action:()=>alert(`📧 ${t("البريد الإلكتروني:","Email:")} support@asab.sa`)},
   ];
+  const channels = ((apiChannels as any[])?.length > 0
+    ? (apiChannels as any[]).map((c: any) => ({
+        ic: c.icon ?? "📞",
+        label: c.label ?? c.name ?? "",
+        d: c.description ?? c.detail ?? "",
+        b: c.availability ?? "",
+        action: () => { if (c.link) window.open(c.link, "_blank"); },
+      }))
+    : CHANNELS_FALLBACK) as typeof CHANNELS_FALLBACK;
   const handleSend=()=>{
     if(msgType===PLACEHOLDER){alert(t("يرجى تحديد نوع المشكلة","Please select an issue type"));return;}
     if(!msgBody.trim()){alert(t("يرجى شرح المشكلة أولاً","Please describe the issue first"));return;}
