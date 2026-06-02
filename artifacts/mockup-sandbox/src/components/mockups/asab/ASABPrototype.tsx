@@ -11844,15 +11844,20 @@ function AdminSettings({}: PageProps) {
 // ════════════════════════════════════════════════════════════
 function BranchOverview({ navigate }: PageProps) {
   const { t, lang, dir } = useLang(); const en = lang==="en";
-  useBranchOverviewPlatform();
+  const { data: apiOverview } = useBranchOverviewPlatform();
+  const kpis = (apiOverview as any)?.kpis ?? {};
+  const todaySales = kpis.todaySalesHalalas != null ? Math.round(kpis.todaySalesHalalas / 100) : 18340;
+  const orders     = kpis.ordersCount   ?? 87;
+  const empsActive = kpis.activeEmployees ?? 12;
+  const reqReports = kpis.requiredReportsCount ?? 3;
   return (
     <div className="space-y-5">
       <div><h2 className="text-xl font-bold text-gray-800">{t("نظرة عامة — فرع الرياض العليا","Overview — Riyadh Al-Olaya Branch")}</h2><p className="text-gray-400 text-sm mt-0.5">{t("الاثنين، 14 أكتوبر 2025","Monday, 14 October 2025")}</p></div>
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label={t("مبيعات اليوم","Today's Sales")} value={`18,340 ${t("ر.س","SAR")}`} icon={<TrendingUp size={18} className="text-emerald-600"/>} accent="emerald"/>
-        <KpiCard label={t("الطلبات","Orders")} value="87" sub={t("هذا الشفت","This Shift")} icon={<ShoppingCart size={18} className="text-blue-600"/>} accent="blue"/>
-        <KpiCard label={t("الموظفون","Employees")} value="12" sub={t("نشطون الآن","Active Now")} icon={<Users size={18} className="text-purple-600"/>} accent="purple"/>
-        <KpiCard label={t("التقارير المطلوبة","Required Reports")} value="3" sub={t("تنتظر الرفع","Awaiting Upload")} icon={<AlertTriangle size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("مبيعات اليوم","Today's Sales")} value={`${todaySales.toLocaleString()} ${t("ر.س","SAR")}`} icon={<TrendingUp size={18} className="text-emerald-600"/>} accent="emerald"/>
+        <KpiCard label={t("الطلبات","Orders")} value={String(orders)} sub={t("هذا الشفت","This Shift")} icon={<ShoppingCart size={18} className="text-blue-600"/>} accent="blue"/>
+        <KpiCard label={t("الموظفون","Employees")} value={String(empsActive)} sub={t("نشطون الآن","Active Now")} icon={<Users size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label={t("التقارير المطلوبة","Required Reports")} value={String(reqReports)} sub={t("تنتظر الرفع","Awaiting Upload")} icon={<AlertTriangle size={18} className="text-amber-600"/>} accent="amber"/>
       </div>
       <div className="grid grid-cols-3 gap-5">
         <div className="col-span-2">
@@ -12029,15 +12034,21 @@ function BranchUpload({}: PageProps) {
 // ════════════════════════════════════════════════════════════
 function ProcOverview({ navigate }:PageProps) {
   const { t } = useLang();
-  useProcurementOverviewPlatform();
+  const { data: apiOverview } = useProcurementOverviewPlatform();
+  const kpis = (apiOverview as any)?.kpis ?? {};
+  const newOrders     = kpis.newOrdersCount     ?? 45;
+  const fromBranches  = kpis.fromBranchesCount  ?? 40;
+  const consolidated  = kpis.consolidatedCount  ?? 12;
+  const sentToSuppliers = kpis.sentToSuppliersCount ?? 8;
+  const ordersValueK  = kpis.ordersValueHalalas != null ? Math.round(kpis.ordersValueHalalas / 100_000) : 148;
   return (
     <div className="space-y-5">
       <div><h2 className="text-xl font-bold text-gray-800">{t("لوحة تحكم المشتريات","Procurement Dashboard")}</h2><p className="text-gray-400 text-sm mt-0.5">{t("تجميع الطلبات والتنسيق مع الموردين","Consolidate orders and coordinate with suppliers")}</p></div>
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label={t("طلبات جديدة","New Orders")} value="45" sub={t("من 40 فرع","from 40 branches")} icon={<ShoppingCart size={18} className="text-red-600"/>} accent="red"/>
-        <KpiCard label={t("طلبات مجمعة","Consolidated")} value="12" sub={t("جاهزة للإرسال","ready to send")} icon={<Package size={18} className="text-blue-600"/>} accent="blue"/>
-        <KpiCard label={t("أُرسلت للموردين","Sent to Suppliers")} value="8" sub="" icon={<Truck size={18} className="text-amber-600"/>} accent="amber"/>
-        <KpiCard label={t("قيمة الطلبات","Orders Value")} value={`148K ${t("ر.س","SAR")}`} sub={t("هذا الأسبوع","this week")} icon={<TrendingUp size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label={t("طلبات جديدة","New Orders")} value={String(newOrders)} sub={`${t("من","from")} ${fromBranches} ${t("فرع","branches")}`} icon={<ShoppingCart size={18} className="text-red-600"/>} accent="red"/>
+        <KpiCard label={t("طلبات مجمعة","Consolidated")} value={String(consolidated)} sub={t("جاهزة للإرسال","ready to send")} icon={<Package size={18} className="text-blue-600"/>} accent="blue"/>
+        <KpiCard label={t("أُرسلت للموردين","Sent to Suppliers")} value={String(sentToSuppliers)} sub="" icon={<Truck size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("قيمة الطلبات","Orders Value")} value={`${ordersValueK}K ${t("ر.س","SAR")}`} sub={t("هذا الأسبوع","this week")} icon={<TrendingUp size={18} className="text-purple-600"/>} accent="purple"/>
       </div>
       <Card title={t("الطلبات الجديدة من الفروع","New Orders from Branches")} actions={<Btn size="sm" variant="primary" onClick={()=>navigate("proc-new")}><Package size={12}/> {t("تجميع الطلبات","Consolidate Orders")}</Btn>}>
         {[{branch:t("فرع الرياض - العليا","Riyadh - Al-Olaya"),items:4,total:4800,urgency:t("عادي","Normal")},{branch:t("فرع جدة - الحمراء","Jeddah - Al-Hamra"),items:6,total:8200,urgency:t("عاجل","Urgent")},{branch:t("فرع مكة - المعابدة","Makkah - Al-Ma'abda"),items:3,total:3100,urgency:t("عادي","Normal")}].map((r,i)=>(
@@ -12569,16 +12580,21 @@ function ProcSent({}: PageProps) {
 // SUPPLIER PAGES
 // ════════════════════════════════════════════════════════════
 function SupOverview({ navigate }:PageProps) {
-  useSupplierOverview();
+  const { data: apiOverview } = useSupplierOverview();
   const { t } = useLang();
+  const kpis = (apiOverview as any)?.kpis ?? {};
+  const newOrders     = kpis.newOrdersCount     ?? 3;
+  const acceptedOrders = kpis.acceptedOrdersCount ?? 12;
+  const salesK        = kpis.totalSalesHalalas != null ? Math.round(kpis.totalSalesHalalas / 100_000) : 285;
+  const activeClients = kpis.activeClientsCount ?? 18;
   return (
     <div className="space-y-5">
       <div><h2 className="text-xl font-bold text-gray-800">{t("لوحة تحكم المورد","Supplier Dashboard")}</h2><p className="text-gray-400 text-sm mt-0.5">{t("شركة الدواجن الوطنية","National Poultry Company")}</p></div>
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label={t("طلبات جديدة","New Orders")} value="3" sub={t("تنتظر ردك","awaiting your response")} icon={<ShoppingCart size={18} className="text-red-600"/>} accent="red"/>
-        <KpiCard label={t("طلبات مقبولة","Accepted Orders")} value="12" sub={t("هذا الأسبوع","this week")} icon={<CheckCircle2 size={18} className="text-emerald-600"/>} accent="emerald"/>
-        <KpiCard label={t("إجمالي المبيعات","Total Sales")} value={`285K ${t("ر.س","SAR")}`} sub={t("هذا الشهر","this month")} icon={<TrendingUp size={18} className="text-purple-600"/>} accent="purple"/>
-        <KpiCard label={t("العملاء النشطون","Active Clients")} value="18" sub={t("مطعم","restaurants")} icon={<Users size={18} className="text-blue-600"/>} accent="blue"/>
+        <KpiCard label={t("طلبات جديدة","New Orders")} value={String(newOrders)} sub={t("تنتظر ردك","awaiting your response")} icon={<ShoppingCart size={18} className="text-red-600"/>} accent="red"/>
+        <KpiCard label={t("طلبات مقبولة","Accepted Orders")} value={String(acceptedOrders)} sub={t("هذا الأسبوع","this week")} icon={<CheckCircle2 size={18} className="text-emerald-600"/>} accent="emerald"/>
+        <KpiCard label={t("إجمالي المبيعات","Total Sales")} value={`${salesK}K ${t("ر.س","SAR")}`} sub={t("هذا الشهر","this month")} icon={<TrendingUp size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label={t("العملاء النشطون","Active Clients")} value={String(activeClients)} sub={t("مطعم","restaurants")} icon={<Users size={18} className="text-blue-600"/>} accent="blue"/>
       </div>
       <Card title={`${t("الطلبات الجديدة","New Orders")} — 3`} actions={<Badge className="bg-red-50 text-red-700">3 {t("جديدة","new")}</Badge>}>
         {[
