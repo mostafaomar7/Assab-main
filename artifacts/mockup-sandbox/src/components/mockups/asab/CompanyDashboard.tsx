@@ -38,6 +38,7 @@ import type { Operation as ApiOperation } from "../../../api/types";
 import { NotificationBell } from "../../shared/NotificationBell";
 import { RejectModal } from "../../shared/RejectModal";
 import { SessionsList } from "../../shared/SessionsList";
+import { GlobalSearch } from "../../shared/GlobalSearch";
 import { ChangePasswordModal } from "../../../auth/ChangePasswordModal";
 import { useLanguagePref } from "../../../auth/useLanguagePref";
 import {
@@ -951,6 +952,7 @@ function Shell({ role, page, navigate, onLogout, children, headPendingCount=0 }:
           <div className="flex items-center gap-3">
             <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-100">● {t(PLAN_AR[COMPANY.plan]||COMPANY.plan, COMPANY.plan)}</Badge>
             <Badge className="bg-purple-50 text-purple-700 border border-purple-100">{meta.icon} {t(meta.label, enMeta.label)}</Badge>
+            <GlobalSearch t={t} theme="light"/>
             <NotificationBell t={t} theme="light"/>
             <div className="relative">
               <button onClick={()=>setShowNotif(v=>!v)} className="relative text-gray-400 hover:text-gray-600 transition-colors">

@@ -72,6 +72,7 @@ import {
   useCreateERPBatch,
 } from "../../../api/queries";
 import { NotificationBell } from "../../shared/NotificationBell";
+import { GlobalSearch } from "../../shared/GlobalSearch";
 
 import { SessionsList } from "../../shared/SessionsList";
 import { ChangePasswordModal } from "../../../auth/ChangePasswordModal";
@@ -1487,6 +1488,7 @@ function AppShell({ state, ops, approveOp, rejectOp, finalApproveOp, bulkApprove
               <option>{tL("هذا الأسبوع","This Week")}</option>
               <option>{tL("اليوم","Today")}</option>
             </select>
+            <GlobalSearch t={tL} theme="light"/>
             {/* Language Globe */}
             <button onClick={()=>setLang(lang==="ar"?"en":"ar")}
               className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-purple-200 bg-purple-50 text-purple-600 hover:bg-purple-100 font-semibold transition-colors"
