@@ -51,4 +51,15 @@ export default defineConfig({
     host: "0.0.0.0",
     allowedHosts: true,
   },
+  // Limit esbuild worker concurrency to avoid the "service is no longer running"
+  // crash on the very large ASABPrototype.tsx (~13.5k lines).
+  esbuild: {
+    target: "es2020",
+    legalComments: "none",
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      target: "es2020",
+    },
+  },
 });
