@@ -21,3 +21,4 @@ export * from "./branchMgr";
 export * from "./procurement";
 export * from "./uploads";
 export * from "./misc";
+export * from "./platform";
