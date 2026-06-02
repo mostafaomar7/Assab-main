@@ -71,6 +71,7 @@ import {
   useBulkApprove,
   useCreateERPBatch,
 } from "../../../api/queries";
+import { NotificationBell } from "../../shared/NotificationBell";
 
 import { SessionsList } from "../../shared/SessionsList";
 import { ChangePasswordModal } from "../../../auth/ChangePasswordModal";
@@ -1493,10 +1494,7 @@ function AppShell({ state, ops, approveOp, rejectOp, finalApproveOp, bulkApprove
               <Globe size={13}/>
               {lang==="ar"?"EN":"عربي"}
             </button>
-            <button className="relative w-9 h-9 flex items-center justify-center rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-500 transition-colors">
-              <Bell size={16}/>
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-            </button>
+            <NotificationBell t={tL} theme="light"/>
             <button onClick={logout} className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 flex items-center gap-1">
               <LogOut size={13}/> {tL("خروج","Logout")}
             </button>
@@ -8139,7 +8137,7 @@ function HeadDashboard({ navigate, setModal, setDetailId, ops, finalApproveOp, r
           <span className="text-xs text-gray-400">{t("الأسبوع الماضي مقارنةً بهذا الأسبوع","Last week vs this week")}</span>
         </div>
         <div className="flex items-end gap-3 h-28">
-          {[
+          {((apiHead as any)?.weeklyPerformance ?? [
             {day:t("الأحد","Sun"),    thisW:24, lastW:18},
             {day:t("الاثنين","Mon"),  thisW:32, lastW:22},
             {day:t("الثلاثاء","Tue"), thisW:19, lastW:28},
@@ -8147,7 +8145,7 @@ function HeadDashboard({ navigate, setModal, setDetailId, ops, finalApproveOp, r
             {day:t("الخميس","Thu"),  thisW:35, lastW:25},
             {day:t("الجمعة","Fri"),  thisW:12, lastW:9},
             {day:t("السبت","Sat"),   thisW:28, lastW:20},
-          ].map((d,i)=>{
+          ]).map((d:{day:string;thisW:number;lastW:number},i:number)=>{
             const max = 41;
             return (
               <div key={i} className="flex-1 flex flex-col items-center gap-1">
