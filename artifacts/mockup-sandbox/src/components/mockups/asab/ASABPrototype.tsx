@@ -57,6 +57,33 @@ import {
   useSuspendSubscription,
   useActivateSubscription,
   useDeleteAdminUser,
+  useCreateAdminCompany,
+  useUpdateAdminPermissions,
+  useExportAdminAuditLogs,
+  useImportAdminUsers,
+  useAdminUploadBrand,
+  useAdminUploadEmployees,
+  useAdminUploadFixedAssets,
+  useAdminUploadTemplate,
+  useExportOperations,
+  useExportHeadOperations,
+  useExportAssets,
+  useExportAccReminders,
+  useExportSupplierItems,
+  useExportSupplierOrders,
+  useExportProcurementItems,
+  useExportSuppliers,
+  useExportPayroll,
+  useExportCash,
+  useExportWaste,
+  useCreatePlatformAsset,
+  useCreateReminder,
+  useCreateProcurementOrder,
+  useUpdateOrder,
+  useCreateSupplier,
+  useCreateProcurementItem,
+  useUpdateBranchSettingsPlatform,
+  useLookup,
   // Branch (platform)
   useBranchOverviewPlatform,
   useBranchEmployeesPlatform,
@@ -2963,6 +2990,7 @@ function AccSalesPage({ navigate, setModal, setDetailId, ops, approveOp, rejectO
   const { t, dir, lang } = useLang();
   const en = lang === "en";
   const { data: salesApi } = useAccountantOperationsPlatform({ moduleKey: "sales" });
+  const exportOpsMut = useExportOperations();
   const [filters,      setFilters]      = useState<Filters>({branch:"",status:"",match:"",search:""});
   const [brand,        setBrand]        = useState("");
   const [selectedDay,  setSelectedDay]  = useState("all");
@@ -3076,7 +3104,7 @@ function AccSalesPage({ navigate, setModal, setDetailId, ops, approveOp, rejectO
       <Card title={t("بيانات المبيعات","Sales Entries")} actions={
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-400">{filtered.length} {t("بيان","entries")}</span>
-          <button onClick={()=>alert(t("جارٍ تصدير بيانات المبيعات إلى Excel...","Exporting sales data to Excel..."))}
+          <button onClick={()=>exportOpsMut.mutate({moduleKey:"sales", format:"xlsx"})}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100 transition-all">
             <FileText size={11}/> Excel
           </button>
@@ -3391,6 +3419,7 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
   const { t, dir, lang } = useLang();
   const en = lang === "en";
   const { data: expensesApi } = useAccountantOperationsPlatform({ moduleKey: "expenses" });
+  const exportOpsMut = useExportOperations();
   const { getConvertedInvNums, drafts } = useContext(AssetDraftContext);
   const [filters,          setFilters]          = useState<Filters>({branch:"",status:"",match:"",search:""});
   const [expandedId,       setExpandedId]       = useState<string|null>(null);
@@ -3523,7 +3552,7 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
           <h3 className="font-bold text-gray-900 text-sm">{t("بيانات المصروفات","Expense Entries")}</h3>
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400">{filtered.length} {t("بيان","entries")}</span>
-            <button onClick={()=>alert(t("جارٍ تصدير بيانات المصروفات إلى Excel...","Exporting expense data to Excel..."))}
+            <button onClick={()=>exportOpsMut.mutate({moduleKey:"expenses", format:"xlsx"})}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100 transition-all">
               <FileText size={11}/> Excel
             </button>
@@ -4331,6 +4360,7 @@ function PurItemsTable({ items, verifiedMap, onToggleVerify }: { items:PurItem[]
 function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectOp, bulkApprove }:PageProps) {
   const { t, lang, dir } = useLang();
   const en = lang === "en";
+  const exportOpsMut = useExportOperations();
   const { data: purchasesApi } = useAccountantOperationsPlatform({ moduleKey: "purchases" });
   const ALL = "الكل";
   const [viewMode, setViewMode] = useState<"supplier"|"branch">("supplier");
@@ -4608,7 +4638,7 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
             <button onClick={()=>{ setFilterSupplier(ALL); setFilterBranch(ALL); setFilterStatus(ALL); setFilterMatch(ALL); setSearch(""); }}
               className="text-xs text-purple-600 hover:underline flex items-center gap-1"><RotateCcw size={10}/> {t("مسح الفلاتر","Clear Filters")}</button>
           )}
-          <button onClick={()=>alert(t("جارٍ تصدير بيانات المشتريات إلى Excel...","Exporting purchases data to Excel..."))}
+          <button onClick={()=>exportOpsMut.mutate({moduleKey:"purchases", format:"xlsx"})}
             className="mr-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100 transition-all">
             <FileText size={11}/> {t("تصدير Excel","Export Excel")}
           </button>
@@ -6027,6 +6057,7 @@ function AccShifts({ navigate, setModal }:PageProps) {
 
 function AccEmployees({ navigate, setModal }:PageProps) {
   const { data: apiEmployees } = usePlatformEmployees();
+  const exportPayrollMut = useExportPayroll();
   const [selectedIdx, setSelectedIdx] = useState<number>(0);
   const [empFilter, setEmpFilter] = useState({empNum:"", branch:"", brand:""});
   const EMPLOYEES_FALLBACK = [
@@ -6113,7 +6144,7 @@ function AccEmployees({ navigate, setModal }:PageProps) {
         <div className="space-y-4">
           <Card title={`كشف حساب: ${emp.name}`} actions={
             <div className="flex gap-2">
-              <button onClick={()=>alert("جارٍ تصدير كشف الحساب إلى Excel...")}
+              <button onClick={()=>exportPayrollMut.mutate(new Date().toISOString().slice(0,7))}
                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100 transition-all">
                 <FileText size={11}/> Excel
               </button>
@@ -6150,6 +6181,7 @@ function AccEmployees({ navigate, setModal }:PageProps) {
 function AccCash({}: PageProps) {
   const { t, lang, dir } = useLang();
   const { data: apiCashCustody } = usePlatformCashCustody();
+  const exportCashMut = useExportCash();
   const [expandedBranch, setExpandedBranch] = useState<string|null>(null);
   const [searchTerm,     setSearchTerm]     = useState("");
   const [statusFilter,   setStatusFilter]   = useState("");
@@ -6247,7 +6279,7 @@ function AccCash({}: PageProps) {
           {(searchTerm||statusFilter) && (
             <button onClick={()=>{ setSearchTerm(""); setStatusFilter(""); }} className="text-xs text-purple-600 hover:underline flex items-center gap-1"><RotateCcw size={11}/> مسح الفلاتر</button>
           )}
-          <button onClick={()=>alert("جارٍ تصدير سجل العهد النقدية إلى Excel...")}
+          <button onClick={()=>exportCashMut.mutate({})}
             className="mr-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100 transition-all">
             <FileText size={11}/> تصدير Excel
           </button>
@@ -6353,6 +6385,7 @@ function AccCash({}: PageProps) {
 // ════════════════════════════════════════════════════════════
 function ExcelImportModal({ assets, setAssets, onClose }:{ assets:any[]; setAssets:(fn:(p:any[])=>any[])=>void; onClose:()=>void }) {
   const { t, lang, dir } = useLang();
+  const uploadTemplateMut = useAdminUploadTemplate();
   type ImportRow = {
     rowId:number; name:string; cat:string; branch:string; invNum:string;
     cost:number; usefulLife:number; custodian:string; selected:boolean; branchEditing:boolean;
@@ -6465,7 +6498,7 @@ function ExcelImportModal({ assets, setAssets, onClose }:{ assets:any[]; setAsse
                   <p className="text-blue-600 text-xs mt-0.5">حمّل القالب المطلوب بالأعمدة الصحيحة لضمان الاستيراد السليم</p>
                 </div>
               </div>
-              <button onClick={()=>alert("جارٍ تحميل قالب Excel...")}
+              <button onClick={()=>uploadTemplateMut.mutate({type:"fixed-assets"})}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 transition-all">
                 <Download size={13}/> تحميل القالب
               </button>
@@ -6623,6 +6656,9 @@ function AccAssets({ navigate }: PageProps) {
   const { t, lang, dir } = useLang();
   const { data: apiAssetsPage } = usePlatformAssets();
   usePlatformAssetDrafts();
+  const exportAssetsMut = useExportAssets();
+  const uploadTemplateMut = useAdminUploadTemplate();
+  const createAssetMut = useCreatePlatformAsset();
   const { drafts, discardDraft, confirmDraft } = useContext(AssetDraftContext);
   type AssetStatus = "pending_branch"|"pending_accountant"|"confirmed"|"registered";
   type AssetCat    = "معدات"|"تقنية"|"أثاث"|"مركبات"|"أخرى";
@@ -6774,7 +6810,7 @@ function AccAssets({ navigate }: PageProps) {
                 </button>
               ))}
             </div>
-            <button onClick={()=>alert("جارٍ تصدير سجل الأصول الثابتة إلى Excel...")}
+            <button onClick={()=>exportAssetsMut.mutate({format:"xlsx"})}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 text-gray-600 border border-gray-200 text-xs font-semibold hover:bg-gray-100 transition-all">
               <FileText size={11}/> تصدير Excel
             </button>
@@ -7425,6 +7461,7 @@ function AccAssets({ navigate }: PageProps) {
 function AccWaste({}: PageProps) {
   const { t, lang, dir } = useLang();
   const { data: apiWaste } = usePlatformWaste();
+  const exportWasteMut = useExportWaste();
   type WasteClass = "هدر"|"تالف";
   type Resp = "موظف"|"مطعم";
   type EmpAlloc = { empId:string; empName:string; amount:string };
@@ -7543,7 +7580,7 @@ function AccWaste({}: PageProps) {
             </select>
           </div>
           <div className="flex items-end">
-            <button onClick={()=>alert("جارٍ تصدير بيانات الهدر والتالف إلى Excel...")}
+            <button onClick={()=>exportWasteMut.mutate({})}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm font-semibold hover:bg-emerald-100 transition-all">
               <FileText size={13}/> تصدير Excel
             </button>
@@ -7778,6 +7815,8 @@ function AccWaste({}: PageProps) {
 function AccReminders({}: PageProps) {
   const { t, lang, dir } = useLang();
   const { data: apiReminders } = usePlatformReminders();
+  const exportRemindersMut = useExportAccReminders();
+  const createReminderMut = useCreateReminder();
   type ReminderStatus = "not_sent"|"sent"|"responded";
   type ResponseType = "سيرسل لاحقاً"|"لا مشتريات اليوم"|"تم الجرد — قيد الرفع"|"توضيح: لا يوجد هدر اليوم"|null;
   interface MissingReport { id:string; branch:string; reportType:string; moduleKey:string; requiredBy:string; daysMissing:number; urgency:"high"|"medium"|"low"; reminderStatus:ReminderStatus; response:ResponseType }
@@ -7886,7 +7925,7 @@ function AccReminders({}: PageProps) {
             </select>
           </div>
           <div className="flex items-end">
-            <button onClick={()=>alert("جارٍ تصدير التذكيرات المفقودة إلى Excel...")}
+            <button onClick={()=>exportRemindersMut.mutate("xlsx")}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm font-semibold hover:bg-emerald-100 transition-all w-full justify-center">
               <FileText size={13}/> تصدير Excel
             </button>
@@ -8207,6 +8246,7 @@ function HeadApprovalTab({ ops, finalApproveOp, rejectOp, setModal, setDetailId,
   bulkApprove:(ids:string[])=>void;
 }) {
   const { t, lang } = useLang();
+  const exportHeadOpsMut = useExportHeadOperations();
   const en = lang === "en";
   usePendingOperations();
   const awaitingHead = ops.filter(o=>o.status==="approved");
@@ -8269,6 +8309,7 @@ function HeadPending({ navigate, setModal, setDetailId, ops, finalApproveOp, rej
   const { t, lang, dir } = useLang();
   const en = lang === "en";
   usePendingOperations();
+  const exportHeadOpsMut = useExportHeadOperations();
   const [filters, setFilters] = useState<Filters>({branch:"",status:"approved",match:"",search:""});
   const [accFilter, setAccFilter] = useState(t("الكل","All"));
   const [brandFilter, setBrandFilter] = useState(t("الكل","All"));
@@ -8373,7 +8414,7 @@ function HeadPending({ navigate, setModal, setDetailId, ops, finalApproveOp, rej
           <p className="text-gray-400 text-sm mt-0.5">{filtered.length} {t("عملية وافق عليها المحاسبون","operations approved by accountants")} · {fmtAmt(totalAmt)} {t("ر.س إجمالياً","SAR total")}</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={()=>alert(t("جارٍ تصدير العمليات المعلقة إلى Excel...","Exporting pending operations to Excel..."))}
+          <button onClick={()=>exportHeadOpsMut.mutate({status:"pending", format:"xlsx"})}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100 transition-all">
             <FileText size={11}/> Excel
           </button>
@@ -8502,6 +8543,7 @@ function HeadPending({ navigate, setModal, setDetailId, ops, finalApproveOp, rej
 function HeadApproved({ ops }:PageProps) {
   useFinalApprovedOperations();
   const { t, dir } = useLang();
+  const exportHeadOpsMut = useExportHeadOperations();
   const approved = ops.filter(o=>o.status==="final-approved");
   const erpPostedCount = approved.filter(o=>o.erpPosted).length;
   const pendingErp = approved.filter(o=>!o.erpPosted).length;
@@ -8558,6 +8600,7 @@ function HeadApproved({ ops }:PageProps) {
 function HeadRejected({ ops }:PageProps) {
   useRejectedOperations();
   const { t, dir } = useLang();
+  const exportHeadOpsMut = useExportHeadOperations();
   const rejected = ops.filter(o=>o.status==="rejected");
   return (
     <div className="space-y-5" dir={dir}>
@@ -8588,6 +8631,7 @@ function HeadModulePage({ moduleKey, navigate, setModal, setDetailId, ops, final
   const { t, lang, dir } = useLang();
   const en = lang === "en";
   usePendingOperations({ moduleKey: moduleKey as never });
+  const exportHeadOpsMut = useExportHeadOperations();
   const [filters, setFilters] = useState<Filters>({branch:"",status:"",match:"",search:""});
   const allVal = t("الكل","All");
   const [accFilter, setAccFilter] = useState(allVal);
@@ -8623,7 +8667,7 @@ function HeadModulePage({ moduleKey, navigate, setModal, setDetailId, ops, final
           <p className="text-gray-400 text-sm mt-0.5">{t("العمليات الموافق عليها من المحاسبين — تنتظر اعتمادك النهائي","Operations approved by accountants — awaiting your final approval")}</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={()=>alert(t(`جارٍ تصدير عمليات ${label} إلى Excel...`,`Exporting ${label} operations to Excel...`))}
+          <button onClick={()=>exportHeadOpsMut.mutate({status:"pending", moduleKey, format:"xlsx"})}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100 transition-all">
             <FileText size={11}/> Excel
           </button>
@@ -9344,6 +9388,8 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
   const { t, dir } = useLang();
   useAdminUsers();
   const { data: distApi } = useAdminDistribution();
+  const importUsersMut = useImportAdminUsers();
+  const importFileRef = useRef<HTMLInputElement>(null);
   const [search,     setSearch]     = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [brandFilter,setBrandFilter]= useState("");
@@ -9390,7 +9436,11 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
   const moveAccToHead = (accId:string, headId:string) => setDistAccs(p=>p.map(a=>a.id===accId?{...a,headId}:a));
 
   // ── Module distribution ──
-  const DIST_MODULES = ["المبيعات","المصروفات","المشتريات","المخزون","الأصول الثابتة","الشفتات","الموظفين","العهد المالية"];
+  const { data: modulesLookup } = useLookup("modules");
+  const DIST_MODULES_FALLBACK = ["المبيعات","المصروفات","المشتريات","المخزون","الأصول الثابتة","الشفتات","الموظفين","العهد المالية"];
+  const DIST_MODULES = ((modulesLookup as any)?.length > 0
+    ? (modulesLookup as any[]).map((m: any) => m.labelAr ?? m.name ?? m.value)
+    : DIST_MODULES_FALLBACK) as string[];
   const [distModeType, setDistModeType] = useState<"restaurant"|"module"|"heads">("restaurant");
   const [modAccSel, setModAccSel] = useState<string>("acc1");
   const [modAccFilter, setModAccFilter] = useState("");
@@ -9465,7 +9515,9 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
           <p className="text-gray-400 text-sm mt-0.5">{users.length} {t("مستخدم — متعدد العلامات التجارية والمطاعم","users — multi-brand & multi-restaurant")}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={()=>alert(t("جارٍ استيراد المستخدمين من ملف CSV...","Importing users from CSV..."))}
+          <input ref={importFileRef} type="file" accept=".csv" style={{display:"none"}}
+            onChange={e=>{ const f=e.target.files?.[0]; if(f) importUsersMut.mutate(f); e.target.value=""; }}/>
+          <button onClick={()=>importFileRef.current?.click()}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 text-gray-700 border border-gray-200 text-sm font-semibold hover:bg-gray-100 transition-all">
             <Upload size={13}/> {t("استيراد CSV","Import CSV")}
           </button>
@@ -10796,6 +10848,7 @@ function AdminCompanies({ navigate }:PageProps) {
   const suspendMut = useSuspendAdminCompany();
   const activateMut = useActivateAdminCompany();
   const upgradeMut = useUpgradeAdminCompany();
+  const createCompanyMut = useCreateAdminCompany();
   const { t, dir } = useLang();
   const apiCompaniesArr = (apiCompanies as any)?.data ?? (apiCompanies as any);
   const [companies, setCompanies] = useState<CompanySub[]>((apiCompaniesArr as any[])?.length > 0 ? (apiCompaniesArr as CompanySub[]) : INITIAL_COMPANIES);
@@ -11125,7 +11178,7 @@ function AdminCompanies({ navigate }:PageProps) {
               </div>
               <div className="flex gap-2 justify-end pt-1">
                 <Btn onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn>
-                <Btn variant="primary" onClick={()=>{ setShowAdd(false); alert("✅ تم إنشاء حساب الشركة وإرسال بيانات الدخول"); }}><Send size={13}/> {t("إنشاء الحساب","Create Account")}</Btn>
+                <Btn variant="primary" onClick={()=>{ setShowAdd(false); createCompanyMut.mutate({ name: "شركة جديدة", plan: "Professional" } as any); }}><Send size={13}/> {t("إنشاء الحساب","Create Account")}</Btn>
               </div>
             </div>
           </div>
@@ -11523,6 +11576,7 @@ function AdminReports({}: PageProps) {
 
 function AdminAudit({}: PageProps) {
   const { data: apiAuditLogs } = useAdminAuditLogs();
+  const exportAuditMut = useExportAdminAuditLogs();
   const { t, lang, dir } = useLang(); const en = lang==="en";
   const LOGS_FALLBACK = [
     {action:"إضافة مستخدم جديد",           user:"الأدمن",                        time:"10:30 ص",icon:"👤",type:"مستخدمين", date:"اليوم"},
@@ -11564,7 +11618,7 @@ function AdminAudit({}: PageProps) {
         <div><h2 className="text-xl font-bold text-gray-800">{t("سجل النشاطات","Activity Log")}</h2>
           <p className="text-gray-400 text-sm mt-0.5">{ALL_LOGS.length} {t("نشاط مسجل","recorded activities")}</p>
         </div>
-        <button onClick={()=>alert("جارٍ تصدير سجل النشاطات إلى Excel...")}
+        <button onClick={()=>exportAuditMut.mutate({format:"xlsx"})}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm font-semibold hover:bg-emerald-100 transition-all">
           <FileText size={13}/> {t("تصدير Excel","Export Excel")}
         </button>
@@ -11624,6 +11678,7 @@ function AdminAudit({}: PageProps) {
 
 function AdminPermissions({}: PageProps) {
   const { data: permsApi } = useAdminPermissions();
+  const updatePermsMut = useUpdateAdminPermissions();
   const { t, lang, dir } = useLang(); const en = lang==="en";
   type Permission = "view" | "submit" | "review" | "approve" | "final" | "none";
   const PERM_CYCLE: Permission[] = ["none","view","submit","review","approve","final"];
@@ -11709,7 +11764,10 @@ function AdminPermissions({}: PageProps) {
     setSaved(false);
   };
 
-  const saveChanges = () => { setSaved(true); setChanges(0); };
+  const saveChanges = () => {
+    setSaved(true); setChanges(0);
+    updatePermsMut.mutate({ matrix } as any);
+  };
   const resetAll    = () => { setMatrix(prev=>prev); setSaved(false); setChanges(0); };
 
   return (
@@ -12718,6 +12776,7 @@ function SupOverview({ navigate }:PageProps) {
 function SupNewOrders({}: PageProps) {
   const { data: apiOrdersResp } = useSupplierOrders({ status: "pending" });
   const { t } = useLang();
+  const exportSupOrdersMut = useExportSupplierOrders();
   type SupOrder = { id:string; rest:string; items:{name:string;qty:number;unit:string;price:number}[]; deadline:string; status:"pending"|"accepted"|"rejected" };
   const ORDERS_FALLBACK: SupOrder[] = [
     { id:"ORD-5501", rest:t("مطعم هرفي","Herfy Restaurant"), items:[{name:t("دجاج طازج","Fresh Chicken"),qty:200,unit:t("كجم","kg"),price:24}], deadline:t("غداً 8 ص","Tomorrow 8 AM"), status:"pending" },
@@ -12869,6 +12928,8 @@ function BranchSettings({ navigate }:PageProps) {
 function ProcItems({}: PageProps) {
   const { data: apiItems } = useProcurementItemsPlatform();
   const { t } = useLang();
+  const exportItemsMut = useExportProcurementItems();
+  const createItemMut = useCreateProcurementItem();
   const [search, setSearch] = useState("");
   const ITEMS_FALLBACK = [
     {name:"دجاج طازج",unit:"كجم",category:"لحوم ودواجن",supplier:"شركة الدواجن الوطنية",avgPrice:24,lastOrder:"أمس",monthlyUsage:2400,stock:180},
@@ -12887,7 +12948,7 @@ function ProcItems({}: PageProps) {
       <div className="flex items-center justify-between">
         <div><h2 className="text-xl font-bold text-gray-800">{t("كتالوج الأصناف","Item Catalog")}</h2><p className="text-gray-400 text-sm mt-0.5">{filtered.length} {t("صنف","items")} · {t("تكلفة شهرية إجمالية:","Total monthly cost:")} {fmtAmt(totalMonthly)} {t("ر.س","SAR")}</p></div>
         <div className="flex gap-2">
-          <button onClick={()=>alert(t("جارٍ تصدير الكتالوج إلى Excel...","Exporting catalog to Excel..."))} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> Excel</button>
+          <button onClick={()=>exportItemsMut.mutate("xlsx")} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> Excel</button>
           <Btn variant="primary"><Plus size={13}/> {t("إضافة صنف","Add Item")}</Btn>
         </div>
       </div>
@@ -12942,6 +13003,8 @@ function ProcItems({}: PageProps) {
 function ProcSuppliers({}: PageProps) {
   const { data: apiSuppliers } = useProcurementSuppliersPlatform();
   const { t } = useLang();
+  const exportSuppliersMut = useExportSuppliers();
+  const createSupplierMut = useCreateSupplier();
   const [expandedSup, setExpandedSup] = useState<string|null>(null);
   const [activeTab, setActiveTab] = useState<"deliveries"|"prices">("deliveries");
 
@@ -12999,7 +13062,7 @@ function ProcSuppliers({}: PageProps) {
       <div className="flex items-center justify-between">
         <div><h2 className="text-xl font-bold text-gray-800">{t("الموردون","Suppliers")}</h2><p className="text-gray-400 text-sm mt-0.5">{suppliers.length} {t("مورد","suppliers")} · {t("إجمالي شهري:","Monthly total:")} {fmtAmt(totalMonthly)} {t("ر.س","SAR")}</p></div>
         <div className="flex gap-2">
-          <button onClick={()=>alert(t("جارٍ تصدير قائمة الموردين...","Exporting suppliers list..."))} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> Excel</button>
+          <button onClick={()=>exportSuppliersMut.mutate("xlsx")} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> Excel</button>
           <Btn variant="primary"><Plus size={13}/> {t("إضافة مورد","Add Supplier")}</Btn>
         </div>
       </div>
@@ -13131,6 +13194,7 @@ function ProcSuppliers({}: PageProps) {
 function SupAccepted({}: PageProps) {
   useSupplierOrders({ status: "accepted" });
   const { t } = useLang();
+  const exportSupOrdersMut = useExportSupplierOrders();
   const orders = [
     {id:"ORD-5498",rest:"مطعم هرفي",items:"دجاج طازج — 200 كجم",accepted:"اليوم 9:15 ص",deliveryDate:"غداً 8 ص",total:4800,status:"قيد التحضير"},
     {id:"ORD-5495",rest:"ماكدونالدز السعودية",items:"دجاج مجمد — 500 كجم",accepted:"أمس 2:30 م",deliveryDate:"اليوم 6 م",total:10500,status:"في الطريق"},
@@ -13144,7 +13208,7 @@ function SupAccepted({}: PageProps) {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div><h2 className="text-xl font-bold text-gray-800">{t("الطلبات المقبولة","Accepted Orders")}</h2><p className="text-gray-400 text-sm mt-0.5">{orders.length} {t("طلب","orders")} · {t("إجمالي:","Total:")} {fmtAmt(totalRunning)} {t("ر.س","SAR")}</p></div>
-        <button onClick={()=>alert(t("جارٍ تصدير الطلبات المقبولة...","Exporting accepted orders..."))} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> Excel</button>
+        <button onClick={()=>exportSupOrdersMut.mutate({status:"accepted", format:"xlsx"})} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> Excel</button>
       </div>
       <Card title={t("سجل الطلبات المقبولة","Accepted Orders Log")}>
         {orders.map((o,i)=>(
@@ -13213,6 +13277,7 @@ function SupRejected({}: PageProps) {
 function SupItems({}: PageProps) {
   const { data: apiItems } = useSupplierItems();
   const { t } = useLang();
+  const exportSupItemsMut = useExportSupplierItems();
   const ITEMS_FALLBACK = [
     {name:"دجاج طازج",unit:"كجم",minQty:50,maxQty:1000,price:24,available:true,leadTime:"24 ساعة"},
     {name:"دجاج مجمد",unit:"كجم",minQty:100,maxQty:5000,price:21,available:true,leadTime:"48 ساعة"},
@@ -13264,6 +13329,7 @@ function SupItems({}: PageProps) {
 function SupReports({}: PageProps) {
   const { data: apiReports } = useSupplierReports();
   const { t } = useLang();
+  const exportSupItemsMut = useExportSupplierItems();
   const months = [t("أكتوبر","October"),t("سبتمبر","September"),t("أغسطس","August"),t("يوليو","July")];
   const [monthIdx, setMonthIdx] = useState(0);
   const month = months[monthIdx];
@@ -13279,7 +13345,7 @@ function SupReports({}: PageProps) {
           <select value={monthIdx} onChange={e=>setMonthIdx(Number(e.target.value))} className="text-sm border border-gray-200 rounded-lg px-3 py-2">
             {months.map((m,i)=><option key={i} value={i}>{m}</option>)}
           </select>
-          <button onClick={()=>alert(t("جارٍ تصدير التقرير...","Exporting report..."))} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> Excel</button>
+          <button onClick={()=>exportSupItemsMut.mutate("xlsx")} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> Excel</button>
         </div>
       </div>
       <div className="grid grid-cols-3 gap-4">

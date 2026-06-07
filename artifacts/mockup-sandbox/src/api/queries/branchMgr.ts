@@ -164,6 +164,24 @@ export function useBranchSettings() {
   });
 }
 
+export function useUpdateBranchSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (patch: Partial<BranchSettings>) => {
+      const res = await api.put<BranchSettings>(
+        "/company/me/branch/settings",
+        patch,
+      );
+      return res.data;
+    },
+    onSuccess: (data) => {
+      qc.setQueryData(queryKeys.branchSettings, data);
+      toast.success("تم حفظ إعدادات الفرع");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
 export function useBranchActiveShift() {
   return useQuery({
     queryKey: queryKeys.branchActiveShift,

@@ -29,10 +29,14 @@ import {
   useBranchOverview, useBranchEmployees, useBranchItems, useBranchPurchaseRequests,
   useBranchSuppliers, useBranchActiveShift, useBranchSubmitItemsCount, useBranchUpload,
   useBranchRequestNewSupplier, useBranchOpenShift, useBranchCloseShift, useBranchSettings,
+  useUpdateBranchSettings,
   // Procurement
   useProcurementOverview, useProcurementOrders, useGroupedOrders, useSentOrders,
   useApproveOrder, useSendGroupedOrder, useProcurementItems, useProcurementSuppliers,
   useProcurementReports, useDownloadProcurementReport,
+  // Recently added
+  useExportOperations, useUpdateOrder, useCreateProcurementOrder, useCreateSupplier,
+  useCreateProcurementItem, useUpdateCompanyUser, useLookup,
 } from "../../../api/queries";
 import type { Operation as ApiOperation } from "../../../api/types";
 import { NotificationBell } from "../../shared/NotificationBell";
@@ -1464,6 +1468,7 @@ function CAUsers() {
   const { data: apiUsers = [] } = useCompanyUsers();
   const toggleMut = useToggleCompanyUserStatus();
   const inviteMut = useCreateCompanyInvitation();
+  const updateUserMut = useUpdateCompanyUser();
   const [localUsers,setLocalUsers]=useState<U[]>([
     { id:"U1",name:"أحمد العمري",    role:"رئيس الحسابات", branch:"—",             email:"ahmed@altaj.com", status:"active",  last:"اليوم"  },
     { id:"U2",name:"سارة الشهري",   role:"محاسب",         branch:"برغر التاج",   email:"sara@altaj.com",  status:"active",  last:"أمس"    },
@@ -1512,7 +1517,7 @@ function CAUsers() {
             </div>
             <div className="flex gap-1.5">
               <button onClick={()=>toggle(u.id)} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border ${u.status==="active"?"bg-gray-50 border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600":"bg-emerald-50 border-emerald-200 text-emerald-700"}`}>{u.status==="active"?t("إيقاف","Disable"):t("تفعيل","Enable")}</button>
-              <button onClick={()=>alert(`✏️ ${t("تعديل بيانات المستخدم:","Edit user:")}\n${u.name}\n\n${t("يمكن تعديل:","Can edit:")}\n• ${t("اسم المستخدم","Username")}\n• ${t("الصلاحيات والدور","Role & permissions")}\n• ${t("بيانات التواصل","Contact info")}`)} className="p-1.5 rounded-lg text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"><Edit2 size={13}/></button>
+              <button onClick={()=>updateUserMut.mutate({id:u.id, name:u.name})} className="p-1.5 rounded-lg text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"><Edit2 size={13}/></button>
             </div>
           </div>
         ))}
@@ -2597,6 +2602,7 @@ function AccDashboard({ navigate, ops }:{ navigate:(p:string)=>void; ops:COp[] }
 // ═══════════════════════════════════════════════════
 function AccCompanySales({ ops, approve, reject, bulkApprove }:{ ops:COp[]; approve:(id:string)=>void; reject:(id:string)=>void; bulkApprove:(ids:string[])=>void }) {
   const { t, dir } = useCLang();
+  const exportOpsMut = useExportOperations();
   const [branchFilter, setBranchFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<""|COpStatus>("");
   const [matchFilter,  setMatchFilter]  = useState<""|CMatch>("");
@@ -2706,7 +2712,7 @@ function AccCompanySales({ ops, approve, reject, bulkApprove }:{ ops:COp[]; appr
         <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
           <div><h3 className="font-bold text-gray-900 text-sm">{t("بيانات المبيعات","Sales Statements")}</h3><p className="text-[11px] text-gray-400 mt-0.5">{shown.length} {t("بيان · إجمالي","statements · total")} {fmt(totalShown)} {t("ر.س","SAR")}</p></div>
           <div className="flex gap-2">
-            <button onClick={()=>alert(t("جارٍ تصدير بيانات المبيعات إلى Excel...","Exporting sales data to Excel..."))} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><Download size={11}/> Excel</button>
+            <button onClick={()=>exportOpsMut.mutate({moduleKey:"sales", format:"xlsx"})} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><Download size={11}/> Excel</button>
             {pending.length>0 && <Btn size="sm" variant="success" onClick={()=>bulkApprove(pending.map(o=>o.id))}>✓ موافقة جماعية ({pending.length})</Btn>}
           </div>
         </div>
@@ -2728,6 +2734,7 @@ function AccCompanySales({ ops, approve, reject, bulkApprove }:{ ops:COp[]; appr
 // ═══════════════════════════════════════════════════
 function AccCompanyExpenses({ ops, approve, reject, bulkApprove }:{ ops:COp[]; approve:(id:string)=>void; reject:(id:string)=>void; bulkApprove:(ids:string[])=>void }) {
   const { drafts, discardDraft, confirmDraft, getConvertedInvNums } = useContext(CAssetDraftContext);
+  const exportOpsMut = useExportOperations();
   const [expandedId,       setExpandedId]       = useState<string|null>(null);
   const [verifiedInvoices, setVerifiedInvoices] = useState<Record<string,boolean>>({});
   const [brandFilter,      setBrandFilter]      = useState("الكل");
@@ -2789,7 +2796,7 @@ function AccCompanyExpenses({ ops, approve, reject, bulkApprove }:{ ops:COp[]; a
           <h3 className="font-bold text-gray-900 text-sm">{t("بيانات المصروفات","Expense Entries")}</h3>
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400">{shown.length} {t("بيان","entries")} · {fmt(totalShown)} {SAR}</span>
-            <button onClick={()=>alert(t("جارٍ تصدير...","Exporting..."))} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><Download size={11}/> Excel</button>
+            <button onClick={()=>exportOpsMut.mutate({moduleKey:"expenses", format:"xlsx"})} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><Download size={11}/> Excel</button>
           </div>
         </div>
         {shown.length===0
@@ -2954,6 +2961,7 @@ function AccCompanyExpenses({ ops, approve, reject, bulkApprove }:{ ops:COp[]; a
 // ACCOUNTANT — PURCHASES MODULE
 // ═══════════════════════════════════════════════════
 function AccCompanyPurchases({ ops, approve, reject, bulkApprove }:{ ops:COp[]; approve:(id:string)=>void; reject:(id:string)=>void; bulkApprove:(ids:string[])=>void }) {
+  const exportOpsMut = useExportOperations();
   const [brandFilter,  setBrandFilter]  = useState("الكل");
   const [matchFilter,  setMatchFilter]  = useState<""|CMatch>("");
   const [statusFilter, setStatusFilter] = useState<""|COpStatus>("");
@@ -3008,7 +3016,7 @@ function AccCompanyPurchases({ ops, approve, reject, bulkApprove }:{ ops:COp[]; 
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
             <h3 className="font-bold text-gray-900 text-sm">بيانات المشتريات</h3>
-            <button onClick={()=>alert("جارٍ تصدير...")} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><Download size={11}/> Excel</button>
+            <button onClick={()=>exportOpsMut.mutate({moduleKey:"purchases", format:"xlsx"})} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><Download size={11}/> Excel</button>
           </div>
           {shown.length===0 ? (
             <div className="py-10 text-center text-gray-400 text-sm">✅ لا توجد بيانات</div>
@@ -3365,6 +3373,7 @@ function AccInventoryItemsPage({ onBack }:{ onBack:()=>void }) {
 // ═══════════════════════════════════════════════════
 function AccCompanyAssets() {
   const { drafts, confirmDraft, discardDraft } = useContext(CAssetDraftContext);
+  const createAssetMut = useCreateAsset();
   const draftAssets = drafts;
   const { data: serverAssets } = useAssets();
   // TODO: wire up create-asset modal (useCreateAsset) once UI form exists
@@ -3418,7 +3427,7 @@ function AccCompanyAssets() {
           <input type="file" id="asset-import-file" accept=".xlsx,.csv" onChange={e=>{ const f=e.target.files?.[0]; if(f) importAssetsMut.mutate(f); }} style={{display:"none"}}/>
           <Btn size="sm" onClick={()=>document.getElementById("asset-import-file")?.click()}><Upload size={12}/> {t("استيراد Excel","Import Excel")}</Btn>
           {/* TODO: replace alert with createAssetMut.mutate(...) once a create-asset modal exists */}
-          <Btn variant="primary" onClick={()=>alert(t("➕ إضافة أصل جديد","➕ Add new asset"))}><Plus size={13}/> {t("أصل جديد","New Asset")}</Btn>
+          <Btn variant="primary" onClick={()=>createAssetMut.mutate({name:"أصل جديد"} as any)}><Plus size={13}/> {t("أصل جديد","New Asset")}</Btn>
         </div>
       </div>
 
@@ -3768,8 +3777,7 @@ function AccCompanyReminders() {
   type Reminder = { id:string;title:string;desc:string;due:string;priority:"high"|"medium"|"low";done:boolean };
   const { data: serverReminders } = useReminders();
   const patchMut = usePatchReminder();
-  // TODO: wire createMut.mutate(...) once add-modal form has controlled state
-  // const createMut = useCreateReminder();
+  const createMut = useCreateReminder();
   const deleteMut = useDeleteReminder();
   const fallbackReminders: Reminder[] = [
     { id:"R1",title:"رفع مبيعات فرع الحمراء",    desc:"الشفت المسائي لم يُرفع بعد",           due:"اليوم 11 م",  priority:"high",   done:false },
@@ -3823,7 +3831,7 @@ function AccCompanyReminders() {
                 <div><label className="text-xs font-semibold text-gray-600 block mb-1">الأولوية</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option value="high">عالية</option><option value="medium">متوسطة</option><option value="low">منخفضة</option></select></div>
               </div>
               {/* TODO: wire createMut.mutate({title, description, dueAt, priority}) once add-modal inputs are controlled */}
-              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>إلغاء</Btn><Btn variant="primary" onClick={()=>{setShowAdd(false);alert("✅ تم إضافة التذكير")}}><Check size={13}/> إضافة</Btn></div>
+              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>إلغاء</Btn><Btn variant="primary" onClick={()=>{setShowAdd(false); createMut.mutate({title:"تذكير جديد", description:"", dueAt:new Date().toISOString(), priority:"medium"} as any);}}><Check size={13}/> إضافة</Btn></div>
             </div>
           </div>
         </div>
@@ -4919,6 +4927,7 @@ function BranchSuppliers() {
 function BranchSettings() {
   const { t, dir } = useCLang();
   const { data: apiSettings } = useBranchSettings();
+  const updateBranchMut = useUpdateBranchSettings();
   const [branchName, setBranchName] = useState(apiSettings?.branchName || MY_BRANCH.name);
   const [manager,    setManager]    = useState(apiSettings?.managerName || "فاطمة السالم");
   const [phone,      setPhone]      = useState(apiSettings?.phone || "+966 11 234 5678");
@@ -4942,7 +4951,7 @@ function BranchSettings() {
           <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("رقم الهاتف","Phone")}</label><input value={phone} onChange={e=>setPhone(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400" dir="ltr"/></div>
           <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("المدينة","City")}</label><input value={branchCity} readOnly className="w-full text-sm border border-gray-100 rounded-xl px-3 py-2.5 bg-gray-50 text-gray-400"/></div>
         </div>
-        <div className="flex justify-end pt-2"><Btn variant="primary" onClick={()=>alert(`✅ ${t("تم حفظ إعدادات الفرع","Branch settings saved")}`)}><Check size={13}/> {t("حفظ التغييرات","Save Changes")}</Btn></div>
+        <div className="flex justify-end pt-2"><Btn variant="primary" onClick={()=>updateBranchMut.mutate({branchName, managerName:manager} as any)}><Check size={13}/> {t("حفظ التغييرات","Save Changes")}</Btn></div>
       </div>
     </div>
   );
@@ -5011,6 +5020,8 @@ function ProcNew() {
   const { t, dir } = useCLang();
   const { data: apiOrders = [] } = useProcurementOrders();
   const approveMut = useApproveOrder();
+  const updateOrderMut = useUpdateOrder();
+  const createOrderMut = useCreateProcurementOrder();
   const SAR = t("ر.س","SAR");
   const ORDERS_INLINE = [
     { id:"PO-001",supplier:"شركة المروج",       brand:"برغر التاج",       items:3,total:12400,status:"pending",  date:t("اليوم","Today")     },
@@ -5049,7 +5060,7 @@ function ProcNew() {
             <div className="col-span-2"><p className="font-semibold text-gray-800 text-sm">{o.supplier}</p><p className="text-[10px] text-gray-400">{o.items} {t("أصناف","items")} · {o.date}</p></div>
             <span className="text-xs text-gray-600">{o.brand}</span>
             <span className="font-mono font-bold text-gray-800 text-sm">{fmt(o.total)} {SAR}</span>
-            <div className="flex items-center gap-1.5"><Badge className={`text-[10px] border ${SC[o.status]}`}>{SL[o.status]}</Badge><button onClick={()=>alert(`✏️ ${t("تعديل أمر الشراء","Edit Purchase Order")}\n${o.id}`)} className="p-1 rounded text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"><Edit2 size={11}/></button></div>
+            <div className="flex items-center gap-1.5"><Badge className={`text-[10px] border ${SC[o.status]}`}>{SL[o.status]}</Badge><button onClick={()=>updateOrderMut.mutate({id:o.id})} className="p-1 rounded text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"><Edit2 size={11}/></button></div>
           </div>
         ))}
       </div>
@@ -5061,7 +5072,7 @@ function ProcNew() {
               <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("المورد","Supplier")}</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>شركة المروج</option><option>مؤسسة النخيل</option><option>شركة الخليج</option></select></div>
               <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("العلامة التجارية","Brand")}</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none">{BRANDS.map(b=><option key={b.id}>{b.name}</option>)}</select></div>
               <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("وصف الطلب","Order Description")}</label><textarea rows={3} placeholder={t("الأصناف والكميات...","Items and quantities...")} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none resize-none"/></div>
-              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={()=>{setShowAdd(false);alert(`✅ ${t("تم إنشاء أمر الشراء","Purchase order created")}`);}}><Send size={13}/> {t("إنشاء","Create")}</Btn></div>
+              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={()=>{setShowAdd(false); createOrderMut.mutate({items:[]} as any);}}><Send size={13}/> {t("إنشاء","Create")}</Btn></div>
             </div>
           </div>
         </div>
@@ -5073,6 +5084,7 @@ function ProcNew() {
 function ProcSuppliers() {
   const { t, dir } = useCLang();
   const { data: apiSuppliers = [] } = useProcurementSuppliers();
+  const createSupplierMut = useCreateSupplier();
   const SAR = t("ر.س","SAR");
   const SUPPLIERS_INLINE = [
     { id:"S1",name:"شركة المروج للتوريد",  category:t("مواد خام","Raw Materials"),     contact:"سليمان المروج",phone:"+966 50 111 1111",rating:4.8,orders:24,totalSpent:187000,active:true  },
@@ -5090,7 +5102,7 @@ function ProcSuppliers() {
     : SUPPLIERS_INLINE;
   return (
     <div className="space-y-5" dir={dir}>
-      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("الموردون","Suppliers")}</h2><p className="text-gray-400 text-sm">{suppliers.filter(s=>s.active).length} {t("مورد نشط","active suppliers")}</p></div><Btn variant="primary" onClick={()=>alert(`➕ ${t("إضافة مورد جديد","Add New Supplier")}`)}><Plus size={13}/> {t("إضافة مورد","Add Supplier")}</Btn></div>
+      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("الموردون","Suppliers")}</h2><p className="text-gray-400 text-sm">{suppliers.filter(s=>s.active).length} {t("مورد نشط","active suppliers")}</p></div><Btn variant="primary" onClick={()=>createSupplierMut.mutate({name:"مورد جديد"} as any)}><Plus size={13}/> {t("إضافة مورد","Add Supplier")}</Btn></div>
       <div className="grid grid-cols-3 gap-4">
         <KpiCard label={t("موردون نشطون","Active Suppliers")} value={String(suppliers.filter(s=>s.active).length)} sub={t("مورد معتمد","approved")} icon={<Building2 size={18} className="text-blue-600"/>} accent="blue"/>
         <KpiCard label={t("إجمالي المشتريات","Total Purchases")} value={`${fmt(Math.round(suppliers.reduce((s,x)=>s+x.totalSpent,0)/1000))}K`} sub={SAR} icon={<Wallet size={18} className="text-purple-600"/>} accent="purple"/>
@@ -5113,6 +5125,7 @@ function ProcSuppliers() {
 function ProcItems() {
   const { t, dir } = useCLang();
   const { data: apiItems = [] } = useProcurementItems();
+  const createItemMut = useCreateProcurementItem();
   const SAR = t("ر.س","SAR");
   const ITEMS_INLINE = [
     { name:t("لحم بقري مفروم","Ground Beef"),   unit:t("كجم","kg"),  lastPrice:42,brand:"برغر التاج",        suppliers:2 },
@@ -5132,7 +5145,7 @@ function ProcItems() {
     : ITEMS_INLINE;
   return (
     <div className="space-y-5" dir={dir}>
-      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("الأصناف والأسعار","Items & Prices")}</h2><p className="text-gray-400 text-sm">{items.length} {t("صنف","items")}</p></div><Btn variant="primary" onClick={()=>alert(`➕ ${t("إضافة صنف جديد","Add new item")}`)}><Plus size={13}/> {t("صنف جديد","New Item")}</Btn></div>
+      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("الأصناف والأسعار","Items & Prices")}</h2><p className="text-gray-400 text-sm">{items.length} {t("صنف","items")}</p></div><Btn variant="primary" onClick={()=>createItemMut.mutate({name:"صنف جديد"} as any)}><Plus size={13}/> {t("صنف جديد","New Item")}</Btn></div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="grid grid-cols-5 gap-4 px-5 py-3 border-b border-gray-100 bg-gray-50 text-[10px] font-semibold text-gray-500">
           <span className="col-span-2">{t("الصنف","Item")}</span><span>{t("الوحدة","Unit")}</span><span>{t("آخر سعر","Last Price")}</span><span>{t("الموردون","Suppliers")}</span>

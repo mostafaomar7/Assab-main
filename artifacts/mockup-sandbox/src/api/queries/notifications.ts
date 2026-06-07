@@ -3,7 +3,9 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { api } from "../client";
+import { getErrorMessage } from "../errors";
 import type { AppNotification, Page } from "../types";
 import { queryKeys } from "./keys";
 
@@ -58,9 +60,6 @@ export function useDeleteNotification() {
 }
 
 // ─── Notification preferences ───────────────────────────────────────────────
-import { toast } from "sonner";
-import { getErrorMessage } from "../errors";
-
 export interface NotificationChannelPref {
   enabled: boolean;
   address?: string;

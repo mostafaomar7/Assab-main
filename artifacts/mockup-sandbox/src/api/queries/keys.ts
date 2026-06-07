@@ -247,7 +247,8 @@ export type LookupType =
   | "inventory-categories"
   | "units"
   | "expense-categories"
-  | "supplier-categories";
+  | "supplier-categories"
+  | "modules";
 
 export interface OperationsFilter {
   moduleKey?: ModuleKey | "all";
