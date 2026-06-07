@@ -710,3 +710,40 @@ export function useUpdateCompanyPreferences() {
     onError: (e) => toast.error(getErrorMessage(e, "ar")),
   });
 }
+
+// Brand performance breakdown (per-brand sales vs target tiles on CADashboard).
+export interface BrandPerformanceEntry {
+  id: string;
+  name: string;
+  abbr?: string;
+  color?: string;
+  branchesCount: number;
+  monthlySalesHalalas: number;
+  monthlyTargetHalalas: number;
+  achievementPct: number;
+  monthlyExpensesHalalas: number;
+  netProfitHalalas: number;
+}
+
+export interface BrandPerformanceResponse {
+  brands: BrandPerformanceEntry[];
+  branchCompletionRate: number;
+  branchesAboveTarget: number;
+  totalBranchesCount: number;
+}
+
+export function useCompanyBrandPerformance(
+  filter: { dateFrom?: string; dateTo?: string } = {},
+) {
+  return useQuery({
+    queryKey: ["company", "dashboard", "brand-performance", filter] as const,
+    queryFn: async () => {
+      const res = await api.get<BrandPerformanceResponse>(
+        "/company/me/dashboard/brand-performance",
+        { params: filter },
+      );
+      return res.data;
+    },
+    staleTime: 60_000,
+  });
+}

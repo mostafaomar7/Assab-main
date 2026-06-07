@@ -183,3 +183,87 @@ export function useSaveDailyInventoryList() {
     onError: (e) => toast.error(getErrorMessage(e, "ar")),
   });
 }
+
+// ─── Daily reconciliation + variance allocation ──────────────────────────────
+export interface DailyReconciliationAllocation {
+  employeeId: string;
+  employeeName: string;
+  qty: number;
+  valueHalalas: number;
+}
+
+export interface DailyReconciliationItem {
+  itemId: string;
+  itemName: string;
+  unit?: string;
+  expectedQty: number;
+  actualQty: number;
+  varianceQty: number;
+  variancePct: number;
+  varianceValueHalalas: number;
+  status: "ok" | "flagged" | string;
+  allocatedTo: DailyReconciliationAllocation[];
+}
+
+export interface DailyReconciliationResponse {
+  branchId: string;
+  branchName: string;
+  date: string;
+  items: DailyReconciliationItem[];
+  totalVarianceValueHalalas: number;
+  unassignedVarianceValueHalalas: number;
+}
+
+export function useDailyReconciliation(
+  branchId: string | null | undefined,
+  date?: string,
+) {
+  return useQuery({
+    queryKey: ["accountant", "inventory", "daily-reconciliation", branchId, date] as const,
+    enabled: Boolean(branchId),
+    queryFn: async () => {
+      const res = await api.get<DailyReconciliationResponse>(
+        `/accountant/inventory/branches/${branchId}/daily-reconciliation`,
+        { params: date ? { date } : undefined },
+      );
+      return res.data;
+    },
+    staleTime: 30_000,
+  });
+}
+
+export interface DailyVarianceAllocationPayload {
+  date: string;
+  items: Array<{
+    itemId: string;
+    allocations: Array<{ employeeId: string; qty: number }>;
+  }>;
+}
+
+export function useSaveDailyVarianceAllocation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      branchId,
+      payload,
+    }: {
+      branchId: string;
+      payload: DailyVarianceAllocationPayload;
+    }) => {
+      const res = await api.post<DailyReconciliationResponse>(
+        `/accountant/inventory/branches/${branchId}/daily-variance-allocation`,
+        payload,
+      );
+      return res.data;
+    },
+    onSuccess: (data, vars) => {
+      qc.setQueryData(
+        ["accountant", "inventory", "daily-reconciliation", vars.branchId, vars.payload.date],
+        data,
+      );
+      qc.invalidateQueries({ queryKey: ["accountant", "inventory"] });
+      toast.success("تم حفظ توزيع الفروق");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}

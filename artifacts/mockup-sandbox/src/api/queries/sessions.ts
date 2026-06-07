@@ -5,7 +5,8 @@ import {
 } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "../client";
-import { getErrorMessage } from "../errors";
+import { getErrorMessage, ApiError } from "../errors";
+import { resendForgotPassword } from "../auth";
 
 /**
  * A single active session for the current user.
@@ -50,5 +51,21 @@ export function useRevokeSession() {
       toast.success("تم إنهاء الجلسة");
     },
     onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+/** POST /auth/forgot-password/resend — resend reset link (rate-limited). */
+export function useResendForgotPassword() {
+  return useMutation({
+    mutationFn: (email: string) => resendForgotPassword(email),
+    onSuccess: () => toast.success("تم إعادة إرسال رابط الاستعادة"),
+    onError: (e) => {
+      const code = (e as ApiError)?.code;
+      if (code === "RATE_LIMITED") {
+        toast.warning("يرجى الانتظار قبل إعادة المحاولة");
+      } else {
+        toast.error(getErrorMessage(e, "ar"));
+      }
+    },
   });
 }

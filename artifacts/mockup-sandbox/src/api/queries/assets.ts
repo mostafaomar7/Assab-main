@@ -4,7 +4,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { api } from "../client";
+import { api, downloadBlob } from "../client";
 import type {
   Asset,
   AssetDraft,
@@ -128,6 +128,22 @@ export function useDiscardAssetDraft() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.assetDrafts });
       toast.success("تم تجاهل المسودة");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+export function useExportAssets() {
+  return useMutation({
+    mutationFn: async (
+      filter: { format?: "xlsx" | "csv"; category?: string; branchId?: string } = {},
+    ) => {
+      const fmt = filter.format ?? "xlsx";
+      await downloadBlob(
+        "/company/me/assets/export",
+        `assets.${fmt}`,
+        { ...filter, format: fmt },
+      );
     },
     onError: (e) => toast.error(getErrorMessage(e, "ar")),
   });

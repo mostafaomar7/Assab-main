@@ -503,3 +503,29 @@ export function useDownloadProcurementReport() {
     onError: (e) => toast.error(getErrorMessage(e, "ar")),
   });
 }
+
+export function useExportProcurementItems() {
+  return useMutation({
+    mutationFn: async (format: "xlsx" | "csv" = "xlsx") => {
+      await downloadBlob(
+        "/company/me/procurement/items/export",
+        `procurement-items.${format}`,
+        { format },
+      );
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+export function useExportSuppliers() {
+  return useMutation({
+    mutationFn: async (format: "xlsx" | "csv" = "xlsx") => {
+      await downloadBlob(
+        "/company/me/suppliers/export",
+        `suppliers.${format}`,
+        { format },
+      );
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}

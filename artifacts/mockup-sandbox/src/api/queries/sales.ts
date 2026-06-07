@@ -92,3 +92,43 @@ export function useExportOperationDetail() {
     onError: (e) => toast.error(getErrorMessage(e, "ar")),
   });
 }
+
+// Bulk module export — sales/expenses/purchases via the same endpoint.
+export interface OperationsExportFilter {
+  moduleKey?: "sales" | "expenses" | "purchases" | "inventory" | "shifts" | "employees" | "cash" | "waste";
+  format?: "xlsx" | "csv";
+  dateFrom?: string;
+  dateTo?: string;
+  brandId?: string;
+  branchId?: string;
+  status?: string;
+}
+
+export function useExportOperations() {
+  return useMutation({
+    mutationFn: async (filter: OperationsExportFilter = {}) => {
+      const fmt = filter.format ?? "xlsx";
+      const filename = `operations-${filter.moduleKey ?? "all"}.${fmt}`;
+      await downloadBlob(
+        "/company/me/operations/export",
+        filename,
+        { ...filter, format: fmt },
+      );
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+// Head-side bulk export (filter by pipeline status across modules).
+export function useExportHeadOperations() {
+  return useMutation({
+    mutationFn: async (
+      filter: { status?: string; moduleKey?: string; format?: "xlsx" | "csv"; dateFrom?: string; dateTo?: string; brandId?: string } = {},
+    ) => {
+      const fmt = filter.format ?? "xlsx";
+      const filename = `head-operations-${filter.status ?? "all"}.${fmt}`;
+      await downloadBlob("/operations/export", filename, { ...filter, format: fmt });
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}

@@ -39,6 +39,21 @@ export async function forgotPassword(email: string): Promise<void> {
   await api.post("/auth/forgot-password", { email });
 }
 
+export interface ResendForgotPasswordResponse {
+  ok: boolean;
+  nextResendAvailableAt: string;
+}
+
+export async function resendForgotPassword(
+  email: string,
+): Promise<ResendForgotPasswordResponse> {
+  const res = await api.post<ResendForgotPasswordResponse>(
+    "/auth/forgot-password/resend",
+    { email },
+  );
+  return res.data;
+}
+
 export async function resetPassword(
   token: string,
   newPassword: string,

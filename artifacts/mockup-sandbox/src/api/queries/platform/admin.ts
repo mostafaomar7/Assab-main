@@ -1074,3 +1074,44 @@ export function useAdminBrandUploadStatus(brandId: string | null | undefined) {
     },
   });
 }
+
+export function useExportAdminAuditLogs() {
+  return useMutation({
+    mutationFn: async (
+      filter: {
+        format?: "xlsx" | "csv";
+        actionType?: string;
+        userFilter?: string;
+        dateFrom?: string;
+        dateTo?: string;
+      } = {},
+    ) => {
+      const fmt = filter.format ?? "xlsx";
+      await downloadBlob(
+        "/admin/audit-logs/export",
+        `admin-audit-logs.${fmt}`,
+        { ...filter, format: fmt },
+      );
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+export interface AdminAuditLogFilterOption {
+  value: string;
+  labelAr: string;
+  labelEn: string;
+}
+
+export function useAdminAuditLogFilters() {
+  return useQuery({
+    queryKey: ["platform", "admin", "audit-logs", "filters"] as const,
+    queryFn: async () => {
+      const res = await api.get<{ actionTypes: AdminAuditLogFilterOption[] }>(
+        "/admin/audit-logs/filters",
+      );
+      return res.data;
+    },
+    staleTime: 5 * 60_000,
+  });
+}

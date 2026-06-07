@@ -4,7 +4,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { api } from "../client";
+import { api, downloadBlob } from "../client";
 import type { Reminder } from "../types/company";
 import { getErrorMessage } from "../errors";
 import { queryKeys } from "./keys";
@@ -78,6 +78,47 @@ export function useDeleteReminder() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.reminders });
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+export function useExportAccReminders() {
+  return useMutation({
+    mutationFn: async (format: "xlsx" | "csv" = "xlsx") => {
+      await downloadBlob(
+        "/company/me/accountant/reminders/export",
+        `accountant-reminders.${format}`,
+        { format },
+      );
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+export interface BroadcastReminderPayload {
+  messageAr: string;
+  messageEn?: string;
+  audience:
+    | "all-branch-managers"
+    | "all-accountants"
+    | "all-suppliers"
+    | "specific-branches";
+  branchIds?: string[];
+}
+
+export function useBroadcastReminder() {
+  return useMutation({
+    mutationFn: async (payload: BroadcastReminderPayload) => {
+      const res = await api.post<{
+        sentCount: number;
+        failedCount: number;
+        broadcastId: string;
+      }>("/reminders/broadcast", payload);
+      return res.data;
+    },
+    onSuccess: (data) => {
+      toast.success(`تم إرسال البث لـ ${data.sentCount} مستلم`);
     },
     onError: (e) => toast.error(getErrorMessage(e, "ar")),
   });

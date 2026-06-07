@@ -56,3 +56,62 @@ export function useDeleteNotification() {
     },
   });
 }
+
+// ─── Notification preferences ───────────────────────────────────────────────
+import { toast } from "sonner";
+import { getErrorMessage } from "../errors";
+
+export interface NotificationChannelPref {
+  enabled: boolean;
+  address?: string;
+}
+
+export interface NotificationEventPref {
+  inApp?: boolean;
+  email?: boolean;
+  push?: boolean;
+  whatsapp?: boolean;
+}
+
+export interface NotificationPreferences {
+  channels: {
+    inApp: NotificationChannelPref;
+    email: NotificationChannelPref;
+    push: NotificationChannelPref;
+    whatsapp: NotificationChannelPref;
+  };
+  events: Record<string, NotificationEventPref>;
+  quietHours?: { enabled: boolean; startsAt: string; endsAt: string };
+}
+
+export function useNotificationPreferences() {
+  return useQuery({
+    queryKey: ["notifications", "preferences"] as const,
+    queryFn: async () => {
+      const res = await api.get<NotificationPreferences>(
+        "/notifications/preferences",
+      );
+      return res.data;
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useUpdateNotificationPreferences() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (patch: Partial<NotificationPreferences>) => {
+      const res = await api.patch<NotificationPreferences>(
+        "/notifications/preferences",
+        patch,
+      );
+      return res.data;
+    },
+    onSuccess: (data) => {
+      qc.setQueryData(["notifications", "preferences"], data);
+      toast.success("تم حفظ تفضيلات الإشعارات");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+

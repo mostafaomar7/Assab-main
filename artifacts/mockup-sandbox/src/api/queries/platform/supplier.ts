@@ -4,7 +4,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { api, type Page } from "../../client";
+import { api, downloadBlob, type Page } from "../../client";
 import { getErrorMessage } from "../../errors";
 import type {
   SupplierItem,
@@ -198,6 +198,35 @@ export function useToggleSupplierItemActive() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["platform", "supplier", "items"] });
       toast.success("تم تبديل حالة الصنف");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+export function useExportSupplierItems() {
+  return useMutation({
+    mutationFn: async (format: "xlsx" | "csv" = "xlsx") => {
+      await downloadBlob(
+        "/asab/supplier/items/export",
+        `supplier-items.${format}`,
+        { format },
+      );
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+export function useExportSupplierOrders() {
+  return useMutation({
+    mutationFn: async (
+      filter: { status?: "accepted" | "rejected"; format?: "xlsx" | "csv" } = {},
+    ) => {
+      const fmt = filter.format ?? "xlsx";
+      await downloadBlob(
+        "/asab/supplier/orders/export",
+        `supplier-orders-${filter.status ?? "all"}.${fmt}`,
+        { ...filter, format: fmt },
+      );
     },
     onError: (e) => toast.error(getErrorMessage(e, "ar")),
   });

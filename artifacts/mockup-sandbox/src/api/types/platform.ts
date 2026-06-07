@@ -207,13 +207,25 @@ export interface AdminBrandUploadStatus {
 // ─── Head (platform) ────────────────────────────────────────────────────────
 export interface PlatformHeadDashboard {
   kpis: {
-    awaitingApproval: number;
-    finalApprovedAwaitingErp: number;
-    erpPosted: number;
-    rejected: number;
-    performanceRate: number;
+    awaitingApproval?: number;
+    finalApprovedAwaitingErp?: number;
+    erpPosted?: number;
+    rejected?: number;
+    performanceRate?: number;
+    // Enriched fields (post-MISSING_ENDPOINTS_SPEC):
+    performanceRatePct?: number;
+    totalReviewedThisMonth?: number;
+    totalApprovedThisMonth?: number;
+    totalRejectedThisMonth?: number;
+    avgReviewTimeMinutes?: number;
+    vsLastMonthDeltaPct?: number;
   };
-  weeklyPerformance?: Array<{ day: string; thisWeek: number; lastWeek: number }>;
+  weeklyPerformance?: Array<{
+    day: string;
+    dayAr?: string;
+    thisWeek: number;
+    lastWeek: number;
+  }>;
   pipeline?: Array<{ stageId: string; count: number }>;
   exceptions?: unknown[];
   moduleAggregation?: Array<{
@@ -229,6 +241,7 @@ export interface PlatformHeadDashboard {
 export interface PlatformAccountantPerformanceRow {
   id: string;
   name: string;
+  // Legacy fields (kept for back-compat with existing UI render paths):
   branchesCount?: number;
   reviewedCount?: number;
   approvedCount?: number;
@@ -239,6 +252,12 @@ export interface PlatformAccountantPerformanceRow {
   avgReviewTimeMinutes?: number;
   level?: string;
   recentActivities?: Array<{ text: string; timeAgo: string; module: string }>;
+  // Enriched fields (post-MISSING_ENDPOINTS_SPEC):
+  branchesAssignedCount?: number;
+  approvalRatePct?: number;
+  previousMonthRatePct?: number;
+  avgReviewMinutes?: number;
+  levelLabelAr?: string;
 }
 
 export interface PlatformHeadReminder {

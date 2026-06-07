@@ -262,3 +262,42 @@ export function useDownloadERPBatch() {
     onError: (e) => toast.error(getErrorMessage(e, "ar")),
   });
 }
+
+// Recent activity feed for Head dashboard.
+export interface HeadMovementEntry {
+  id: string;
+  actionAr: string;
+  timeAr: string;
+  module: string;
+  moduleLabelAr: string;
+}
+
+export function useHeadRecentMovements(limit = 10) {
+  return useQuery({
+    queryKey: ["head", "movements", "recent", limit] as const,
+    queryFn: async () => {
+      const res = await api.get<{ data: HeadMovementEntry[] } | HeadMovementEntry[]>(
+        "/head/movements/recent",
+        { params: { limit } },
+      );
+      const d = res.data as { data?: HeadMovementEntry[] } | HeadMovementEntry[];
+      return Array.isArray(d) ? d : (d.data ?? []);
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useCompanyHeadRecentMovements(limit = 10) {
+  return useQuery({
+    queryKey: ["company", "head", "movements", "recent", limit] as const,
+    queryFn: async () => {
+      const res = await api.get<{ data: HeadMovementEntry[] } | HeadMovementEntry[]>(
+        "/company/me/head/movements/recent",
+        { params: { limit } },
+      );
+      const d = res.data as { data?: HeadMovementEntry[] } | HeadMovementEntry[];
+      return Array.isArray(d) ? d : (d.data ?? []);
+    },
+    staleTime: 30_000,
+  });
+}
