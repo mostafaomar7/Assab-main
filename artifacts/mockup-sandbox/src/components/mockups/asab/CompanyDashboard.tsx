@@ -45,7 +45,13 @@ import { SessionsList } from "../../shared/SessionsList";
 import { GlobalSearch } from "../../shared/GlobalSearch";
 import { ChangePasswordModal } from "../../../auth/ChangePasswordModal";
 import { useLanguagePref } from "../../../auth/useLanguagePref";
+import { NotificationPreferencesPage } from "../../shared/NotificationPreferencesPage";
+import { TwoFactorSetupWizard } from "../../shared/TwoFactorSetupWizard";
+import { ApiKeysPage } from "../../shared/ApiKeysPage";
+import { WebhooksPage } from "../../shared/WebhooksPage";
+import { LiveChatWidget } from "../../shared/LiveChatWidget";
 import {
+  Key, Webhook,
   LayoutDashboard, Building2, Users, Settings, Bell, LogOut, ChevronRight,
   CheckCircle2, XCircle, TrendingUp, Plus, X, Edit2, FileText,
   Shield, Search, CreditCard, Package, Wallet, ShoppingCart, Clock,
@@ -1726,6 +1732,11 @@ function CASettings() {
   const [saved,setSaved]=useState(false);
   const [showPwd,setShowPwd]=useState(false);
   const [showSessions,setShowSessions]=useState(false);
+  const [show2FA,setShow2FA]=useState(false);
+  const [caView,setCaView]=useState<"home"|"notifications"|"apikeys"|"webhooks">("home");
+  if (caView==="notifications") return (<div className="space-y-4" dir={dir}><button onClick={()=>setCaView("home")} className="text-sm text-purple-600 hover:underline">← {t("رجوع","Back")}</button><NotificationPreferencesPage t={t}/></div>);
+  if (caView==="apikeys") return (<div className="space-y-4" dir={dir}><button onClick={()=>setCaView("home")} className="text-sm text-purple-600 hover:underline">← {t("رجوع","Back")}</button><ApiKeysPage t={t}/></div>);
+  if (caView==="webhooks") return (<div className="space-y-4" dir={dir}><button onClick={()=>setCaView("home")} className="text-sm text-purple-600 hover:underline">← {t("رجوع","Back")}</button><WebhooksPage t={t}/></div>);
   const fields = [
     [t("اسم المجموعة","Group Name"),       apiSettings?.name || "مجموعة التاج للمطاعم"],
     [t("المدينة الرئيسية","Main City"),     apiSettings?.city || "الرياض"],
@@ -1760,6 +1771,26 @@ function CASettings() {
             <Activity size={14}/> {t("جلسات نشطة","Active Sessions")}
           </button>
           <button
+            onClick={()=>setShow2FA(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors">
+            <Shield size={14}/> {t("المصادقة الثنائية","Two-Factor Auth")}
+          </button>
+          <button
+            onClick={()=>setCaView("notifications")}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors">
+            <Bell size={14}/> {t("تفضيلات الإشعارات","Notifications")}
+          </button>
+          <button
+            onClick={()=>setCaView("apikeys")}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors">
+            <Key size={14}/> {t("مفاتيح API","API Keys")}
+          </button>
+          <button
+            onClick={()=>setCaView("webhooks")}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors">
+            <Webhook size={14}/> Webhooks
+          </button>
+          <button
             onClick={()=>{
               const next = lang==="ar"?"en":"ar";
               setLang(next);
@@ -1772,6 +1803,7 @@ function CASettings() {
       </div>
 
       <ChangePasswordModal open={showPwd} onClose={()=>setShowPwd(false)}/>
+      <TwoFactorSetupWizard open={show2FA} onClose={()=>setShow2FA(false)} t={t}/>
 
       {showSessions && (
         <div
@@ -5370,6 +5402,8 @@ function CompanyDashboardInner() {
         ops={ops} approve={approve} reject={reject}
         bulkApprove={bulkApprove} finalApprove={finalApprove} bulkFinalApprove={bulkFinalApprove}/>
       <RejectModal {...rejectModalProps} t={t}/>
+      {/* Floating live-support chat — available to every company role. */}
+      <LiveChatWidget t={t}/>
     </Shell>
   );
 }

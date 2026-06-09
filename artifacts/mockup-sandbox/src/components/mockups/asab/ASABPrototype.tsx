@@ -1,6 +1,7 @@
 import "./_group.css";
 import { useState, useMemo, ReactNode, createContext, useContext, useRef, type MouseEvent as ReactMouseEvent } from "react";
 import {
+  KeyRound, Webhook, History,
   LayoutDashboard, TrendingUp, Wallet, ShoppingCart, Package, Building2, Clock,
   Users, ArrowLeftRight, BarChart3, Settings, Bell, LogOut, ChevronRight,
   ChevronDown, ChevronUp, CheckCircle2, XCircle, MessageSquare, Eye, Download,
@@ -113,6 +114,12 @@ import { GlobalSearch } from "../../shared/GlobalSearch";
 
 import { SessionsList } from "../../shared/SessionsList";
 import { ChangePasswordModal } from "../../../auth/ChangePasswordModal";
+import { NotificationPreferencesPage } from "../../shared/NotificationPreferencesPage";
+import { TwoFactorSetupWizard } from "../../shared/TwoFactorSetupWizard";
+import { ApiKeysPage } from "../../shared/ApiKeysPage";
+import { WebhooksPage } from "../../shared/WebhooksPage";
+import { PermissionHistoryDrawer } from "../../shared/PermissionHistoryDrawer";
+import { LiveChatWidget } from "../../shared/LiveChatWidget";
 import { useLanguagePref } from "../../../auth/useLanguagePref";
 
 // ─────────────────────────────────────────────
@@ -11908,6 +11915,12 @@ function AdminSettings({}: PageProps) {
   const langPrefMut = useLanguagePref();
   const [showPwd,setShowPwd]=useState(false);
   const [showSessions,setShowSessions]=useState(false);
+  const [show2FA,setShow2FA]=useState(false);
+  const [settingsView,setSettingsView]=useState<"home"|"notifications"|"apikeys"|"webhooks">("home");
+  const [showPermHistory,setShowPermHistory]=useState(false);
+  if (settingsView==="notifications") return (<div className="space-y-4"><button onClick={()=>setSettingsView("home")} className="text-sm text-purple-600 hover:underline">← {t("رجوع للإعدادات","Back to settings")}</button><NotificationPreferencesPage t={(ar,en)=>t(ar,en)}/></div>);
+  if (settingsView==="apikeys") return (<div className="space-y-4"><button onClick={()=>setSettingsView("home")} className="text-sm text-purple-600 hover:underline">← {t("رجوع للإعدادات","Back to settings")}</button><ApiKeysPage t={(ar,en)=>t(ar,en)}/></div>);
+  if (settingsView==="webhooks") return (<div className="space-y-4"><button onClick={()=>setSettingsView("home")} className="text-sm text-purple-600 hover:underline">← {t("رجوع للإعدادات","Back to settings")}</button><WebhooksPage t={(ar,en)=>t(ar,en)}/></div>);
   return (
     <div className="space-y-5"><h2 className="text-xl font-bold text-gray-800">{t("إعدادات النظام","System Settings")}</h2>
       <div className="grid grid-cols-2 gap-5">
@@ -11944,6 +11957,31 @@ function AdminSettings({}: PageProps) {
             <Smartphone size={14}/> {t("جلسات نشطة","Active Sessions")}
           </button>
           <button
+            onClick={()=>setShow2FA(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors">
+            <Shield size={14}/> {t("المصادقة الثنائية","Two-Factor Auth")}
+          </button>
+          <button
+            onClick={()=>setSettingsView("notifications")}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors">
+            <Bell size={14}/> {t("تفضيلات الإشعارات","Notification Preferences")}
+          </button>
+          <button
+            onClick={()=>setSettingsView("apikeys")}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors">
+            <KeyRound size={14}/> {t("مفاتيح API","API Keys")}
+          </button>
+          <button
+            onClick={()=>setSettingsView("webhooks")}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors">
+            <Webhook size={14}/> Webhooks
+          </button>
+          <button
+            onClick={()=>setShowPermHistory(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors">
+            <History size={14}/> {t("تاريخ الصلاحيات","Permission History")}
+          </button>
+          <button
             onClick={()=>{
               const next = lang==="ar"?"en":"ar";
               setLang(next);
@@ -11954,6 +11992,9 @@ function AdminSettings({}: PageProps) {
           </button>
         </div>
       </Card>
+
+      <TwoFactorSetupWizard open={show2FA} onClose={()=>setShow2FA(false)} t={(ar,en)=>t(ar,en)}/>
+      <PermissionHistoryDrawer open={showPermHistory} onClose={()=>setShowPermHistory(false)} t={(ar,en)=>t(ar,en)}/>
 
       <ChangePasswordModal open={showPwd} onClose={()=>setShowPwd(false)}/>
 
@@ -13542,6 +13583,8 @@ export function ASABPrototype() {
           addCorrectiveOp={addCorrectiveOp} markErpPosted={markErpPosted}
           navigate={navigate} logout={logout} setModal={setModal} setDetailId={setDetailId}
         />
+        {/* Floating live-support chat — available across the whole shell. */}
+        <LiveChatWidget t={t}/>
       </AssetDraftProvider>
     </LangContext.Provider>
   );
