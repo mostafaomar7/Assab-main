@@ -1115,3 +1115,207 @@ export function useAdminAuditLogFilters() {
     staleTime: 5 * 60_000,
   });
 }
+
+// ─── Section 1.1: Per-restaurant subscription renewal ──────────────────────
+export function useRenewRestaurantSubscription() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      restaurantId,
+      months,
+    }: { restaurantId: string; months?: number }) => {
+      const res = await api.post(
+        `/admin/restaurants/${restaurantId}/subscription/renew`,
+        months !== undefined ? { months } : {},
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["platform", "admin", "restaurants"] });
+      qc.invalidateQueries({ queryKey: ["platform", "admin", "subscriptions"] });
+      toast.success("تم تجديد الاشتراك");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+// ─── Section 1.2: Brand auto-reminder toggle ───────────────────────────────
+export function useToggleBrandAutoReminder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      brandId,
+      enabled,
+    }: { brandId: string; enabled: boolean }) => {
+      const res = await api.post<{ brandId: string; enabled: boolean; updatedAt: string }>(
+        `/admin/brands/${brandId}/auto-reminder`,
+        { enabled },
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["platform", "admin", "brands"] });
+      qc.invalidateQueries({ queryKey: ["platform", "admin", "subscriptions"] });
+      toast.success("تم تحديث تفعيل التذكير التلقائي");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+// ─── Section 1.3: Audit-log entry detail (before/after diff) ──────────────
+export interface AdminAuditLogDetail {
+  id: string;
+  action: string;
+  actorName: string;
+  actorRole: string;
+  entityType: string;
+  entityId: string;
+  description?: string;
+  before?: Record<string, unknown> | null;
+  after?: Record<string, unknown> | null;
+  ip?: string;
+  userAgent?: string;
+  occurredAt: string;
+}
+
+export function useAdminAuditLogEntry(id: string | null | undefined) {
+  return useQuery({
+    queryKey: ["platform", "admin", "audit-logs", id] as const,
+    enabled: Boolean(id),
+    queryFn: async () => {
+      const res = await api.get<AdminAuditLogDetail>(`/admin/audit-logs/${id}`);
+      return res.data;
+    },
+  });
+}
+
+// ─── Section 2.3: Permission matrix versioning ────────────────────────────
+export interface PermissionsHistoryRow {
+  id: string;
+  savedBy: { id: string; name: string };
+  savedAt: string;
+  changesCount: number;
+  summaryAr: string;
+}
+
+export interface PermissionsHistoryPage {
+  data: PermissionsHistoryRow[];
+  meta: { page: number; pageSize: number; total: number; totalPages: number };
+}
+
+export function useAdminPermissionsHistory(
+  filter: { page?: number; pageSize?: number } = {},
+) {
+  return useQuery({
+    queryKey: ["platform", "admin", "permissions", "history", filter] as const,
+    queryFn: async () => {
+      const res = await api.get<PermissionsHistoryPage>(
+        "/admin/permissions/history",
+        { params: filter },
+      );
+      return res.data;
+    },
+  });
+}
+
+export function useAdminPermissionsSnapshot(snapshotId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["platform", "admin", "permissions", "history", snapshotId] as const,
+    enabled: Boolean(snapshotId),
+    queryFn: async () => {
+      const res = await api.get(`/admin/permissions/history/${snapshotId}`);
+      return res.data;
+    },
+  });
+}
+
+export function useRestoreAdminPermissionsSnapshot() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (snapshotId: string) => {
+      const res = await api.post(
+        `/admin/permissions/history/${snapshotId}/restore`,
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["platform", "admin", "permissions"] });
+      toast.success("تم استرجاع المصفوفة من النسخة المختارة");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+// ─── Section 3.6: Background-job monitoring ───────────────────────────────
+export type AdminJobStatus = "queued" | "running" | "done" | "failed" | "retrying";
+export type AdminJobType =
+  | "erp.batch" | "asset.import" | "report.export"
+  | "users.import" | "brand.upload";
+
+export interface AdminJob {
+  id: string;
+  type: AdminJobType | string;
+  status: AdminJobStatus | string;
+  companyId?: string;
+  branchId?: string;
+  triggeredBy: { userId: string; name: string };
+  progressPct: number;
+  attemptCount: number;
+  lastError?: string;
+  queuedAt: string;
+  startedAt?: string;
+  finishedAt?: string;
+}
+
+export function useAdminJobs(
+  filter: {
+    status?: string; type?: string;
+    page?: number; pageSize?: number;
+  } = {},
+) {
+  return useQuery({
+    queryKey: ["platform", "admin", "jobs", filter] as const,
+    queryFn: async () => {
+      const res = await api.get<{
+        data: AdminJob[];
+        meta: { page: number; pageSize: number; total: number; totalPages: number };
+      }>("/admin/jobs", { params: filter });
+      return res.data;
+    },
+    refetchInterval: 15_000,
+  });
+}
+
+export function useRetryAdminJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.post<{ ok: true; requeuedAt: string }>(
+        `/admin/jobs/${id}/retry`,
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["platform", "admin", "jobs"] });
+      toast.success("تم إعادة جدولة المهمة");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+export function useCancelAdminJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.post<{ ok: true; cancelledAt: string }>(
+        `/admin/jobs/${id}/cancel`,
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["platform", "admin", "jobs"] });
+      toast.success("تم إلغاء المهمة");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}

@@ -12,7 +12,10 @@ import { toast } from "sonner";
 import {
   fetchMe,
   login as apiLogin,
+  loginWithTwoFactor as apiLoginWithTwoFactor,
+  isTwoFactorChallenge,
   logout as apiLogout,
+  type LoginOrChallenge,
 } from "../api/auth";
 import { getTokens, clearTokens } from "../api/tokens";
 import { disconnectEcho, getEcho } from "../api/echo";
@@ -40,7 +43,18 @@ interface AuthContextValue {
   loggingIn: boolean;
   /** Backend-suggested landing page from the most recent login. Null after refresh-only sessions. */
   defaultPage: string | null;
-  login: (email: string, password: string) => Promise<LoginResponse>;
+  /**
+   * Password login. Returns the raw response so the caller can detect a 2FA
+   * step-up: `{ requires2fa: true, twoFactorToken }` (no session created yet).
+   * Pass `opts.code` on the second attempt, or call `loginWith2fa`.
+   */
+  login: (
+    email: string,
+    password: string,
+    opts?: { code?: string; rememberMe?: boolean },
+  ) => Promise<LoginOrChallenge>;
+  /** Step 2 of 2FA login — exchange the step-up token + OTP for a session. */
+  loginWith2fa: (twoFactorToken: string, code: string) => Promise<LoginResponse>;
   logout: () => Promise<void>;
   refreshMe: () => Promise<void>;
   hasPermission: (key: string) => boolean;
@@ -164,6 +178,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       companyChannel.listen(".branch.updated", () =>
         queryClient.invalidateQueries({ queryKey: ["company-brands"] }),
       );
+      // Section 4 — new final-batch events on the company channel.
+      companyChannel.listen(".brand.upload.progress", (e: { brandId: string; type: string; status: string; progressPct: number; parsedRows: number; failedRows: number }) => {
+        queryClient.invalidateQueries({
+          queryKey: ["platform", "admin", "brand-upload-status", e.brandId],
+        });
+        queryClient.invalidateQueries({ queryKey: ["platform", "admin", "jobs"] });
+        if (e.status === "done") {
+          toast.success(`اكتمل رفع ${e.type} — ${e.parsedRows} صف${e.failedRows ? ` · ${e.failedRows} خطأ` : ""}`);
+        }
+      });
+      companyChannel.listen(".permissions.matrix.updated", () =>
+        queryClient.invalidateQueries({ queryKey: ["platform", "admin", "permissions"] }),
+      );
     }
 
     // Brand channels — for head/accountant scoped to specific brands.
@@ -179,6 +206,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       brandChannel.listen(".shift.closed", () =>
         queryClient.invalidateQueries({ queryKey: ["shifts"] }),
+      );
+      // Section 4 — daily inventory variance allocation broadcast.
+      brandChannel.listen(".inventory.variance_allocated", () =>
+        queryClient.invalidateQueries({ queryKey: ["accountant", "inventory"] }),
       );
     });
 
@@ -219,11 +250,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, queryClient]);
 
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (
+      email: string,
+      password: string,
+      opts?: { code?: string; rememberMe?: boolean },
+    ) => {
       setLoggingIn(true);
       try {
-        const res = await apiLogin(email, password);
+        const res = await apiLogin(email, password, opts);
+        // 2FA enabled and no/invalid code yet → return the challenge; no session.
+        if (isTwoFactorChallenge(res)) {
+          return res;
+        }
         // Hydrate the full me-record (with permissions) immediately.
+        const me = await fetchMe();
+        setUser(me);
+        setDefaultPage(res.defaultPage || null);
+        return res;
+      } finally {
+        setLoggingIn(false);
+      }
+    },
+    [],
+  );
+
+  const loginWith2fa = useCallback(
+    async (twoFactorToken: string, code: string) => {
+      setLoggingIn(true);
+      try {
+        const res = await apiLoginWithTwoFactor(twoFactorToken, code);
         const me = await fetchMe();
         setUser(me);
         setDefaultPage(res.defaultPage || null);
@@ -267,12 +322,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loggingIn,
       defaultPage,
       login,
+      loginWith2fa,
       logout,
       refreshMe,
       hasPermission,
       isRole,
     }),
-    [user, initializing, loggingIn, defaultPage, login, logout, refreshMe, hasPermission, isRole],
+    [user, initializing, loggingIn, defaultPage, login, loginWith2fa, logout, refreshMe, hasPermission, isRole],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

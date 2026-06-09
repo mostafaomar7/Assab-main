@@ -4,7 +4,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { api } from "../client";
+import { api, downloadBlob } from "../client";
 import type {
   InventoryBranchRow,
   InventoryCatalogResponse,
@@ -263,6 +263,28 @@ export function useSaveDailyVarianceAllocation() {
       );
       qc.invalidateQueries({ queryKey: ["accountant", "inventory"] });
       toast.success("تم حفظ توزيع الفروق");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+// ─── Section 1.8: Inventory bulk Excel export ─────────────────────────────
+export function useExportInventory() {
+  return useMutation({
+    mutationFn: async (
+      filter: {
+        brandId?: string;
+        branchId?: string;
+        date?: string;
+        format?: "xlsx" | "csv";
+      } = {},
+    ) => {
+      const fmt = filter.format ?? "xlsx";
+      await downloadBlob(
+        "/company/me/inventory/export",
+        `inventory-variance.${fmt}`,
+        { ...filter, format: fmt },
+      );
     },
     onError: (e) => toast.error(getErrorMessage(e, "ar")),
   });

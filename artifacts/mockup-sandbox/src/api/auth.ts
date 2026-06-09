@@ -2,11 +2,49 @@ import { api } from "./client";
 import { setTokens, clearTokens } from "./tokens";
 import type { LoginResponse, MeResponse } from "./types";
 
+// 2FA step-up response — when 2FA is enabled, login returns this instead of tokens.
+export interface TwoFactorChallenge {
+  requires2fa: true;
+  twoFactorToken: string;
+}
+
+export type LoginOrChallenge = LoginResponse | TwoFactorChallenge;
+
+export function isTwoFactorChallenge(
+  res: LoginOrChallenge,
+): res is TwoFactorChallenge {
+  return Boolean((res as TwoFactorChallenge).requires2fa);
+}
+
 export async function login(
   email: string,
   password: string,
+  opts?: { code?: string; rememberMe?: boolean },
+): Promise<LoginOrChallenge> {
+  const res = await api.post<LoginOrChallenge>("/auth/login", {
+    email,
+    password,
+    ...(opts?.code ? { code: opts.code } : {}),
+    ...(opts?.rememberMe ? { rememberMe: true } : {}),
+  });
+  if (!isTwoFactorChallenge(res.data)) {
+    setTokens({
+      accessToken: res.data.accessToken,
+      refreshToken: res.data.refreshToken,
+    });
+  }
+  return res.data;
+}
+
+// Step 2 of 2FA login — call after receiving { requires2fa, twoFactorToken }.
+export async function loginWithTwoFactor(
+  twoFactorToken: string,
+  code: string,
 ): Promise<LoginResponse> {
-  const res = await api.post<LoginResponse>("/auth/login", { email, password });
+  const res = await api.post<LoginResponse>("/auth/login", {
+    twoFactorToken,
+    code,
+  });
   setTokens({
     accessToken: res.data.accessToken,
     refreshToken: res.data.refreshToken,

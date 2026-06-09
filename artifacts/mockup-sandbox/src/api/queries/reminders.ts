@@ -96,6 +96,8 @@ export function useExportAccReminders() {
   });
 }
 
+export type ReminderChannel = "in-app" | "email" | "whatsapp" | "sms";
+
 export interface BroadcastReminderPayload {
   messageAr: string;
   messageEn?: string;
@@ -105,20 +107,51 @@ export interface BroadcastReminderPayload {
     | "all-suppliers"
     | "specific-branches";
   branchIds?: string[];
+  channels?: ReminderChannel[];
+}
+
+export interface BroadcastReminderResponse {
+  broadcastId: string;
+  sentCount: number;
+  failedCount: number;
+  perChannel?: Record<string, { sent: number; failed: number }>;
 }
 
 export function useBroadcastReminder() {
   return useMutation({
     mutationFn: async (payload: BroadcastReminderPayload) => {
-      const res = await api.post<{
-        sentCount: number;
-        failedCount: number;
-        broadcastId: string;
-      }>("/reminders/broadcast", payload);
+      const res = await api.post<BroadcastReminderResponse>(
+        "/reminders/broadcast",
+        payload,
+      );
       return res.data;
     },
     onSuccess: (data) => {
       toast.success(`تم إرسال البث لـ ${data.sentCount} مستلم`);
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+// Section 1.9 — single send with channel selector (mirrors useSendReminder
+// but typed for the new channel param; pass `channel: "in-app" | "email" | ...`).
+export function useSendReminderWithChannel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, channel }: { id: string; channel?: ReminderChannel }) => {
+      const res = await api.post<{
+        id: string;
+        reminderStatus: "sent";
+        sent: boolean;
+        channel: ReminderChannel;
+        deliveredAt: string;
+      }>(`/reminders/${id}/send`, channel ? { channel } : {});
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["reminders"] });
+      qc.invalidateQueries({ queryKey: ["platform", "reminders"] });
+      toast.success("تم إرسال التذكير");
     },
     onError: (e) => toast.error(getErrorMessage(e, "ar")),
   });

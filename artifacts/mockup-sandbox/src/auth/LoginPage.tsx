@@ -2,25 +2,49 @@ import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { useAuth } from "./AuthContext";
 import { getErrorMessage } from "../api/errors";
+import { isTwoFactorChallenge } from "../api/auth";
 import { ForgotPasswordPage } from "./ForgotPasswordPage";
 
 export function LoginPage() {
-  const { login, loggingIn } = useAuth();
+  const { login, loginWith2fa, loggingIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [forgotting, setForgotting] = useState(false);
+  // 2FA step-up state.
+  const [twoFactorToken, setTwoFactorToken] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState("");
 
   if (forgotting) return <ForgotPasswordPage onDone={() => setForgotting(false)} />;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    // Step 2 of 2FA — submit the OTP against the step-up token.
+    if (twoFactorToken) {
+      if (!otpCode) {
+        toast.error("من فضلك أدخل رمز التحقق");
+        return;
+      }
+      try {
+        await loginWith2fa(twoFactorToken, otpCode);
+        toast.success("تم تسجيل الدخول بنجاح");
+      } catch (err) {
+        toast.error(getErrorMessage(err, "ar"));
+      }
+      return;
+    }
     if (!email || !password) {
       toast.error("من فضلك أدخل البريد وكلمة المرور");
       return;
     }
     try {
-      await login(email, password);
+      const res = await login(email, password);
+      if (isTwoFactorChallenge(res)) {
+        // Backend wants a second factor — show the OTP input.
+        setTwoFactorToken(res.twoFactorToken);
+        toast("أدخل رمز التحقق الثنائي");
+        return;
+      }
       toast.success("تم تسجيل الدخول بنجاح");
     } catch (err) {
       toast.error(getErrorMessage(err, "ar"));
@@ -215,6 +239,47 @@ export function LoginPage() {
           </button>
         </div>
 
+        {/* 2FA OTP — shown only after a step-up challenge */}
+        {twoFactorToken && (
+          <>
+            <label
+              style={{
+                display: "block",
+                fontSize: 12,
+                color: "#cbd5e1",
+                marginBottom: 6,
+                fontWeight: 600,
+              }}
+            >
+              رمز التحقق الثنائي
+            </label>
+            <input
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              autoFocus
+              placeholder="------"
+              disabled={loggingIn}
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 10,
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(124,58,237,0.4)",
+                color: "white",
+                fontSize: 18,
+                letterSpacing: 6,
+                marginBottom: 24,
+                outline: "none",
+                direction: "ltr",
+                textAlign: "center",
+                fontFamily: "inherit",
+              }}
+            />
+          </>
+        )}
+
         {/* Submit */}
         <button
           type="submit"
@@ -235,7 +300,11 @@ export function LoginPage() {
             transition: "transform 0.15s",
           }}
         >
-          {loggingIn ? "جاري الدخول..." : "تسجيل الدخول"}
+          {loggingIn
+            ? "جاري الدخول..."
+            : twoFactorToken
+              ? "تأكيد الرمز"
+              : "تسجيل الدخول"}
         </button>
 
         <button
