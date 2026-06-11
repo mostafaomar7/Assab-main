@@ -1,5 +1,5 @@
 import "./_group.css";
-import { useState, useMemo, ReactNode, createContext, useContext, useRef, type MouseEvent as ReactMouseEvent } from "react";
+import { useState, useEffect, useMemo, ReactNode, createContext, useContext, useRef, type MouseEvent as ReactMouseEvent } from "react";
 import {
   KeyRound, Webhook, History,
   LayoutDashboard, TrendingUp, Wallet, ShoppingCart, Package, Building2, Clock,
@@ -1485,15 +1485,8 @@ function AppShell({ state, ops, approveOp, rejectOp, finalApproveOp, bulkApprove
 }) {
   const { lang, setLang, t: tL, dir } = useLang();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [adminUsers, setAdminUsers] = useState<AdminUserData[]>([
-    { name:"أحمد محمد الشهري", email:"ahmed@asab.sa",   phone:"0501234567", role:"محاسب",         brands:["علامة الريم"],                           restaurants:["مطعم الريم — العليا","مطعم الريم — جدة"], branches:[],                     modules:["المبيعات","المصروفات","المشتريات","المخزون"], reportsTo:"خالد العمري",  scope:"restaurant", status:"active" },
-    { name:"سارة العمري",      email:"sara@asab.sa",    phone:"0507654321", role:"محاسب",         brands:["علامة هرفي"],                             restaurants:["هرفي — الرياض"],                          branches:[],                     modules:["المبيعات","المصروفات","المخزون","الشفتات"],    reportsTo:"خالد العمري",  scope:"restaurant", status:"active" },
-    { name:"خالد العمري",      email:"khaled@asab.sa",  phone:"0509876543", role:"رئيس حسابات",  brands:["علامة الريم","علامة هرفي","ماكدونالدز"],  restaurants:[],                                          branches:[],                     modules:["المبيعات","المصروفات","المشتريات","المخزون","الشفتات","كشف الحساب","العهد","الأصول"], reportsTo:"",  scope:"brand",      status:"active" },
-    { name:"أحمد الشمري",      email:"shammari@asab.sa",phone:"0503456789", role:"مدير فرع",     brands:["علامة الريم"],                            restaurants:["مطعم الريم — العليا"],                     branches:["فرع العليا الرئيسي"], modules:["المبيعات","المصروفات"],                         reportsTo:"أحمد محمد الشهري", scope:"branch", status:"active" },
-    { name:"محمد الحربي",      email:"harbi@asab.sa",   phone:"0505678901", role:"محاسب",         brands:["ماكدونالدز"],                             restaurants:["ماكدونالدز — الرياض"],                     branches:[],                     modules:["المبيعات","المصروفات","المشتريات"],              reportsTo:"خالد العمري",  scope:"restaurant", status:"inactive" },
-    { name:"فاطمة السالم",     email:"fatima@asab.sa",  phone:"0501122334", role:"محاسب",         brands:["بروستد الوطني"],                          restaurants:["بروستد — الطائف"],                         branches:[],                     modules:["المبيعات","المصروفات"],                         reportsTo:"خالد العمري",  scope:"restaurant", status:"active" },
-    { name:"فهد الحربي",       email:"fahad@asab.sa",   phone:"0509988776", role:"مدير مشتريات", brands:["علامة الريم","علامة هرفي"],               restaurants:[],                                          branches:[],                     modules:["المشتريات"],                                    reportsTo:"",          scope:"brand",      status:"active" },
-  ]);
+  // Seeded empty; AdminUsers syncs this from GET /admin/users (useAdminUsers).
+  const [adminUsers, setAdminUsers] = useState<AdminUserData[]>([]);
 
   const role = state.role!;
   const profile = ROLE_PROFILES[role];
@@ -9298,15 +9291,17 @@ function HeadERP({ ops, markErpPosted }:PageProps) {
 function AdminOverview({ navigate, setModal }:PageProps) {
   const { data: apiOverview } = useAdminOverview();
   const { t, dir } = useLang();
-  const totalRestsLocal   = BRANDS_DATA.reduce((s,b)=>s+b.restaurants.length,0);
-  const totalBranchesLocal = BRANDS_DATA.reduce((s,b)=>s+b.restaurants.reduce((ss,r)=>ss+r.branches.length,0),0);
-  const expiringBrands = BRANDS_DATA.filter(b=>b.subStatus==="warning"||b.subStatus==="danger"||b.subStatus==="expired");
   const o = (apiOverview as any) ?? {};
-  const brandsCount      = o.brandsCount      ?? BRANDS_DATA.length;
-  const totalRests       = o.restaurantsCount ?? totalRestsLocal;
-  const totalBranches    = o.branchesCount    ?? totalBranchesLocal;
-  const activeUsers      = o.activeUsersCount ?? 7;
-  const expiringCount    = o.expiringSubscriptionsCount ?? expiringBrands.length;
+  const kpis = (o.kpis as any) ?? {};
+  // Brand hierarchy rows come straight from the API (id, name, abbr, color,
+  // restaurantCount, branchCount, plan, subStatus, daysLeft). No static fallback.
+  const brandHierarchy: any[] = Array.isArray(o.brandHierarchy) ? o.brandHierarchy : [];
+  const expiringBrands = brandHierarchy.filter((b:any)=>b.subStatus==="warning"||b.subStatus==="danger"||b.subStatus==="expired");
+  const brandsCount      = kpis.brandCount ?? 0;
+  const totalRests       = kpis.restaurantCount ?? 0;
+  const totalBranches    = kpis.branchCount ?? 0;
+  const activeUsers      = kpis.activeUserCount ?? 0;
+  const expiringCount    = kpis.brandsNeedingRenewal ?? expiringBrands.length;
 
   return (
     <div className="space-y-5" dir={dir}>
@@ -9319,24 +9314,27 @@ function AdminOverview({ navigate, setModal }:PageProps) {
       </div>
 
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label={t("علامات تجارية","Brands")} value={String(brandsCount)} sub={t("4 علامات نشطة","4 active brands")} icon={<span className="text-xl font-bold text-purple-600">B</span>} accent="purple"/>
+        <KpiCard label={t("علامات تجارية","Brands")} value={String(brandsCount)} sub={t("علامات نشطة","active brands")} icon={<span className="text-xl font-bold text-purple-600">B</span>} accent="purple"/>
         <KpiCard label={t("مطاعم وفروع","Restaurants & Branches")} value={`${totalRests} / ${totalBranches}`} sub={t("مطعم / فرع","restaurant / branch")} icon={<Home size={18} className="text-blue-600"/>} accent="blue"/>
-        <KpiCard label={t("مستخدمون نشطون","Active Users")} value={String(activeUsers)} sub={t("5 محاسبين · 1 رئيس","5 accountants · 1 head")} icon={<Users size={18} className="text-emerald-600"/>} accent="emerald"/>
+        <KpiCard label={t("مستخدمون نشطون","Active Users")} value={String(activeUsers)} sub={t("مستخدم نشط","active users")} icon={<Users size={18} className="text-emerald-600"/>} accent="emerald"/>
         <KpiCard label={t("تحتاج تجديد","Need Renewal")} value={String(expiringCount)} sub={t("علامات تجارية","brands")} icon={<AlertTriangle size={18} className="text-amber-500"/>} accent="amber"/>
       </div>
 
       <div className="grid grid-cols-2 gap-5">
         <Card title={t("هيكل العلامات التجارية","Brand Hierarchy")} actions={<button onClick={()=>navigate("admin-restaurants")} className="text-xs text-purple-600 hover:underline">{t("إدارة كاملة","Full management")}</button>}>
           <div className="divide-y divide-gray-50">
-            {BRANDS_DATA.map(b=>{
-              const branchCount = b.restaurants.reduce((s,r)=>s+r.branches.length,0);
+            {brandHierarchy.length === 0 && (
+              <div className="px-4 py-10 text-center text-gray-400 text-sm">{t("لا توجد علامات تجارية","No brands")}</div>
+            )}
+            {brandHierarchy.map((b:any)=>{
+              const branchCount = b.branchCount ?? 0;
               const subBadge = b.subStatus==="active"?"bg-emerald-50 text-emerald-600":b.subStatus==="expired"?"bg-red-50 text-red-600":"bg-amber-50 text-amber-600";
               return (
                 <div key={b.id} className="px-4 py-3 flex items-center gap-3 hover:bg-gray-50/50 cursor-pointer" onClick={()=>navigate("admin-restaurants")}>
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{background:b.color}}>{b.abbr}</div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm text-gray-800">{b.name}</p>
-                    <p className="text-xs text-gray-400">{b.restaurants.length} {t("مطاعم","restaurants")} · {branchCount} {t("فروع","branches")} · {t("باقة","plan")} {b.plan}</p>
+                    <p className="text-xs text-gray-400">{b.restaurantCount ?? 0} {t("مطاعم","restaurants")} · {branchCount} {t("فروع","branches")} · {t("باقة","plan")} {b.plan}</p>
                   </div>
                   <Badge className={`text-[10px] ${subBadge}`}>{b.subStatus==="active"?t("نشط","Active"):b.subStatus==="expired"?t("منتهي","Expired"):t("ينتهي قريباً","Expiring soon")}</Badge>
                   <ChevronRight size={13} className="text-gray-300"/>
@@ -9393,9 +9391,13 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
   setUsers:(v:any)=>void;
 }) {
   const { t, dir } = useLang();
-  useAdminUsers();
+  const { data: apiUsers } = useAdminUsers();
   const { data: distApi } = useAdminDistribution();
   const importUsersMut = useImportAdminUsers();
+  // Sync the user list from the API (GET /admin/users). No static seed.
+  useEffect(() => {
+    if (Array.isArray(apiUsers)) setUsers(apiUsers as any);
+  }, [apiUsers]);
   const importFileRef = useRef<HTMLInputElement>(null);
   const [search,     setSearch]     = useState("");
   const [roleFilter, setRoleFilter] = useState("");
@@ -9407,30 +9409,18 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
   const [headSel,  setHeadSel]   = useState<string|null>("h1");
   const [accSel,   setAccSel]    = useState<string|null>("acc1");
   type DistAcc = { id:string; name:string; avatar:string; headId:string|null; restaurants:string[] };
-  const DIST_ACCS_FALLBACK: DistAcc[] = [
-    { id:"acc1", name:"أحمد محمد الشهري", avatar:"أ", headId:"h1", restaurants:["مطعم الريم — العليا","مطعم الريم — جدة","هرفي — الرياض"] },
-    { id:"acc2", name:"سارة العمري",      avatar:"س", headId:"h1", restaurants:["هرفي — جدة","ماكدونالدز — الرياض"] },
-    { id:"acc3", name:"محمد الحربي",      avatar:"م", headId:"h2", restaurants:["هرفي — مكة","ماكدونالدز — الدمام"] },
-    { id:"acc4", name:"فاطمة السالم",     avatar:"ف", headId:"h2", restaurants:["بروستد الوطني — الطائف"] },
-    { id:"acc5", name:"خلود العتيبي",     avatar:"خ", headId:null,  restaurants:[] },
-  ];
-  const [distAccs, setDistAccs]  = useState<DistAcc[]>(DIST_ACCS_FALLBACK);
-  const DIST_HEADS_FALLBACK = [
-    { id:"h1", name:"خالد العمري",  avatar:"خ", color:"bg-amber-100 text-amber-700" },
-    { id:"h2", name:"نورة السعيد",  avatar:"ن", color:"bg-purple-100 text-purple-700" },
-  ];
-  const distHeads = (((distApi as any)?.heads?.length>0)
+  // Distribution data is driven entirely by GET /admin/distribution. No static fallback.
+  const [distAccs, setDistAccs]  = useState<DistAcc[]>([]);
+  useEffect(() => {
+    const accs = (distApi as any)?.accountants;
+    if (Array.isArray(accs)) setDistAccs(accs as DistAcc[]);
+  }, [distApi]);
+  const distHeads = (Array.isArray((distApi as any)?.heads)
     ? (distApi as any).heads
-    : DIST_HEADS_FALLBACK) as typeof DIST_HEADS_FALLBACK;
-  const ALL_RESTS_FALLBACK = [
-    "مطعم الريم — العليا","مطعم الريم — جدة",
-    "هرفي — الرياض","هرفي — جدة","هرفي — مكة",
-    "ماكدونالدز — الرياض","ماكدونالدز — الدمام",
-    "بروستد الوطني — الطائف",
-  ];
-  const ALL_RESTS = (((distApi as any)?.allRestaurants?.length>0)
+    : []) as Array<{ id:string; name:string; avatar?:string; color?:string }>;
+  const ALL_RESTS = (Array.isArray((distApi as any)?.allRestaurants)
     ? (distApi as any).allRestaurants
-    : ALL_RESTS_FALLBACK) as typeof ALL_RESTS_FALLBACK;
+    : []) as string[];
   const assignedRests = distAccs.flatMap(a=>a.restaurants);
   const freeRests     = ALL_RESTS.filter(r=>!assignedRests.includes(r));
   const accsUnderHead = distAccs.filter(a=>a.headId===headSel);
@@ -9444,10 +9434,9 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
 
   // ── Module distribution ──
   const { data: modulesLookup } = useLookup("modules");
-  const DIST_MODULES_FALLBACK = ["المبيعات","المصروفات","المشتريات","المخزون","الأصول الثابتة","الشفتات","الموظفين","العهد المالية"];
-  const DIST_MODULES = ((modulesLookup as any)?.length > 0
+  const DIST_MODULES = (Array.isArray(modulesLookup)
     ? (modulesLookup as any[]).map((m: any) => m.labelAr ?? m.name ?? m.value)
-    : DIST_MODULES_FALLBACK) as string[];
+    : []) as string[];
   const [distModeType, setDistModeType] = useState<"restaurant"|"module"|"heads">("restaurant");
   const [modAccSel, setModAccSel] = useState<string>("acc1");
   const [modAccFilter, setModAccFilter] = useState("");
@@ -10164,11 +10153,15 @@ function AdminRestaurants({}: PageProps) {
   // Only adopt the API shape when it includes nested restaurants/branches; otherwise
   // fall back to the mock tree so the UI stays renderable while backend backfills nesting.
   const apiBrands = brandsApi as any;
+  // Drive entirely from GET /admin/brands. When the API returns brands with
+  // nested restaurants/branches we render the full tree; otherwise we render
+  // whatever brands came back (flat) — never static mock data.
   const apiHasNesting = Array.isArray(apiBrands)
     && apiBrands.length > 0
-    && Array.isArray(apiBrands[0]?.restaurants)
-    && Array.isArray(apiBrands[0]?.restaurants?.[0]?.branches);
-  const BRANDS = (apiHasNesting ? apiBrands : BRANDS_DATA) as typeof BRANDS_DATA;
+    && Array.isArray(apiBrands[0]?.restaurants);
+  const BRANDS = (apiHasNesting
+    ? apiBrands.map((b:any)=>({ ...b, restaurants: (b.restaurants ?? []).map((r:any)=>({ ...r, branches: r.branches ?? [] })) }))
+    : []) as typeof BRANDS_DATA;
   const { t, dir } = useLang();
   const [expandedBrand, setExpandedBrand]   = useState<string|null>("reem");
   const [expandedRest,  setExpandedRest]    = useState<string|null>(null);
@@ -10679,17 +10672,40 @@ function AdminRestaurants({}: PageProps) {
 }
 
 function AdminSubscriptions({}: PageProps) {
-  useAdminSubscriptions(); // primes cache; component uses local state seeded from BRANDS_DATA.
+  const { data: apiSubs } = useAdminSubscriptions();
   const renewMut = useRenewSubscription();
   const changePlanMut = useChangeSubscriptionPlan();
   const suspendSubMut = useSuspendSubscription();
   const activateSubMut = useActivateSubscription();
   const { t, dir } = useLang();
-  const [subs, setSubs] = useState(BRANDS_DATA.map(b=>({...b})));
+  // Driven by GET /admin/subscriptions — mapped into the card render shape. No static seed.
+  type SubCard = {
+    id:string; name:string; abbr:string; color:string; owner:string; plan:string;
+    subStatus:"active"|"warning"|"danger"|"expired"; expires:string; daysLeft:number;
+    monthlyPrice?:number; restaurants:any[]; modules:string[];
+  };
+  const [subs, setSubs] = useState<SubCard[]>([]);
   const [expandedSub, setExpandedSub] = useState<string|null>(null);
-  const [autoReminders, setAutoReminders] = useState<Record<string,boolean>>(
-    Object.fromEntries(BRANDS_DATA.map(b=>[b.id, b.subStatus!=="active"]))
-  );
+  const [autoReminders, setAutoReminders] = useState<Record<string,boolean>>({});
+  useEffect(() => {
+    if (!Array.isArray(apiSubs)) return;
+    const mapped: SubCard[] = apiSubs.map((s:any)=>({
+      id: s.id,
+      name: s.brandName ?? s.name ?? "—",
+      abbr: (s.brandName ?? s.name ?? "؟").toString().slice(0,2),
+      color: s.color ?? "#7C3AED",
+      owner: s.owner ?? s.ownerEmail ?? "",
+      plan: s.plan,
+      subStatus: (s.status ?? "active") as SubCard["subStatus"],
+      expires: s.expiresAt ?? "",
+      daysLeft: s.daysLeft ?? 0,
+      monthlyPrice: s.monthlyPrice,
+      restaurants: Array.isArray(s.restaurants) ? s.restaurants : [],
+      modules: Array.isArray(s.modules) ? s.modules : [],
+    }));
+    setSubs(mapped);
+    setAutoReminders(Object.fromEntries(apiSubs.map((s:any)=>[s.id, !!s.reminderEnabled])));
+  }, [apiSubs]);
   const statusCls = { active:"border-emerald-200 bg-emerald-50/20",warning:"border-amber-200 bg-amber-50/20",danger:"border-red-200 bg-red-50/20",expired:"border-red-300 bg-red-50/30" };
   const statusBadgeCls = { active:"bg-emerald-50 text-emerald-700",warning:"bg-amber-50 text-amber-700",danger:"bg-red-50 text-red-700",expired:"bg-red-100 text-red-800" };
   const statusLabel = { active:t("اشتراك نشط","Active Subscription"),warning:t("ينتهي قريباً","Expiring Soon"),danger:t("إنذار انتهاء","Expiry Alert"),expired:t("منتهي الاشتراك","Subscription Expired") };
@@ -10858,7 +10874,28 @@ function AdminCompanies({ navigate }:PageProps) {
   const createCompanyMut = useCreateAdminCompany();
   const { t, dir } = useLang();
   const apiCompaniesArr = (apiCompanies as any)?.data ?? (apiCompanies as any);
-  const [companies, setCompanies] = useState<CompanySub[]>((apiCompaniesArr as any[])?.length > 0 ? (apiCompaniesArr as CompanySub[]) : INITIAL_COMPANIES);
+  // Driven by GET /admin/companies. No static seed; map into the card shape with
+  // safe defaults so missing fields never crash the filters/reducers below.
+  const [companies, setCompanies] = useState<CompanySub[]>([]);
+  useEffect(() => {
+    if (!Array.isArray(apiCompaniesArr)) return;
+    setCompanies(apiCompaniesArr.map((c:any)=>{
+      const m:any = {
+        brands:0, restaurants:0, branches:0, usedBranches:0, users:0, maxUsers:0,
+        monthlyRevenue:0, daysLeft:0, startDate:"", nextBilling:"", logo:"🏢",
+        plan:"Basic", status:"active", modules:[], adminEmail:"", contactName:"",
+        contactEmail:"", contactPhone:"", city:"", name:"—", ...c,
+      };
+      return {
+        ...m,
+        contactName: m.contactName ?? "", contactEmail: m.contactEmail ?? "",
+        contactPhone: m.contactPhone ?? "", city: m.city ?? "", name: m.name ?? "—",
+        usedBranches: m.usedBranches ?? 0, users: m.users ?? 0,
+        monthlyRevenue: m.monthlyRevenue ?? 0, daysLeft: m.daysLeft ?? 0,
+        modules: Array.isArray(m.modules) ? m.modules : [],
+      };
+    }) as CompanySub[]);
+  }, [apiCompanies]); // eslint-disable-line react-hooks/exhaustive-deps
   const [filter, setFilter]   = useState<"all"|CompanyPlan|"trial"|"suspended">("all");
   const [search, setSearch]   = useState("");
   const [selected, setSelected] = useState<CompanySub|null>(null);
@@ -11197,6 +11234,7 @@ function AdminCompanies({ navigate }:PageProps) {
 
 function AdminReports({}: PageProps) {
   const { data: apiReportsCatalog } = useAdminReportsCatalog();
+  const { data: brandsApiForReports } = useAdminBrands();
   const { t, lang, dir } = useLang(); const en = lang==="en";
   const rL = (r:{id:string;label:string}) => en ? (EN_NAV_LABELS[r.id]||r.label) : r.label;
   const rS = (r:{id:string;sub:string})   => en ? (EN_REPORT_SUBS[r.id]||r.sub)   : r.sub;
@@ -11204,7 +11242,7 @@ function AdminReports({}: PageProps) {
   const [activeReport, setActiveReport] = useState<string|null>(null);
   const [step,         setStep]         = useState(0);
   const [uploaded,     setUploaded]     = useState(false);
-  const [sentReports,  setSentReports]  = useState<Set<string>>(new Set(["pl","sales-channel"]));
+  const [sentReports,  setSentReports]  = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState("pl");
   const [addRestModal, setAddRestModal] = useState(false);
 
@@ -11221,25 +11259,25 @@ function AdminReports({}: PageProps) {
     { id:"op-profit",    label:"الربحية التشغيلية",        sub:"مؤشرات الأداء ومقارنات القطاع",      icon:"🏆", tc:"text-indigo-700", bc:"bg-indigo-50",brd:"border-indigo-200" },
     { id:"menu-eng",     label:"هندسة القوائم",            sub:"مؤشرات الأداء ومقارنات القطاع",      icon:"🍽️", tc:"text-cyan-700",   bc:"bg-cyan-50",  brd:"border-cyan-200"   },
   ];
-  const apiCatalog = (apiReportsCatalog as any[]) ?? [];
+  // Report catalog comes from GET /admin/reports/catalog (mapped to render shape).
+  // The coreReports/specializedReports list is feature config (identical per tenant)
+  // used only when the API catalog is empty — not tenant data.
+  const apiCatalog = (Array.isArray(apiReportsCatalog) ? apiReportsCatalog : []).map((r:any)=>({
+    id: r.key ?? r.id, label: r.label ?? "", sub: r.description ?? r.sub ?? "",
+    icon: r.icon ?? "📄", tc:"text-purple-700", bc:"bg-purple-50", brd:"border-purple-200",
+  }));
   const allReportsFallback = [...coreReports,...specializedReports];
   const allReports = (apiCatalog.length > 0 ? apiCatalog as any : allReportsFallback) as typeof allReportsFallback;
 
-  const RESTAURANTS = [
-    { id:"r1", name:"مطعم الريم — العليا",   owner:"فيصل الريم",             email:"faisal@reem.sa"        },
-    { id:"r2", name:"مطعم الريم — جدة",     owner:"فيصل الريم",             email:"faisal@reem.sa"        },
-    { id:"r3", name:"هرفي — الرياض",        owner:"طلال الحسين",            email:"talal@herfy.sa"        },
-    { id:"r4", name:"هرفي — جدة",          owner:"طلال الحسين",            email:"talal@herfy.sa"        },
-    { id:"r5", name:"هرفي — مكة",          owner:"طلال الحسين",            email:"talal@herfy.sa"        },
-    { id:"r6", name:"ماكدونالدز — الرياض",  owner:"شركة المطعم العالمي",    email:"ops@mcd-sa.com"        },
-    { id:"r7", name:"ماكدونالدز — الدمام",  owner:"شركة المطعم العالمي",    email:"ops@mcd-sa.com"        },
-    { id:"r8", name:"بروستد الوطني",        owner:"محمد السعيد",            email:"msaeed@broasted.sa"    },
-  ];
+  // Restaurants are flattened from GET /admin/brands. No static list.
+  const RESTAURANTS = (Array.isArray(brandsApiForReports)
+    ? (brandsApiForReports as any[]).flatMap((b:any)=>(b.restaurants ?? []).map((r:any)=>({
+        id:r.id, name:r.name, owner:b.ownerEmail ?? "", email:b.ownerEmail ?? "",
+      })))
+    : []) as Array<{ id:string; name:string; owner:string; email:string }>;
 
-  const [repStatus, setRepStatus] = useState<Record<string,Record<string,{sent:boolean;sentDate:string;viewed:boolean;viewedDate:string}>>>({
-    "pl":          { r1:{sent:true,sentDate:"1 أكتوبر",viewed:true, viewedDate:"2 أكتوبر"}, r2:{sent:true,sentDate:"1 أكتوبر",viewed:true, viewedDate:"3 أكتوبر"}, r3:{sent:true,sentDate:"1 أكتوبر",viewed:false,viewedDate:""}, r4:{sent:true,sentDate:"1 أكتوبر",viewed:false,viewedDate:""}, r5:{sent:true,sentDate:"1 أكتوبر",viewed:true, viewedDate:"5 أكتوبر"}, r6:{sent:false,sentDate:"",viewed:false,viewedDate:""}, r7:{sent:false,sentDate:"",viewed:false,viewedDate:""}, r8:{sent:false,sentDate:"",viewed:false,viewedDate:""} },
-    "sales-channel":{ r1:{sent:true,sentDate:"1 أكتوبر",viewed:true, viewedDate:"2 أكتوبر"}, r2:{sent:true,sentDate:"1 أكتوبر",viewed:false,viewedDate:""}, r3:{sent:false,sentDate:"",viewed:false,viewedDate:""}, r4:{sent:false,sentDate:"",viewed:false,viewedDate:""}, r5:{sent:false,sentDate:"",viewed:false,viewedDate:""}, r6:{sent:false,sentDate:"",viewed:false,viewedDate:""}, r7:{sent:false,sentDate:"",viewed:false,viewedDate:""}, r8:{sent:false,sentDate:"",viewed:false,viewedDate:""} },
-  });
+  // Send/view tracking starts empty — populated by sendReport(); no fake status.
+  const [repStatus, setRepStatus] = useState<Record<string,Record<string,{sent:boolean;sentDate:string;viewed:boolean;viewedDate:string}>>>({});
   const getStatus = (repId:string, restId:string) => repStatus[repId]?.[restId] || {sent:false,sentDate:"",viewed:false,viewedDate:""};
 
   const sendReport = (repId:string) => {
@@ -11585,19 +11623,19 @@ function AdminAudit({}: PageProps) {
   const { data: apiAuditLogs } = useAdminAuditLogs();
   const exportAuditMut = useExportAdminAuditLogs();
   const { t, lang, dir } = useLang(); const en = lang==="en";
-  const LOGS_FALLBACK = [
-    {action:"إضافة مستخدم جديد",           user:"الأدمن",                        time:"10:30 ص",icon:"👤",type:"مستخدمين", date:"اليوم"},
-    {action:"اعتماد نهائي لـ 45 عملية",    user:"خالد العمري — رئيس الحسابات",  time:"10:15 ص",icon:"✅",type:"اعتمادات",  date:"اليوم"},
-    {action:"تجديد اشتراك مطعم هرفي",      user:"الأدمن",                        time:"9:45 ص", icon:"💳",type:"اشتراكات",  date:"اليوم"},
-    {action:"رفض عملية EXP-0441",           user:"أحمد محمد الشهري",              time:"9:30 ص", icon:"❌",type:"رفض",        date:"اليوم"},
-    {action:"تصدير بيانات ERP",             user:"خالد العمري",                   time:"9:00 ص", icon:"🔗",type:"تصدير",      date:"اليوم"},
-    {action:"تحديث أصناف الجرد اليومي",    user:"أحمد محمد الشهري",              time:"8:45 ص", icon:"📦",type:"مخزون",      date:"اليوم"},
-    {action:"تعديل صلاحيات دور المحاسب",   user:"الأدمن",                        time:"أمس 14:30",icon:"🔑",type:"صلاحيات", date:"أمس"},
-    {action:"حذف مستخدم: عمر السعد",       user:"الأدمن",                        time:"أمس 11:00",icon:"🗑️",type:"مستخدمين",date:"أمس"},
-    {action:"اعتماد طلب شراء PO-8821",     user:"سارة العمري",                   time:"أمس 09:15",icon:"🛒",type:"مشتريات",  date:"أمس"},
-  ];
+  // Driven by GET /admin/audit-logs — mapped to the row render shape. No static fallback.
+  type AuditRow = { action:string; user:string; time:string; icon:string; type:string; date:string };
   const apiLogsArr = (apiAuditLogs as any)?.data ?? (apiAuditLogs as any);
-  const ALL_LOGS = (((apiLogsArr as any)?.length > 0 ? (apiLogsArr as any) : LOGS_FALLBACK)) as typeof LOGS_FALLBACK;
+  const ALL_LOGS: AuditRow[] = Array.isArray(apiLogsArr)
+    ? (apiLogsArr as any[]).map((l:any)=>({
+        action: l.action ?? l.description ?? "",
+        user: l.actorName ?? l.user ?? "",
+        time: l.occurredAt ? new Date(l.occurredAt).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}) : "",
+        icon: "📋",
+        type: l.entityType ?? l.type ?? "",
+        date: l.occurredAt ? new Date(l.occurredAt).toLocaleDateString("ar-SA") : "",
+      }))
+    : [];
   const allVal = t("الكل","All");
   const todayVal = t("اليوم","Today");
   const yestVal = t("أمس","Yesterday");
@@ -11698,7 +11736,8 @@ function AdminPermissions({}: PageProps) {
     none:    "bg-gray-50 text-gray-300 border-gray-100",
   };
   const permLabel: Record<Permission,string> = { view:t("عرض","View"), submit:t("إدخال","Enter"), review:t("مراجعة","Review"), approve:t("اعتماد","Approve"), final:t("نهائي","Final"), none:"—" };
-  const roles = [t("محاسب","Accountant"),t("رئيس حسابات","Head Acc"),t("مدير فرع","Branch Mgr"),t("مدير مشتريات","Proc Mgr"),t("مورد","Supplier"),t("أدمن","Admin")];
+  const apiRoles = Array.isArray((permsApi as any)?.roles) ? (permsApi as any).roles as string[] : null;
+  const roles = apiRoles ?? [t("محاسب","Accountant"),t("رئيس حسابات","Head Acc"),t("مدير فرع","Branch Mgr"),t("مدير مشتريات","Proc Mgr"),t("مورد","Supplier"),t("أدمن","Admin")];
   const scopeRow: Record<string,string> = {
     [t("محاسب","Accountant")]:t("علامة/مطعم محدد","Specific brand/restaurant"),
     [t("رئيس حسابات","Head Acc")]:t("علامة محددة","Specific brand"),
@@ -11716,22 +11755,12 @@ function AdminPermissions({}: PageProps) {
     [t("أدمن","Admin")]:"bg-red-50 text-red-700",
   };
 
-  const MATRIX_FALLBACK: {module:string; perms: Permission[]}[] = [
-    { module:"المبيعات",         perms:["review","final","submit","none","none","approve"] },
-    { module:"المصروفات",        perms:["review","final","submit","none","none","approve"] },
-    { module:"المشتريات",        perms:["review","final","none","approve","submit","approve"] },
-    { module:"المخزون",          perms:["review","final","submit","none","none","approve"] },
-    { module:"الشفتات",          perms:["view","final","submit","none","none","approve"] },
-    { module:"كشف الحساب",       perms:["review","final","view","none","none","approve"] },
-    { module:"العهد النقدية",    perms:["review","final","submit","none","none","approve"] },
-    { module:"الأصول الثابتة",   perms:["review","final","submit","none","none","approve"] },
-    { module:"تصدير ERP",        perms:["none","approve","none","none","none","approve"] },
-    { module:"إدارة المستخدمين", perms:["none","none","none","none","none","approve"] },
-    { module:"إدارة الاشتراكات", perms:["none","none","none","none","none","approve"] },
-  ];
-  const [matrix, setMatrix] = useState<{module:string; perms: Permission[]}[]>(
-    (((permsApi as any)?.matrix?.length>0) ? (permsApi as any).matrix : MATRIX_FALLBACK) as typeof MATRIX_FALLBACK
-  );
+  // Permission matrix is driven by GET /admin/permissions. No static fallback.
+  const [matrix, setMatrix] = useState<{module:string; perms: Permission[]}[]>([]);
+  useEffect(() => {
+    const m = (permsApi as any)?.matrix;
+    if (Array.isArray(m)) setMatrix(m as { module:string; perms: Permission[] }[]);
+  }, [permsApi]);
   const [editMode,  setEditMode]  = useState(false);
   const [saved,     setSaved]     = useState(false);
   const [changes,   setChanges]   = useState(0);
