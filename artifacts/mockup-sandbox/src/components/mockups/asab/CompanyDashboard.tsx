@@ -742,7 +742,7 @@ const NAV:Record<CRole,NavEntry[]> = {
     { section:"الرئيسية" },
     { id:"head-dashboard",  label:"لوحة التحكم",        icon:<LayoutDashboard size={16}/> },
     { section:"الاعتماد" },
-    { id:"head-pending",    label:"بانتظار الاعتماد",   icon:<Clock size={16}/>, badge:INITIAL_OPS.filter(o=>o.status==="approved").length },
+    { id:"head-pending",    label:"بانتظار الاعتماد",   icon:<Clock size={16}/> },
     { id:"head-approved",   label:"المعتمدة نهائياً",   icon:<CheckCircle2 size={16}/>    },
     { id:"head-rejected",   label:"المرفوضة",            icon:<XCircle size={16}/>         },
     { section:"الموديولات" },
@@ -1306,27 +1306,27 @@ function CADashboard({ navigate }:{ navigate:(p:string)=>void }) {
   const { t, dir } = useCLang();
   const { data: apiDashboard } = useCompanyAdminDashboard();
   const { data: apiSub } = useCompanySubscription();
+  // All figures come from GET /company/me/dashboard + /subscription. No static fallback.
   const apiKpis = (apiDashboard?.kpis ?? {}) as Record<string, number | string>;
   const apiTotals = (apiDashboard?.totals ?? {}) as Record<string, number>;
+  const apiBrands = Array.isArray(apiDashboard?.brands) ? apiDashboard!.brands! : [];
   const totalSalesM = (apiKpis.totalSalesHalalas as number | undefined) != null
     ? Math.round(((apiKpis.totalSalesHalalas as number) / 100))
-    : ALL_BRANCHES.reduce((s,b)=>s+b.salesM,0);
+    : 0;
   const totalExpM   = (apiKpis.totalExpensesHalalas as number | undefined) != null
     ? Math.round(((apiKpis.totalExpensesHalalas as number) / 100))
-    : ALL_BRANCHES.reduce((s,b)=>s+b.expM,0);
-  const brandsCount      = apiTotals.brandsCount      ?? BRANDS.length;
-  const restaurantsCount = apiTotals.restaurantsCount ?? BRANDS.reduce((s,b)=>s+b.restaurants.length,0);
-  const branchesCount    = apiTotals.branchesCount    ?? ALL_BRANCHES.length;
-  const usersCount       = apiTotals.usersCount       ?? 31;
+    : 0;
+  const brandsCount      = apiTotals.brandsCount      ?? apiBrands.length;
+  const restaurantsCount = apiTotals.restaurantsCount ?? apiBrands.reduce((s,b)=>s+(b.restaurantsCount ?? 0),0);
+  const branchesCount    = apiTotals.branchesCount    ?? apiBrands.reduce((s,b)=>s+(b.branchesCount ?? 0),0);
+  const usersCount       = apiTotals.usersCount       ?? 0;
   const usage = (apiSub?.usage ?? {}) as Record<string, { used: number; max: number | null }>;
-  const branchesMax = usage.branches?.max ?? 20;
-  const usersMax    = usage.users?.max    ?? 50;
-  const planPrice   = apiSub
-    ? Math.round((((apiSub as any).priceHalalas as number) ?? 0) / 100) || 4800
-    : 4800;
-  const daysRemaining = apiSub?.daysRemaining ?? 87;
-  const branchCompletionRate = (apiKpis.branchCompletionRate as number | undefined) ?? 83;
-  const branchesAboveTarget  = (apiKpis.branchesAboveTarget  as number | undefined) ?? 10;
+  const branchesMax = usage.branches?.max ?? 0;
+  const usersMax    = usage.users?.max    ?? 0;
+  const planPrice   = Math.round((((apiSub as any)?.priceHalalas as number) ?? 0) / 100);
+  const daysRemaining = apiSub?.daysRemaining ?? 0;
+  const branchCompletionRate = (apiKpis.branchCompletionRate as number | undefined) ?? 0;
+  const branchesAboveTarget  = (apiKpis.branchesAboveTarget  as number | undefined) ?? 0;
   const statItems:[string,string,string,string][] = [
     [t("العلامات","Brands"),       `${brandsCount} / ∞`,"",""],
     [t("المطاعم","Restaurants"),   `${restaurantsCount} / ∞`,"",""],
@@ -1337,8 +1337,8 @@ function CADashboard({ navigate }:{ navigate:(p:string)=>void }) {
     <div className="space-y-5" dir={dir}>
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">{t("مرحباً،","Welcome,")} {COMPANY.name} 🏢</h2>
-          <p className="text-gray-400 text-sm mt-0.5">{t("خطة","Plan")} {t(PLAN_AR[COMPANY.plan]||COMPANY.plan, COMPANY.plan)} · {branchesCount} {t("فرع","branches")} · {brandsCount} {t("علامات تجارية","brands")}</p>
+          <h2 className="text-xl font-bold text-gray-800">{t("مرحباً،","Welcome,")} {apiDashboard?.company?.name ?? COMPANY.name} 🏢</h2>
+          <p className="text-gray-400 text-sm mt-0.5">{t("خطة","Plan")} {t(PLAN_AR[(apiDashboard?.company?.plan ?? COMPANY.plan)]||(apiDashboard?.company?.plan ?? COMPANY.plan), (apiDashboard?.company?.plan ?? COMPANY.plan))} · {branchesCount} {t("فرع","branches")} · {brandsCount} {t("علامات تجارية","brands")}</p>
         </div>
         <button onClick={()=>navigate("ca-subscription")} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 shadow-sm">
           <CreditCard size={14}/> {t("إدارة الاشتراك","Manage Subscription")}
@@ -1368,19 +1368,22 @@ function CADashboard({ navigate }:{ navigate:(p:string)=>void }) {
         <KpiCard label={t("معدل إنجاز الفروع","Branch Completion Rate")}    value={`${branchCompletionRate}%`} sub={t(`${branchesAboveTarget} من ${branchesCount} فرع فوق الهدف`,`${branchesAboveTarget} of ${branchesCount} branches above target`)} icon={<CheckCircle2 size={18} className="text-blue-600"/>} accent="blue"/>
       </div>
       <div className="grid grid-cols-3 gap-4">
-        {BRANDS.map(b=>{
-          const brs=b.restaurants.flatMap(r=>r.branches);
-          const sales=brs.reduce((s,br)=>s+br.salesM,0);
-          const target=brs.reduce((s,br)=>s+br.target,0);
-          const pct=Math.round((sales/target)*100);
+        {apiBrands.length===0 && (
+          <div className="col-span-3 bg-white rounded-xl border border-gray-100 shadow-sm p-8 text-center text-gray-400 text-sm">{t("لا توجد بيانات علامات تجارية بعد","No brand data yet")}</div>
+        )}
+        {apiBrands.map(b=>{
+          const sales=Math.round((b.monthlySalesHalalas ?? 0)/100);
+          const target=Math.round((b.monthlyTargetHalalas ?? 0)/100);
+          const pct=target>0?Math.round((sales/target)*100):0;
+          const color=b.color ?? "#7C3AED";
           return (
             <div key={b.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold" style={{background:b.color}}>{b.abbr}</div>
-                <div><p className="font-bold text-gray-800 text-sm">{b.name}</p><p className="text-[10px] text-gray-400">{brs.length} {t("فروع","branches")}</p></div>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold" style={{background:color}}>{b.abbr}</div>
+                <div><p className="font-bold text-gray-800 text-sm">{b.name}</p><p className="text-[10px] text-gray-400">{b.branchesCount ?? 0} {t("فروع","branches")}</p></div>
               </div>
               <div className="flex justify-between text-xs text-gray-500 mb-1"><span>{t("المبيعات vs الهدف","Sales vs Target")}</span><span>{pct}%</span></div>
-              <div className="w-full h-2 bg-gray-100 rounded-full mb-2"><div className="h-2 rounded-full" style={{width:`${Math.min(100,pct)}%`,background:b.color}}/></div>
+              <div className="w-full h-2 bg-gray-100 rounded-full mb-2"><div className="h-2 rounded-full" style={{width:`${Math.min(100,pct)}%`,background:color}}/></div>
               <div className="flex justify-between text-[11px]"><span className="text-gray-500">{fmt(sales)} {t("ر.س","SAR")}</span><span className="text-gray-400">{t("هدف:","Target:")} {fmt(target)}</span></div>
             </div>
           );
@@ -1397,28 +1400,22 @@ function CASubscription() {
   const { data: apiSub } = useCompanySubscription();
   const { data: apiPlans = [] } = useCompanyPlans();
   const [billing,setBilling]=useState<"annual"|"monthly">("annual");
-  const PLANS_INLINE = [
-    { id:"basic",plan:"Basic",price_m:199,price_a:1990,features:[t("5 فروع","5 Branches"),t("15 مستخدم","15 Users"),t("4 وحدات","4 Modules"),t("دعم بريد","Email support")],current:false },
-    { id:"professional",plan:"Professional",price_m:400,price_a:4800,features:[t("20 فرعاً","20 Branches"),t("50 مستخدم","50 Users"),t("كل الوحدات","All modules"),t("مدير حساب","Account manager"),t("تقارير متقدمة","Advanced reports")],current:true },
-    { id:"enterprise",plan:"Enterprise",price_m:null,price_a:null,features:[t("فروع غير محدودة","Unlimited branches"),t("مستخدمون غير محدودون","Unlimited users"),"SLA 99.9%",t("API مفتوح","Open API")],current:false },
-  ];
-  const plans = apiPlans.length > 0
-    ? apiPlans.map(p => ({
-        id: p.id,
-        plan: p.name,
-        price_m: p.priceMonthlyHalalas != null ? Math.round(p.priceMonthlyHalalas / 100) : null,
-        price_a: p.priceAnnualHalalas  != null ? Math.round(p.priceAnnualHalalas  / 100) : null,
-        features: p.features ?? [],
-        current: p.isCurrent ?? false,
-      }))
-    : PLANS_INLINE;
+  // Driven by GET /company/plans. No static fallback.
+  const plans = apiPlans.map(p => ({
+    id: p.id,
+    plan: p.name,
+    price_m: p.priceMonthlyHalalas != null ? Math.round(p.priceMonthlyHalalas / 100) : null,
+    price_a: p.priceAnnualHalalas  != null ? Math.round(p.priceAnnualHalalas  / 100) : null,
+    features: p.features ?? [],
+    current: p.isCurrent ?? false,
+  }));
   const usage = (apiSub?.usage ?? {}) as Record<string, { used: number; max: number | null }>;
-  const branchesUsed = usage.branches?.used ?? 12;
-  const branchesMax  = usage.branches?.max  ?? 20;
-  const usersUsed    = usage.users?.used    ?? 31;
-  const usersMax     = usage.users?.max     ?? 50;
-  const storageUsed  = usage.storageGB?.used ?? 2.4;
-  const storageMax   = usage.storageGB?.max  ?? 10;
+  const branchesUsed = usage.branches?.used ?? 0;
+  const branchesMax  = usage.branches?.max  ?? 0;
+  const usersUsed    = usage.users?.used    ?? 0;
+  const usersMax     = usage.users?.max     ?? 0;
+  const storageUsed  = usage.storageGB?.used ?? 0;
+  const storageMax   = usage.storageGB?.max  ?? 0;
   const currentPlanName = apiSub?.planName ?? "Professional";
   const currentPlanPriceAnnual = (apiPlans.find(p => p.isCurrent)?.priceAnnualHalalas != null)
     ? Math.round((apiPlans.find(p => p.isCurrent)!.priceAnnualHalalas as number) / 100)
@@ -1475,26 +1472,17 @@ function CAUsers() {
   const toggleMut = useToggleCompanyUserStatus();
   const inviteMut = useCreateCompanyInvitation();
   const updateUserMut = useUpdateCompanyUser();
-  const [localUsers,setLocalUsers]=useState<U[]>([
-    { id:"U1",name:"أحمد العمري",    role:"رئيس الحسابات", branch:"—",             email:"ahmed@altaj.com", status:"active",  last:"اليوم"  },
-    { id:"U2",name:"سارة الشهري",   role:"محاسب",         branch:"برغر التاج",   email:"sara@altaj.com",  status:"active",  last:"أمس"    },
-    { id:"U3",name:"محمد الحربي",   role:"محاسب",         branch:"بيتزا التاج",  email:"m.ali@altaj.com", status:"active",  last:"أمس"    },
-    { id:"U4",name:"فاطمة السالم",  role:"مدير فرع",      branch:"فرع العليا",   email:"f.s@altaj.com",   status:"active",  last:"اليوم"  },
-    { id:"U5",name:"خالد العتيبي",  role:"مدير فرع",      branch:"فرع الحمراء",  email:"k.o@altaj.com",   status:"active",  last:"3 أيام" },
-    { id:"U6",name:"نورة الزهراني", role:"مدير مشتريات",  branch:"—",             email:"n.z@altaj.com",   status:"active",  last:"اليوم"  },
-    { id:"U7",name:"عبدالله الدوسري",role:"مدير فرع",     branch:"فرع الكورنيش", email:"a.d@altaj.com",   status:"inactive",last:"أسبوع"  },
-  ]);
-  const users: U[] = apiUsers.length > 0
-    ? apiUsers.map((u): U => ({
-        id: u.id,
-        name: u.name,
-        role: u.roleLabel || u.roleKey,
-        branch: u.branchName || "—",
-        email: u.email,
-        status: u.status === "active" ? "active" : "inactive",
-        last: u.lastActiveAt || "",
-      }))
-    : localUsers;
+  // Driven by GET /company/me/users. No static seed.
+  const [localUsers,setLocalUsers]=useState<U[]>([]);
+  const users: U[] = apiUsers.map((u): U => ({
+    id: u.id,
+    name: u.name,
+    role: u.roleLabel || u.roleKey,
+    branch: u.branchName || "—",
+    email: u.email,
+    status: u.status === "active" ? "active" : "inactive",
+    last: u.lastActiveAt || "",
+  }));
   const [showAdd,setShowAdd]=useState(false);
   const [search,setSearch]=useState("");
   const toggle=(id:string)=>{
@@ -1546,18 +1534,34 @@ function CAUsers() {
 
 function CABranches() {
   const { t, dir } = useCLang();
-  useCompanyBrands(); // ensures cache freshness; UI keeps using the rich inline tree
+  const { data: apiBrandsTree = [] } = useCompanyBrands();
   const createBranchMut = useCreateBranch();
-  const [expandedBrand,setExpandedBrand]=useState<string>("B1");
-  const totalSales=ALL_BRANCHES.reduce((s,b)=>s+b.salesM,0);
+  // Brand → restaurant → branch tree driven entirely by GET /company/me/brands.
+  type BTBranch = { id:string; name:string; city:string; mgr:string; salesM:number; target:number };
+  type BTRest = { id:string; name:string; branches:BTBranch[] };
+  type BTBrand = { id:string; name:string; abbr:string; color:string; restaurants:BTRest[] };
+  const brandsTree: BTBrand[] = (apiBrandsTree as any[]).map((b:any)=>({
+    id: b.id, name: b.name, abbr: b.abbr ?? (b.name ?? "؟").toString().slice(0,2), color: b.color ?? "#7C3AED",
+    restaurants: (b.restaurants ?? []).map((r:any):BTRest=>({
+      id: r.id, name: r.name,
+      branches: (r.branches ?? []).map((br:any):BTBranch=>({
+        id: br.id, name: br.name, city: br.city ?? "", mgr: br.managerName ?? "—",
+        salesM: Math.round((br.monthlySalesHalalas ?? 0)/100),
+        target: Math.round((br.monthlyTargetHalalas ?? 0)/100),
+      })),
+    })),
+  }));
+  const allBranchesTree: BTBranch[] = brandsTree.flatMap(b=>b.restaurants.flatMap(r=>r.branches));
+  const [expandedBrand,setExpandedBrand]=useState<string>("");
+  const totalSales=allBranchesTree.reduce((s:number,b:any)=>s+b.salesM,0);
   const [showAddBranch,setShowAddBranch]=useState(false);
   const [newBranchName,setNewBranchName]=useState("");
-  const [newBranchBrand,setNewBranchBrand]=useState(BRANDS[0].name);
+  const [newBranchBrand,setNewBranchBrand]=useState("");
   const [newBranchCity,setNewBranchCity]=useState("الرياض");
   return (
     <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
-        <div><h2 className="text-xl font-bold text-gray-800">{t("العلامات التجارية والفروع","Brands & Branches")}</h2><p className="text-gray-400 text-sm">{BRANDS.length} {t("علامات","brands")} · {ALL_BRANCHES.length} {t("فرع","branches")}</p></div>
+        <div><h2 className="text-xl font-bold text-gray-800">{t("العلامات التجارية والفروع","Brands & Branches")}</h2><p className="text-gray-400 text-sm">{brandsTree.length} {t("علامات","brands")} · {allBranchesTree.length} {t("فرع","branches")}</p></div>
         <Btn variant="primary" onClick={()=>setShowAddBranch(true)}><Plus size={13}/> {t("إضافة فرع","Add Branch")}</Btn>
       </div>
       {showAddBranch&&(
@@ -1566,25 +1570,28 @@ function CABranches() {
             <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">{t("إضافة فرع جديد","Add New Branch")}</h3><button onClick={()=>setShowAddBranch(false)} className="text-gray-400 hover:text-gray-600"><X size={18}/></button></div>
             <div className="space-y-3">
               <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("اسم الفرع","Branch Name")}</label><input value={newBranchName} onChange={e=>setNewBranchName(e.target.value)} placeholder={t("مثال: فرع حي الياسمين...","e.g. Al-Yasmin district branch...")} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("العلامة التجارية","Brand")}</label><select value={newBranchBrand} onChange={e=>setNewBranchBrand(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none">{BRANDS.map(b=><option key={b.id}>{b.name}</option>)}</select></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("العلامة التجارية","Brand")}</label><select value={newBranchBrand} onChange={e=>setNewBranchBrand(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option value="">{t("اختر علامة","Select brand")}</option>{brandsTree.map(b=><option key={b.id}>{b.name}</option>)}</select></div>
               <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("المدينة","City")}</label><select value={newBranchCity} onChange={e=>setNewBranchCity(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>الرياض</option><option>جدة</option><option>الدمام</option><option>مكة المكرمة</option></select></div>
-              <div className="flex gap-2 justify-end pt-1"><Btn onClick={()=>setShowAddBranch(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={()=>{if(!newBranchName){alert(t("أدخل اسم الفرع","Enter branch name"));return;}createBranchMut.mutate({ restaurantId: BRANDS.find(b=>b.name===newBranchBrand)?.restaurants[0].id || "", name: newBranchName, city: newBranchCity });setShowAddBranch(false);setNewBranchName("");}}><Plus size={13}/> {t("إضافة","Add")}</Btn></div>
+              <div className="flex gap-2 justify-end pt-1"><Btn onClick={()=>setShowAddBranch(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={()=>{if(!newBranchName){alert(t("أدخل اسم الفرع","Enter branch name"));return;}createBranchMut.mutate({ restaurantId: brandsTree.find(b=>b.name===newBranchBrand)?.restaurants[0]?.id || "", name: newBranchName, city: newBranchCity });setShowAddBranch(false);setNewBranchName("");}}><Plus size={13}/> {t("إضافة","Add")}</Btn></div>
             </div>
           </div>
         </div>
       )}
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label={t("العلامات التجارية","Brands")}           value={String(BRANDS.length)} sub={t("تحت إدارة المجموعة","Under group management")} icon={<Star size={18} className="text-amber-600"/>} accent="amber"/>
-        <KpiCard label={t("إجمالي المطاعم","Total Restaurants")}  value={String(BRANDS.reduce((s,b)=>s+b.restaurants.length,0))} sub={t("مطعم","restaurant")} icon={<Home size={18} className="text-blue-600"/>} accent="blue"/>
-        <KpiCard label={t("الفروع النشطة","Active Branches")}     value={String(ALL_BRANCHES.length)} sub={t("فرع من 20 مسموح","of 20 allowed")} icon={<Building2 size={18} className="text-emerald-600"/>} accent="emerald"/>
+        <KpiCard label={t("العلامات التجارية","Brands")}           value={String(brandsTree.length)} sub={t("تحت إدارة المجموعة","Under group management")} icon={<Star size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("إجمالي المطاعم","Total Restaurants")}  value={String(brandsTree.reduce((s,b)=>s+b.restaurants.length,0))} sub={t("مطعم","restaurant")} icon={<Home size={18} className="text-blue-600"/>} accent="blue"/>
+        <KpiCard label={t("الفروع النشطة","Active Branches")}     value={String(allBranchesTree.length)} sub={t("فرع","branches")} icon={<Building2 size={18} className="text-emerald-600"/>} accent="emerald"/>
         <KpiCard label={t("إجمالي مبيعات شهرية","Monthly Sales")} value={`${fmt(Math.round(totalSales/1000))}K`} sub={t("ر.س","SAR")} icon={<TrendingUp size={18} className="text-purple-600"/>} accent="purple"/>
       </div>
       <div className="space-y-3">
-        {BRANDS.map(brand=>(
+        {brandsTree.length===0 && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8 text-center text-gray-400 text-sm">{t("لا توجد علامات تجارية بعد","No brands yet")}</div>
+        )}
+        {brandsTree.map(brand=>(
           <div key={brand.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <button className="w-full px-5 py-4 flex items-center gap-4 hover:bg-gray-50/50" onClick={()=>setExpandedBrand(expandedBrand===brand.id?"":brand.id)}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold" style={{background:brand.color}}>{brand.abbr}</div>
-              <div className={`flex-1 ${dir==="rtl"?"text-right":"text-left"}`}><p className="font-bold text-gray-800">{brand.name}</p><p className="text-xs text-gray-400">{brand.restaurants.length} {t("مطاعم","restaurants")} · {brand.restaurants.flatMap(r=>r.branches).length} {t("فروع","branches")}</p></div>
+              <div className={`flex-1 ${dir==="rtl"?"text-right":"text-left"}`}><p className="font-bold text-gray-800">{brand.name}</p><p className="text-xs text-gray-400">{brand.restaurants.length} {t("مطاعم","restaurants")} · {brand.restaurants.flatMap((r:any)=>r.branches).length} {t("فروع","branches")}</p></div>
               <div className={dir==="rtl"?"text-left":"text-right"}><p className="font-mono font-bold text-gray-800 text-sm">{fmt(brand.restaurants.flatMap(r=>r.branches).reduce((s,b)=>s+b.salesM,0))} {t("ر.س","SAR")}</p><p className="text-[10px] text-gray-400">{t("مبيعات شهرية","Monthly sales")}</p></div>
               <ChevronDown size={14} className={`text-gray-400 transition-transform ${expandedBrand===brand.id?"rotate-180":""}`}/>
             </button>
@@ -1622,30 +1629,19 @@ function CAModules() {
   const { data: apiMods = [] } = useCompanyModules();
   const toggleModuleMut = useToggleCompanyModule();
   type Mod = { id:string;nameAr:string;nameEn:string;descAr:string;descEn:string;icon:string;active:boolean;inPlan:boolean };
-  const [localMods,setLocalMods]=useState<Mod[]>([
-    { id:"sales",    nameAr:"المبيعات",       nameEn:"Sales",        descAr:"تتبع المبيعات اليومية لجميع الفروع",        descEn:"Track daily sales across all branches",          icon:"💰",active:true, inPlan:true  },
-    { id:"expenses", nameAr:"المصروفات",      nameEn:"Expenses",     descAr:"إدارة المصروفات بموافقات متعددة المستويات", descEn:"Manage expenses with multi-level approvals",     icon:"💸",active:true, inPlan:true  },
-    { id:"purchases",nameAr:"المشتريات",      nameEn:"Purchases",    descAr:"أوامر الشراء والموردون ومطابقة الفواتير",   descEn:"Purchase orders, suppliers & invoice matching", icon:"🛒",active:true, inPlan:true  },
-    { id:"inventory",nameAr:"المخزون",        nameEn:"Inventory",    descAr:"الجرد اليومي والشهري ومستويات المخزون",     descEn:"Daily & monthly inventory & stock levels",       icon:"📦",active:true, inPlan:true  },
-    { id:"assets",   nameAr:"الأصول الثابتة",nameEn:"Fixed Assets", descAr:"تسجيل الأصول والاستهلاك وسجل العهدة",       descEn:"Asset registration, depreciation & custody",     icon:"🏢",active:true, inPlan:true  },
-    { id:"shifts",   nameAr:"الشفتات",        nameEn:"Shifts",       descAr:"جداول العمل وإغلاق الشفت",                  descEn:"Work schedules and shift closing",                icon:"🕐",active:true, inPlan:true  },
-    { id:"waste",    nameAr:"الهدر والتالف",  nameEn:"Waste",        descAr:"تتبع هدر الخامات والمسؤولية",               descEn:"Track raw material waste & responsibility",       icon:"🗑",active:false,inPlan:true  },
-    { id:"emp",      nameAr:"كشف الحساب",     nameEn:"Payroll",      descAr:"رواتب وسلف الموظفين",                       descEn:"Employee salaries & advances",                    icon:"👥",active:false,inPlan:false },
-    { id:"cash",     nameAr:"العهدة النقدية", nameEn:"Cash Custody", descAr:"إدارة الخزينة والعهدة اليومية",             descEn:"Treasury & daily cash custody management",       icon:"💵",active:false,inPlan:false },
-  ]);
+  // Driven by GET /company/me/modules. No static seed.
+  const [localMods,setLocalMods]=useState<Mod[]>([]);
   const ICONS:Record<string,string> = { sales:"💰", expenses:"💸", purchases:"🛒", inventory:"📦", assets:"🏢", shifts:"🕐", waste:"🗑", emp:"👥", cash:"💵" };
-  const mods: Mod[] = apiMods.length > 0
-    ? apiMods.map((m): Mod => ({
-        id: m.moduleKey,
-        nameAr: m.nameAr || m.moduleKey,
-        nameEn: m.nameEn || m.moduleKey,
-        descAr: m.descAr || "",
-        descEn: m.descEn || "",
-        icon: ICONS[m.moduleKey] || "📦",
-        active: m.isActive,
-        inPlan: m.inPlan,
-      }))
-    : localMods;
+  const mods: Mod[] = apiMods.map((m): Mod => ({
+    id: m.moduleKey,
+    nameAr: m.nameAr || m.moduleKey,
+    nameEn: m.nameEn || m.moduleKey,
+    descAr: m.descAr || "",
+    descEn: m.descEn || "",
+    icon: ICONS[m.moduleKey] || "📦",
+    active: m.isActive,
+    inPlan: m.inPlan,
+  }));
   const toggle=(id:string)=>{const m=mods.find(x=>x.id===id);if(!m?.inPlan){alert(t("يحتاج ترقية الخطة","Plan upgrade required"));return;}if(apiMods.length>0){toggleModuleMut.mutate({ moduleKey:id, isActive:!m.active });}else{setLocalMods(p=>p.map(x=>x.id===id?{...x,active:!x.active}:x));}};
   return (
     <div className="space-y-5" dir={dir}>
@@ -1684,14 +1680,11 @@ function CABilling() {
   const apiInvoices: any[] = Array.isArray(apiInvoicesPage)
     ? apiInvoicesPage
     : ((apiInvoicesPage as any)?.data ?? []);
-  const INVOICES_INLINE = [{id:"INV-2025-012",date:"01 يناير 2025",amount:4800},{id:"INV-2024-012",date:"01 يناير 2024",amount:3600}];
-  const invoices = apiInvoices.length > 0
-    ? apiInvoices.map((i: any) => ({
-        id: i.publicId || i.id,
-        date: i.issuedAt || i.createdAt || "",
-        amount: Math.round((i.totalHalalas || 0) / 100),
-      }))
-    : INVOICES_INLINE;
+  const invoices = apiInvoices.map((i: any) => ({
+    id: i.publicId || i.id,
+    date: i.issuedAt || i.createdAt || "",
+    amount: Math.round((i.totalHalalas || 0) / 100),
+  }));
   return (
     <div className="space-y-5" dir={dir}>
       <div><h2 className="text-xl font-bold text-gray-800">{t("الفواتير والمدفوعات","Invoices & Payments")}</h2></div>
@@ -1840,12 +1833,8 @@ function CASupport() {
   const [msgType,setMsgType]=useState(PLACEHOLDER);
   const [msgBody,setMsgBody]=useState("");
   const [sent,setSent]=useState(false);
-  const CHANNELS_FALLBACK=[
-    {ic:"💬",label:t("الدردشة الفورية","Live Chat"),       d:t("9 ص — 9 م","9 AM — 9 PM"),   b:t("متاح الآن","Available now"),    action:()=>alert(t("✅ سيتم فتح نافذة الدردشة — متاح الآن","✅ Chat window opening — available now"))},
-    {ic:"📞",label:t("الاتصال","Call"),                    d:"800 123 4567",                    b:t("أيام العمل","Business days"),  action:()=>alert(`📞 ${t("يمكنك الاتصال على:","You can call:")} 800 123 4567\n${t("أيام العمل 9 ص — 5 م","Business days 9 AM — 5 PM")}`)},
-    {ic:"📧",label:t("البريد","Email"),                    d:"support@asab.sa",                 b:t("خلال 24 ساعة","Within 24 hrs"),action:()=>alert(`📧 ${t("البريد الإلكتروني:","Email:")} support@asab.sa`)},
-  ];
-  const channels = ((apiChannels as any[])?.length > 0
+  // Support contact channels come from GET /company/me/support/channels. No static fallback.
+  const channels = (Array.isArray(apiChannels)
     ? (apiChannels as any[]).map((c: any) => ({
         ic: c.icon ?? "📞",
         label: c.label ?? c.name ?? "",
@@ -1853,7 +1842,7 @@ function CASupport() {
         b: c.availability ?? "",
         action: () => { if (c.link) window.open(c.link, "_blank"); },
       }))
-    : CHANNELS_FALLBACK) as typeof CHANNELS_FALLBACK;
+    : []) as Array<{ ic:string; label:string; d:string; b:string; action:()=>void }>;
   const handleSend=()=>{
     if(msgType===PLACEHOLDER){alert(t("يرجى تحديد نوع المشكلة","Please select an issue type"));return;}
     if(!msgBody.trim()){alert(t("يرجى شرح المشكلة أولاً","Please describe the issue first"));return;}
@@ -1919,13 +1908,20 @@ type HeadProps = {
 function HeadDashboard({ navigate, ops, finalApprove, reject, bulkFinalApprove }:HeadProps) {
   const { t, dir } = useCLang();
   const { data: apiHeadDash } = useHeadDashboard();
+  const { data: apiCompanyDash } = useCompanyAdminDashboard();
   const apiKpis = (apiHeadDash?.kpis ?? {}) as Record<string, number | string>;
   const awaitingHead  = ops.filter(o=>o.status==="approved");
   const finalApproved = ops.filter(o=>o.status==="final-approved");
   const rejected      = ops.filter(o=>o.status==="rejected");
+  // Brand performance comes from GET /company/me/dashboard. No static fallback.
+  const headBrands = (Array.isArray(apiCompanyDash?.brands) ? apiCompanyDash!.brands! : []).map(b=>({
+    id: b.id, name: b.name, abbr: b.abbr ?? (b.name ?? "؟").toString().slice(0,2), color: b.color ?? "#7C3AED",
+    sales: Math.round((b.monthlySalesHalalas ?? 0)/100),
+    target: Math.round((b.monthlyTargetHalalas ?? 0)/100),
+  }));
   const totalSalesM   = (apiKpis.totalSalesHalalas as number | undefined) != null
     ? Math.round(((apiKpis.totalSalesHalalas as number) / 100))
-    : ALL_BRANCHES.reduce((s,b)=>s+b.salesM,0);
+    : headBrands.reduce((s,b)=>s+b.sales,0);
   return (
     <div className="space-y-5" dir={dir}>
       <div className="flex items-start justify-between">
@@ -1951,12 +1947,13 @@ function HeadDashboard({ navigate, ops, finalApprove, reject, bulkFinalApprove }
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
         <h3 className="font-bold text-gray-800 text-sm mb-4">{t("أداء العلامات التجارية هذا الشهر","Brand Performance This Month")}</h3>
         <div className="space-y-4">
-          {BRANDS.map(b=>{
-            const brs=b.restaurants.flatMap(r=>r.branches);
-            const sales=brs.reduce((s,br)=>s+br.salesM,0);
-            const target=brs.reduce((s,br)=>s+br.target,0);
-            const exp=brs.reduce((s,br)=>s+br.expM,0);
-            const pct=Math.round((sales/target)*100);
+          {headBrands.length===0 && (
+            <div className="text-center text-gray-400 text-sm py-6">{t("لا توجد بيانات علامات تجارية بعد","No brand data yet")}</div>
+          )}
+          {headBrands.map(b=>{
+            const sales=b.sales;
+            const target=b.target;
+            const pct=target>0?Math.round((sales/target)*100):0;
             return (
               <div key={b.id} className="flex items-center gap-4">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{background:b.color}}>{b.abbr}</div>
@@ -1969,11 +1966,7 @@ function HeadDashboard({ navigate, ops, finalApprove, reject, bulkFinalApprove }
                 </div>
                 <div className={`flex-shrink-0 w-32 ${dir==="ltr"?"text-left":"text-right"}`}>
                   <p className="font-mono font-bold text-gray-800 text-xs">{fmt(sales)}</p>
-                  <p className="text-[10px] text-gray-400">{t("مصروفات:","Expenses:")} {fmt(exp)}</p>
-                </div>
-                <div className={`w-16 flex-shrink-0 ${dir==="ltr"?"text-left":"text-right"}`}>
-                  <p className={`font-bold text-sm ${sales-exp>0?"text-emerald-600":"text-red-500"}`}>{fmt(sales-exp)}</p>
-                  <p className="text-[10px] text-gray-400">{t("صافي","Net")}</p>
+                  <p className="text-[10px] text-gray-400">{t("الهدف:","Target:")} {fmt(target)}</p>
                 </div>
               </div>
             );
@@ -2193,10 +2186,7 @@ function HeadBrands() {
 function HeadAccountants() {
   const { t, dir } = useCLang();
   const { data: apiAccs = [] } = useAccountantsPerformance();
-  const ACCS_INLINE = [{ name:"سارة الشهري",brand:"برغر التاج",ops:47,pending:2},{ name:"محمد الحربي",brand:"بيتزا التاج",ops:38,pending:1},{ name:"هند القحطاني",brand:"مطعم التاج الراقي",ops:52,pending:3}];
-  const accs = apiAccs.length > 0
-    ? apiAccs.map(a => ({ name: a.name, brand: a.brandName || a.branchName || "—", ops: a.approvedCount + a.rejectedCount + (a.pendingCount ?? 0), pending: a.pendingCount ?? 0 }))
-    : ACCS_INLINE;
+  const accs = apiAccs.map(a => ({ name: a.name, brand: a.brandName || a.branchName || "—", ops: (a.approvedCount ?? 0) + (a.rejectedCount ?? 0) + (a.pendingCount ?? 0), pending: a.pendingCount ?? 0 }));
   return (
     <div className="space-y-5" dir={dir}>
       <div><h2 className="text-xl font-bold text-gray-800">{t("فريق المحاسبين","Accountants Team")}</h2></div>
@@ -2221,21 +2211,13 @@ function HeadReports() {
   const { t, dir } = useCLang();
   const { data: apiReports = [] } = useReports();
   const downloadReportMut = useDownloadReport();
-  const REPORTS_INLINE = [
-    {ar:"📊 تقرير الأرباح والخسائر", en:"📊 P&L Report",       dar:"P&L لكل علامة تجارية",   den:"P&L per brand",      file:"PL_Report_Mar2026.pdf"},
-    {ar:"📈 مقارنة الفروع",          en:"📈 Branch Comparison", dar:"أداء كل فرع مقابل الهدف",den:"Each branch vs target",file:"Branch_Comparison_Mar2026.pdf"},
-    {ar:"💰 ملخص المبيعات",          en:"💰 Sales Summary",     dar:"مبيعات شهرية وسنوية",    den:"Monthly & yearly sales",file:"Sales_Summary_Mar2026.pdf"},
-    {ar:"📉 تحليل المصروفات",        en:"📉 Expenses Analysis", dar:"تفصيل مصروفات كل علامة",den:"Expenses breakdown",   file:"Expenses_Analysis_Mar2026.pdf"},
-  ];
-  const reports = (apiReports as any[]).length > 0
-    ? (apiReports as any[]).map((r: any) => ({
-        ar: r.title || r.name || r.key,
-        en: r.titleEn || r.title || r.name || r.key,
-        dar: r.description || "",
-        den: r.descriptionEn || r.description || "",
-        file: r.key || r.id,
-      }))
-    : REPORTS_INLINE;
+  const reports = (Array.isArray(apiReports) ? apiReports as any[] : []).map((r: any) => ({
+    ar: r.title || r.name || r.key,
+    en: r.titleEn || r.title || r.name || r.key,
+    dar: r.description || "",
+    den: r.descriptionEn || r.description || "",
+    file: r.key || r.id,
+  }));
   return (
     <div className="space-y-5" dir={dir}>
       <div><h2 className="text-xl font-bold text-gray-800">{t("التقارير المالية","Financial Reports")}</h2></div>
@@ -2355,8 +2337,8 @@ function HeadReminders() {
     type: r.type,
     done: r.isDone,
   }));
-  const [localList, setLocalList] = useState<RemItem[]>(REMINDERS_INLINE);
-  const list: RemItem[] = apiList.length > 0 ? apiList : localList;
+  const [localList, setLocalList] = useState<RemItem[]>([]);
+  const list: RemItem[] = apiList;
   const toggle = (id: string | number) => {
     if (apiList.length > 0) {
       const r = list.find(x => x.id === id);
@@ -2451,7 +2433,7 @@ function HeadERP({ ops }:{ ops:COp[] }) {
 const DEFAULT_REJECT_REASON = "تحتاج مراجعة";
 
 function apiOpToCOp(op: ApiOperation): COp {
-  const brand = BRANDS.find(b=>b.name===op.brandName) ?? BRANDS[0];
+  const brand = BRANDS.find(b=>b.name===op.brandName);
   const moduleKey = (op.moduleKey as CModKey);
   const moduleLabel = (
     { sales:"مبيعات", expenses:"مصروفات", purchases:"مشتريات", inventory:"مخزون",
@@ -2461,8 +2443,8 @@ function apiOpToCOp(op: ApiOperation): COp {
   return {
     id: op.id,
     branch: op.branchName,
-    brandName: op.brandName ?? brand.name,
-    brandColor: brand.color,
+    brandName: op.brandName ?? brand?.name ?? "—",
+    brandColor: brand?.color ?? "#7C3AED",
     module: moduleKey,
     moduleLabel,
     amount: op.amountHalalas / 100,
@@ -2485,10 +2467,9 @@ function useSharedOps() {
 
   const ops: COp[] = useMemo(() => {
     const apiOps = opsQuery.data?.data;
-    if (apiOps && apiOps.length > 0) {
-      return apiOps.map(apiOpToCOp);
-    }
-    return INITIAL_OPS;
+    // Driven entirely by GET /company/me/operations. No static fallback —
+    // an empty list renders empty states, never mock operations.
+    return Array.isArray(apiOps) ? apiOps.map(apiOpToCOp) : [];
   }, [opsQuery.data]);
 
   const [rejectingId, setRejectingId] = useState<string | null>(null);
@@ -3103,12 +3084,21 @@ function AccCompanyInventory({ navigate, ops, approve, reject }:{ navigate:(p:st
   const [flaggedItems,     setFlaggedItems]     = useState<Record<string,number[]>>({});
   const [showItemPage,     setShowItemPage]     = useState(false);
 
-  // Live data + mutations
-  useInventoryBranches();
+  // Live data + mutations — branch inventory comes from GET /company/me/inventory/branches.
+  const { data: apiInvBranches } = useInventoryBranches();
   const flagBranchMut    = useFlagInventoryBranch();
   const markConfirmedMut = useMarkInventoryConfirmed();
   const sendNotifMut     = useSendInventoryNotification();
   const flagItemsMut     = useFlagInventoryItems();
+
+  // Normalize the API branches into the { branchName: items[] } shape this page renders. No static data.
+  const invData: Record<string,{ name:string; unit:string; prev:number; curr:number; cat:string }[]> =
+    Array.isArray(apiInvBranches)
+      ? Object.fromEntries((apiInvBranches as any[]).map((b:any)=>[
+          b.branchName ?? b.branchId,
+          (b.items ?? []).map((it:any)=>({ name: it.item ?? it.name ?? "", unit: it.unit ?? "", prev: it.prev ?? 0, curr: it.curr ?? 0, cat: it.cat ?? "" })),
+        ]))
+      : {};
 
   const mOps = ops.filter(o=>o.module==="inventory");
   const pending = mOps.filter(o=>o.status==="pending");
@@ -3132,8 +3122,8 @@ function AccCompanyInventory({ navigate, ops, approve, reject }:{ navigate:(p:st
     flagItemsMut.mutate({ branchId: branch, itemIds: (flaggedItems[branch]||[]).map(String) });
   };
 
-  const branchKeys = Object.keys(INV_BRANCH_DATA);
-  const anomalyCount = Object.values(INV_BRANCH_DATA).flat().filter(it=>{
+  const branchKeys = Object.keys(invData);
+  const anomalyCount = Object.values(invData).flat().filter(it=>{
     if(it.prev===0) return false;
     return Math.abs(((it.curr-it.prev)/it.prev)*100) > 50;
   }).length;
@@ -3179,8 +3169,11 @@ function AccCompanyInventory({ navigate, ops, approve, reject }:{ navigate:(p:st
           <h3 className="font-bold text-gray-900 text-sm">{invType==="monthly"?"الجرد الشهري — مقارنة الشهر الحالي بالسابق":"الجرد اليومي — معادلة المخزون"}</h3>
           <p className="text-[11px] text-gray-400 mt-0.5">{invType==="monthly"?"موافقة · تعليم · إرسال تأكيد لمدير الفرع":"رصيد الفتح + مشتريات − مبيعات ± تحويلات = رصيد الإغلاق"}</p>
         </div>
+        {branchKeys.length===0 && (
+          <div className="px-5 py-10 text-center text-gray-400 text-sm">{t("لا توجد بيانات جرد بعد","No inventory data yet")}</div>
+        )}
         {branchKeys.map(branch=>{
-          const items = INV_BRANCH_DATA[branch]||[];
+          const items = invData[branch]||[];
           const isExpanded = expandedBranch===branch;
           const isFlagged  = flaggedBranches.has(branch);
           const isConfirmed = branchConfirmed.has(branch);
@@ -3421,22 +3414,21 @@ function AccCompanyAssets() {
     { id:"A005",name:"طاولات وكراسي (20)",  branch:"فرع الدانة",   brand:"بيتزا التاج",     category:"أثاث",       value:15000,dep:3000, date:"مارس 2022",  mgr:"سعد الرشيد",    serial:"FR-2022-005",status:"maintenance" },
     { id:"A006",name:"نظام POS + شاشة",     branch:"فرع الملك فهد",brand:"مطعم التاج الراقي",category:"أجهزة",     value:12000,dep:2400, date:"يونيو 2024", mgr:"وليد السبيعي",  serial:"POS-2024-001",status:"active"     },
   ];
+  // Driven by GET /company/me/assets. No static fallback.
   const apiAssets = serverAssets?.data ?? [];
-  const assets = apiAssets.length > 0
-    ? apiAssets.map(a => ({
-        id: a.publicId,
-        name: a.name,
-        branch: a.branchName || "—",
-        brand: "—",
-        category: a.categoryName || "—",
-        value: a.purchasePriceHalalas / 100,
-        dep: Math.round((a.purchasePriceHalalas / 100) / Math.max(1, a.usefulLifeMonths / 12)),
-        date: a.acquiredDate,
-        mgr: "—",
-        serial: a.serialNumber || "—",
-        status: a.confirmed ? "active" : "maintenance",
-      }))
-    : fallbackAssets;
+  const assets = apiAssets.map(a => ({
+    id: a.publicId,
+    name: a.name,
+    branch: a.branchName || "—",
+    brand: "—",
+    category: a.categoryName || "—",
+    value: (a.purchasePriceHalalas ?? 0) / 100,
+    dep: Math.round(((a.purchasePriceHalalas ?? 0) / 100) / Math.max(1, (a.usefulLifeMonths ?? 12) / 12)),
+    date: a.acquiredDate,
+    mgr: "—",
+    serial: a.serialNumber || "—",
+    status: a.confirmed ? "active" : "maintenance",
+  }));
   const [search,setSearch]=useState("");
   const [catFilter,setCatFilter]=useState("الكل");
   const cats=["الكل",...new Set(assets.map(a=>a.category))];
@@ -3569,12 +3561,8 @@ function AccCompanyShifts({ ops }:{ ops:COp[] }) {
   const apiShifts = shiftsPage?.data ?? [];
   const apiLive = apiShifts.filter(s => s.status === "open");
   const apiHistory = apiShifts.filter(s => s.status === "closed");
-  const LIVE_SHIFTS = apiLive.length > 0
-    ? apiLive.map(s => ({ id: s.id, branch: s.branchName, brand: "—", cashier: s.supervisor, start: s.openedAt, openAmt: 0, estSales: s.salesHalalas / 100, ordersCount: s.ordersCount }))
-    : fallbackLive;
-  const HISTORY_SHIFTS = apiHistory.length > 0
-    ? apiHistory.map(s => ({ id: s.id, branch: s.branchName, brand: "—", cashier: s.supervisor, date: s.closedAt || s.openedAt, type: "—", openAmt: 0, closeAmt: s.cashHalalas / 100, sales: s.salesHalalas / 100, diff: 0 }))
-    : fallbackHistory;
+  const LIVE_SHIFTS = apiLive.map(s => ({ id: s.id, branch: s.branchName, brand: "—", cashier: s.supervisor, start: s.openedAt, openAmt: 0, estSales: (s.salesHalalas ?? 0) / 100, ordersCount: (s as any).ordersCount ?? 0 }));
+  const HISTORY_SHIFTS = apiHistory.map(s => ({ id: s.id, branch: s.branchName, brand: "—", cashier: s.supervisor, date: s.closedAt || s.openedAt, type: "—", openAmt: 0, closeAmt: (s.cashHalalas ?? 0) / 100, sales: (s.salesHalalas ?? 0) / 100, diff: 0 }));
   const ALL_BRANDS = ["الكل",...new Set([...LIVE_SHIFTS,...HISTORY_SHIFTS].map(s=>s.brand))];
   const shownLive    = LIVE_SHIFTS.filter(s=>brandFilter==="الكل"||s.brand===brandFilter);
   const shownHistory = HISTORY_SHIFTS.filter(s=>brandFilter==="الكل"||s.brand===brandFilter);
@@ -3585,9 +3573,7 @@ function AccCompanyShifts({ ops }:{ ops:COp[] }) {
     { id:"b2",name:"بيتزا التاج",  branches:["فرع الملقا","فرع الكورنيش"],                currentSetup:{morn:"08:00-16:00",eve:"16:00-00:00",openFloat:500} },
     { id:"b3",name:"مطعم التاج الراقي",branches:["فرع الورود","فرع الملك فهد"],          currentSetup:{morn:"11:00-19:00",eve:"19:00-03:00",openFloat:1000} },
   ];
-  const SETUP_BRANDS = serverConfigs.length > 0
-    ? serverConfigs.map(c => ({ id: c.brandId, name: c.brandName, branches: [] as string[], currentSetup: { morn: `${c.morningStart}-${c.morningEnd}`, eve: `${c.eveningStart}-${c.eveningEnd}`, openFloat: 0 } }))
-    : fallbackSetup;
+  const SETUP_BRANDS = serverConfigs.map(c => ({ id: c.brandId, name: c.brandName, branches: [] as string[], currentSetup: { morn: `${c.morningStart}-${c.morningEnd}`, eve: `${c.eveningStart}-${c.eveningEnd}`, openFloat: 0 } }));
 
   const TABS: { key:ShiftTab; label:string; icon:React.ReactNode }[] = [
     { key:"live",    label:"مباشر",   icon:<Activity size={13}/> },
@@ -3811,16 +3797,10 @@ function AccCompanyReminders() {
   const patchMut = usePatchReminder();
   const createMut = useCreateReminder();
   const deleteMut = useDeleteReminder();
-  const fallbackReminders: Reminder[] = [
-    { id:"R1",title:"رفع مبيعات فرع الحمراء",    desc:"الشفت المسائي لم يُرفع بعد",           due:"اليوم 11 م",  priority:"high",   done:false },
-    { id:"R2",title:"مطابقة فواتير المشتريات",    desc:"برغر التاج — فرع العليا",               due:"غداً",         priority:"medium", done:false },
-    { id:"R3",title:"تقرير مخزون نهاية الشهر",   desc:"جميع الفروع — تاريخ الاستحقاق 28 مارس",due:"28 مارس",     priority:"low",    done:false },
-    { id:"R4",title:"جرد الأصول الثابتة",         desc:"فرع الملقا — بيتزا التاج",              due:"30 مارس",     priority:"medium", done:true  },
-    { id:"R5",title:"مراجعة فروق الكاشير",       desc:"فرع الكورنيش — فرق 350 ر.س",            due:"اليوم",        priority:"high",   done:false },
-  ];
-  const reminders: Reminder[] = (serverReminders && serverReminders.length > 0)
+  // Driven by GET /company/me/reminders. No static fallback.
+  const reminders: Reminder[] = Array.isArray(serverReminders)
     ? serverReminders.map(r => ({ id: r.id, title: r.title, desc: r.description, due: r.dueAt, priority: r.priority, done: r.done }))
-    : fallbackReminders;
+    : [];
   const [showAdd,setShowAdd]=useState(false);
   const toggleDone=(id:string)=>{
     const r = reminders.find(x=>x.id===id);
@@ -3891,8 +3871,8 @@ function AccCompanyWaste() {
   const [expandedId,   setExpandedId]   = useState<string|null>(null);
   const [expandedProd, setExpandedProd] = useState<Record<string,number|null>>({});
 
-  // Live data hooks — backend may return data; local entries (below) act as optimistic fallback for richer dev UI
-  useWaste({ branchId: filterBranch === "الكل" ? undefined : filterBranch });
+  // Driven by GET /company/me/waste. No static seed.
+  const { data: apiWaste } = useWaste({ branchId: filterBranch === "الكل" ? undefined : filterBranch });
   const patchProductMut = usePatchWasteProduct();
   const putAllocsMut = usePutWasteAllocations();
   const approveWasteMut = useApproveWaste();
@@ -3900,27 +3880,29 @@ function AccCompanyWaste() {
   const bulkApproveWasteMut = useBulkApproveWaste();
   const exportWasteMut = useExportWaste();
 
-  const [entries, setEntries] = useState<WEntry[]>([
-    { id:"WD-001", branch:"فرع العليا",   brand:"برغر التاج",       date:"اليوم", status:"pending",
-      products:[
-        { name:"لحم مفروم",  qty:4.5, unit:"كجم",  unitPrice:80,  class_:"تالف", resp:"موظف", empAllocs:[{empId:"1001",empName:"أنس محمد",amount:"180"},{empId:"",empName:"",amount:""}] },
-        { name:"خبز برجر",   qty:30,  unit:"قطعة", unitPrice:3,   class_:"هدر",  resp:"مطعم", empAllocs:[{empId:"",empName:"",amount:""}] },
-      ]},
-    { id:"WD-002", branch:"فرع الحمراء",  brand:"برغر التاج",       date:"اليوم", status:"pending",
-      products:[
-        { name:"جبن شيدر",   qty:2,   unit:"كجم",  unitPrice:90,  class_:"تالف", resp:"موظف", empAllocs:[{empId:"1002",empName:"ليلى سالم",amount:"90"},{empId:"1003",empName:"راشد عمر",amount:"90"}] },
-        { name:"مايونيز",     qty:1.5, unit:"كجم",  unitPrice:25,  class_:"هدر",  resp:"مطعم", empAllocs:[{empId:"",empName:"",amount:""}] },
-      ]},
-    { id:"WD-003", branch:"فرع الملقا",   brand:"بيتزا التاج",      date:"أمس",   status:"approved",
-      products:[
-        { name:"جبن موزاريلا",qty:2,   unit:"كجم",  unitPrice:90,  class_:"تالف", resp:"موظف", empAllocs:[{empId:"1004",empName:"مها ناصر",amount:"180"}] },
-      ]},
-    { id:"WD-004", branch:"فرع الورود",   brand:"مطعم التاج الراقي",date:"أمس",   status:"pending",
-      products:[
-        { name:"دجاج طازج",  qty:6,   unit:"كجم",  unitPrice:70,  class_:"تالف", resp:"موظف", empAllocs:[{empId:"1005",empName:"فالح جاسم",amount:"420"}] },
-        { name:"صلصة خاصة",  qty:3,   unit:"لتر",  unitPrice:40,  class_:"هدر",  resp:"مطعم", empAllocs:[{empId:"",empName:"",amount:""}] },
-      ]},
-  ]);
+  const [entries, setEntries] = useState<WEntry[]>([]);
+  useEffect(() => {
+    const arr = (apiWaste as any)?.data ?? (apiWaste as any);
+    if (!Array.isArray(arr)) return;
+    setEntries(arr.map((e:any):WEntry=>({
+      id: e.id,
+      branch: e.branchName ?? e.branch ?? "—",
+      brand: e.brandName ?? e.brand ?? "—",
+      date: e.date ?? e.createdAt ?? "",
+      status: (e.status === "approved" || e.status === "rejected") ? e.status : "pending",
+      products: Array.isArray(e.products) ? e.products.map((p:any):WProduct=>({
+        name: p.name ?? "",
+        qty: p.qty ?? 0,
+        unit: p.unit ?? "",
+        unitPrice: p.unitPrice ?? (p.unitPriceHalalas != null ? p.unitPriceHalalas/100 : 0),
+        class_: (p.classification === "breakage" || p.class_ === "تالف") ? "تالف" : "هدر",
+        resp: (p.responsibility === "branch" || p.resp === "مطعم") ? "مطعم" : "موظف",
+        empAllocs: Array.isArray(p.allocations)
+          ? p.allocations.map((a:any):WAlloc=>({ empId: a.responsibleUserId ?? "", empName: a.responsibleUserName ?? "", amount: a.shareHalalas != null ? String(Math.round(a.shareHalalas/100)) : "" }))
+          : [{ empId:"", empName:"", amount:"" }],
+      })) : [],
+    })));
+  }, [apiWaste]);
 
   const updProd = (eid:string, pi:number, fn:(p:WProduct)=>WProduct) =>
     setEntries(prev=>prev.map(e=>e.id===eid?{...e,products:e.products.map((p,i)=>i===pi?fn(p):p)}:e));
@@ -4184,21 +4166,19 @@ function AccCompanyEmployees() {
   ];
 
   const apiEmps = employeesPage?.data ?? [];
-  const employees: Employee[] = apiEmps.length > 0
-    ? apiEmps.map((e): Employee => ({
-        id: e.empNumber || e.id,
-        name: e.name,
-        branch: e.branchName,
-        brand: "—",
-        role: e.role,
-        salary: e.monthlySalaryHalalas / 100,
-        advances: 0,
-        deductions: 0,
-        net: e.monthlySalaryHalalas / 100,
-        status: e.active ? "نشط" : "موقوف",
-        movements: [],
-      }))
-    : fallbackEmployees;
+  const employees: Employee[] = apiEmps.map((e): Employee => ({
+    id: e.empNumber || e.id,
+    name: e.name,
+    branch: e.branchName,
+    brand: "—",
+    role: e.role,
+    salary: (e.monthlySalaryHalalas ?? 0) / 100,
+    advances: 0,
+    deductions: 0,
+    net: (e.monthlySalaryHalalas ?? 0) / 100,
+    status: e.active ? "نشط" : "موقوف",
+    movements: [],
+  }));
 
   const filtered = employees.filter(e=>{
     if(searchTerm && !e.name.includes(searchTerm) && !e.branch.includes(searchTerm)) return false;
@@ -4209,15 +4189,13 @@ function AccCompanyEmployees() {
   const selected = selectedBase
     ? {
         ...selectedBase,
-        movements: serverMovements.length > 0
-          ? serverMovements.map(m => ({
-              date: m.date,
-              desc: m.notes || m.type,
-              type: (m.amountHalalas >= 0 ? "credit" : "debit") as "credit" | "debit",
-              amount: Math.abs(m.amountHalalas) / 100,
-              ref: m.id,
-            }))
-          : selectedBase.movements,
+        movements: serverMovements.map(m => ({
+          date: m.date,
+          desc: m.notes || m.type,
+          type: ((m.amountHalalas ?? 0) >= 0 ? "credit" : "debit") as "credit" | "debit",
+          amount: Math.abs(m.amountHalalas ?? 0) / 100,
+          ref: m.id,
+        })),
       }
     : null;
   const totalSalaries = employees.reduce((s,e)=>s+e.net,0);
@@ -4410,17 +4388,15 @@ function AccCompanyCash() {
       ], pendingTxns:0 },
   ];
 
-  const branches = serverCustody.length > 0
-    ? serverCustody.map(c => ({
-        branch: c.branchName,
-        brand: "—",
-        custodian: c.holderName,
-        amount: c.balanceHalalas / 100,
-        used: 0,
-        txns: [] as Array<{date:string; desc:string; type:string; amt:number}>, // lazy-loaded via useCashTransactions
-        pendingTxns: 0,
-      }))
-    : fallbackBranches;
+  const branches = serverCustody.map(c => ({
+    branch: c.branchName,
+    brand: "—",
+    custodian: c.holderName,
+    amount: (c.balanceHalalas ?? 0) / 100,
+    used: 0,
+    txns: [] as Array<{date:string; desc:string; type:string; amt:number}>, // lazy-loaded via useCashTransactions
+    pendingTxns: 0,
+  }));
 
   const filtered = branches.filter(b=>{
     if(searchTerm && !b.branch.includes(searchTerm) && !b.custodian.includes(searchTerm)) return false;
@@ -4563,9 +4539,7 @@ function AccCompanyReports() {
     { title:t("تقرير المخزون","Inventory Report"),                 date:"13 أكت 2025", type:t("مخزون","Inventory"),   size:"1.7 MB", key:"inventory" },
     { title:t("كشف الرواتب الشهري","Monthly Payroll Statement"),  date:"30 سبت 2025", type:t("موظفون","Employees"),  size:"0.5 MB", key:"payroll" },
   ];
-  const reports = serverReports.length > 0
-    ? serverReports.map(r => ({ title: r.title, date: "", type: r.category, size: "—", key: r.key }))
-    : fallbackReports;
+  const reports = serverReports.map(r => ({ title: r.title, date: "", type: r.category, size: "—", key: r.key }));
   return (
     <div className="space-y-5" dir={dir}>
       <div><h2 className="text-xl font-bold text-gray-800">{t("التقارير","Reports")}</h2><p className="text-gray-400 text-sm">{t("تقارير مجموعة التاج","Al-Taj Group reports")}</p></div>
@@ -4621,35 +4595,21 @@ function BranchOverview() {
   const SAR = t("ر.س","SAR");
   const apiKpis = (apiOverview?.kpis ?? {}) as Record<string, number | string>;
   const apiBranch = apiOverview?.branch;
-  const apiSalesM   = apiBranch?.monthlySalesHalalas    != null ? Math.round(apiBranch.monthlySalesHalalas    / 100) : MY_BRANCH.salesM;
-  const apiExpM     = apiBranch?.monthlyExpensesHalalas != null ? Math.round(apiBranch.monthlyExpensesHalalas / 100) : MY_BRANCH.expM;
-  const apiTarget   = apiBranch?.monthlyTargetHalalas   != null ? Math.round(apiBranch.monthlyTargetHalalas   / 100) : MY_BRANCH.target;
+  // All figures from GET /company/me/branch/overview. No static fallback.
+  const apiSalesM   = apiBranch?.monthlySalesHalalas    != null ? Math.round(apiBranch.monthlySalesHalalas    / 100) : 0;
+  const apiExpM     = apiBranch?.monthlyExpensesHalalas != null ? Math.round(apiBranch.monthlyExpensesHalalas / 100) : 0;
+  const apiTarget   = apiBranch?.monthlyTargetHalalas   != null ? Math.round(apiBranch.monthlyTargetHalalas   / 100) : 0;
   const todaySales  = (apiKpis.todaySalesHalalas as number | undefined) != null
     ? Math.round((apiKpis.todaySalesHalalas as number) / 100)
-    : 18340;
-  const branchName  = apiBranch?.name      || MY_BRANCH.name;
-  const branchBrand = apiBranch?.brandName || MY_BRANCH.brand;
-  const branchCity  = apiBranch?.city      || MY_BRANCH.city;
-  const pct = Math.round((apiSalesM/apiTarget)*100);
-  const TASKS_FALLBACK = [
-    [t("رفع مبيعات الشفت الصباحي","Upload morning shift sales"),t("مكتمل","Done"),"done"],
-    [t("رفع مصروفات اليوم","Upload today's expenses"),t("مكتمل","Done"),"done"],
-    [t("جرد المخزون اليومي","Daily inventory count"),t("معلق","Pending"),"pending"],
-    [t("إغلاق شفت المساء","Close evening shift"),t("لاحقاً","Later"),"later"],
-  ];
+    : 0;
+  const branchName  = apiBranch?.name      || "";
+  const branchBrand = apiBranch?.brandName || "";
+  const branchCity  = apiBranch?.city      || "";
+  const pct = apiTarget > 0 ? Math.round((apiSalesM/apiTarget)*100) : 0;
+  // Tasks/crew driven by the API. No static fallback.
   const apiMissing = apiOverview?.todayUploads?.missing ?? [];
-  const tasks = apiMissing.length > 0
-    ? apiMissing.map((m: string) => [m, t("معلق","Pending"), "pending"] as [string,string,string])
-    : TASKS_FALLBACK;
-  const CREW_FALLBACK = [
-    ["أنس محمد",t("كاشير","Cashier"),t("صباحي","Morning"),t("نشط","Active")],
-    ["ليلى سالم",t("كاشير","Cashier"),t("مسائي","Evening"),t("قادم","Incoming")],
-    ["فهد العمري",t("طاهٍ","Chef"),t("صباحي","Morning"),t("نشط","Active")],
-    ["سارة الغامدي",t("خدمة","Service"),t("مسائي","Evening"),t("نشط","Active")],
-  ];
-  const crew = (apiEmployees as any[]).length > 0
-    ? (apiEmployees as any[]).slice(0,4).map((e: any) => [e.name, e.role || "—", "", e.active ? t("نشط","Active") : t("غائب","Absent")] as [string,string,string,string])
-    : CREW_FALLBACK;
+  const tasks = apiMissing.map((m: string) => [m, t("معلق","Pending"), "pending"] as [string,string,string]);
+  const crew = (apiEmployees as any[]).slice(0,4).map((e: any) => [e.name, e.role || "—", "", e.active ? t("نشط","Active") : t("غائب","Absent")] as [string,string,string,string]);
   return (
     <div className="space-y-5" dir={dir}>
       <div><h2 className="text-xl font-bold text-gray-800">{t("لوحة فرع العليا","Al-Ulia Branch Dashboard")} — {branchName}</h2><p className="text-gray-400 text-sm">{branchBrand} · {branchCity}</p></div>
@@ -4736,13 +4696,8 @@ function BranchUpload() {
 function BranchRequests() {
   const { t, dir } = useCLang();
   const { data: apiRequests = [] } = useBranchPurchaseRequests();
-  const REQUESTS_INLINE = [
-    { id:"R001",item:"زيت طهي 10 كجم", qty:20,unit:"كرتون",status:"approved", date:t("اليوم","Today"),urgency:"normal" },
-    { id:"R002",item:"خبز برجر",         qty:50,unit:"كيس",  status:"pending",  date:t("اليوم","Today"),urgency:"urgent" },
-    { id:"R003",item:"لحم مفروم",        qty:30,unit:"كجم",  status:"pending",  date:t("أمس","Yesterday"),urgency:"normal" },
-    { id:"R004",item:"صلصة كاتشب",      qty:10,unit:"كرتون",status:"delivered",date:t("أمس","Yesterday"),urgency:"normal" },
-  ];
-  const [localRequests,setLocalRequests]=useState(REQUESTS_INLINE);
+  // Driven by GET /company/me/branch/purchase-requests. No static seed.
+  const [localRequests,setLocalRequests]=useState<any[]>([]);
   const requests = apiRequests.length > 0
     ? apiRequests.map(r => ({
         id: r.publicId || r.id,
@@ -4795,22 +4750,13 @@ function BranchItems() {
   const [showInvForm,setShowInvForm]=useState(false);
   const [invCounts,setInvCounts]=useState<Record<string,string>>({});
   const [invSubmitted,setInvSubmitted]=useState(false);
-  const ITEMS_INLINE = [
-    { name:t("دقيق أبيض","White Flour"),        qty:120,unit:t("كجم","kg"), min:50, status:"ok"       },
-    { name:t("زيت طهي","Cooking Oil"),            qty:18, unit:t("لتر","L"),  min:20, status:"low"      },
-    { name:t("لحم مفروم (مجمد)","Minced Meat (frozen)"),qty:45,unit:t("كجم","kg"),min:30,status:"ok"  },
-    { name:t("خبز برجر","Burger Buns"),           qty:8,  unit:t("كيس","bag"),min:15, status:"critical" },
-    { name:t("صلصة كاتشب","Ketchup"),             qty:24, unit:t("عبوة","pack"),min:10,status:"ok"      },
-    { name:t("جبن شيدر","Cheddar Cheese"),        qty:12, unit:t("كجم","kg"), min:8,  status:"ok"       },
-  ];
-  const items = apiItems.length > 0
-    ? apiItems.map(i => {
-        const qty = i.currQty ?? 0;
-        const min = 10;
-        const status = qty <= min/3 ? "critical" : qty < min ? "low" : "ok";
-        return { name: i.name, qty, unit: i.unit || "", min, status, id: i.id };
-      })
-    : ITEMS_INLINE.map(i => ({ ...i, id: i.name }));
+  // Driven by GET /company/me/branch/items. No static fallback.
+  const items = apiItems.map(i => {
+    const qty = i.currQty ?? 0;
+    const min = 10;
+    const status = qty <= min/3 ? "critical" : qty < min ? "low" : "ok";
+    return { name: i.name, qty, unit: i.unit || "", min, status, id: i.id };
+  });
   const submitInventory = () => {
     if (apiItems.length > 0) {
       const counts = Object.entries(invCounts).map(([itemId, qty]) => ({ itemId, qty: Number(qty) || 0 }));
@@ -4874,9 +4820,7 @@ function BranchEmployees() {
     { name:"سارة الغامدي", role:t("خدمة","Service"),  shift:t("مسائي","Evening"), status:"upcoming", phone:"+966 56 444 5555" },
     { name:"عمر الحربي",   role:t("مساعد","Assistant"),shift:t("صباحي","Morning"),status:"absent",   phone:"+966 58 555 6666" },
   ];
-  const staff = apiStaff.length > 0
-    ? apiStaff.map(s => ({ name: s.name, role: s.role || "—", shift: "", status: s.active ? "present" : "absent", phone: "" }))
-    : STAFF_INLINE;
+  const staff = apiStaff.map(s => ({ name: s.name, role: s.role || "—", shift: "", status: s.active ? "present" : "absent", phone: "" }));
   return (
     <div className="space-y-5" dir={dir}>
       <div><h2 className="text-xl font-bold text-gray-800">{t("طاقم الموظفين","Staff")}</h2><p className="text-gray-400 text-sm">{staff.filter(s=>s.status==="present").length} {t("حاضر اليوم","present today")}</p></div>
@@ -4927,15 +4871,7 @@ function BranchSuppliers() {
   const { t, dir } = useCLang();
   const { data: apiSuppliers = [] } = useBranchSuppliers();
   const requestNewMut = useBranchRequestNewSupplier();
-  const SUPPLIERS_INLINE = [
-    { name:"شركة الدواجن الوطنية",  category:t("دواجن ولحوم","Poultry & Meat"),   contact:"0501234567", approved:true,  lastOrder:t("اليوم","Today")     },
-    { name:"مؤسسة النخيل للأغذية",  category:t("مواد غذائية","Food Supplies"),    contact:"0557654321", approved:true,  lastOrder:t("أمس","Yesterday")   },
-    { name:"شركة الخليج للمواد",     category:t("بهارات وتوابل","Spices"),         contact:"0532345678", approved:true,  lastOrder:t("3 أيام","3 days")   },
-    { name:"مجموعة الوفاء للتوزيع",  category:t("مشروبات","Beverages"),           contact:"0569876543", approved:false, lastOrder:t("أسبوع","1 week")    },
-  ];
-  const suppliers = apiSuppliers.length > 0
-    ? apiSuppliers.map(s => ({ name: s.name, category: s.category || "", contact: s.phone || "", approved: s.isActive, lastOrder: "" }))
-    : SUPPLIERS_INLINE;
+  const suppliers = apiSuppliers.map(s => ({ name: s.name, category: s.category || "", contact: s.phone || "", approved: s.isActive, lastOrder: "" }));
   return (
     <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
@@ -4997,30 +4933,22 @@ function ProcOverview({ navigate }:{ navigate:(p:string)=>void }) {
   const { data: apiOverview } = useProcurementOverview();
   const { data: apiOrders = [] } = useProcurementOrders();
   const { data: apiSuppliers = [] } = useProcurementSuppliers();
+  // All figures from GET /company/me/procurement/*. No static fallback.
   const apiKpis = (apiOverview?.kpis ?? {}) as Record<string, number | string>;
   const activeSuppliersCount = (apiKpis.activeSuppliersCount as number | undefined)
-    ?? (apiSuppliers as any[]).filter((s: any) => s.isActive).length
-    ?? 8;
+    ?? (apiSuppliers as any[]).filter((s: any) => s.isActive).length;
   const monthlyPurchasesK = (apiKpis.monthlyPurchasesHalalas as number | undefined) != null
     ? `${Math.round(((apiKpis.monthlyPurchasesHalalas as number) / 100) / 1000)}K`
-    : "187K";
+    : "0";
   const SAR = t("ر.س","SAR");
-  const ORDERS_INLINE = [
-    { id:"PO-001",supplier:"شركة المروج للتوريد", items:3,total:12400,status:"pending",  date:t("اليوم","Today")     },
-    { id:"PO-002",supplier:"مؤسسة النخيل للأغذية",items:5,total:8200, status:"approved", date:t("أمس","Yesterday")   },
-    { id:"PO-003",supplier:"شركة الخليج للمواد",  items:2,total:3600, status:"delivered",date:t("أمس","Yesterday")   },
-    { id:"PO-004",supplier:"مجموعة الوفاء",         items:8,total:22800,status:"pending",  date:t("أسبوع","1 week")   },
-  ];
-  const orders = apiOrders.length > 0
-    ? apiOrders.map(o => ({
-        id: o.publicId || o.id,
-        supplier: o.supplierName || "—",
-        items: o.itemsCount ?? 0,
-        total: Math.round((o.totalHalalas || 0) / 100),
-        status: o.status === "sent" ? "delivered" : o.status === "draft" ? "pending" : o.status,
-        date: o.createdAt,
-      }))
-    : ORDERS_INLINE;
+  const orders = apiOrders.map(o => ({
+    id: o.publicId || o.id,
+    supplier: o.supplierName || "—",
+    items: o.itemsCount ?? 0,
+    total: Math.round((o.totalHalalas || 0) / 100),
+    status: o.status === "sent" ? "delivered" : o.status === "draft" ? "pending" : o.status,
+    date: o.createdAt,
+  }));
   const SC:Record<string,string>={pending:"bg-amber-50 text-amber-700 border-amber-200",approved:"bg-blue-50 text-blue-700 border-blue-200",delivered:"bg-emerald-50 text-emerald-700 border-emerald-200"};
   const SL:Record<string,string>={pending:t("معلق","Pending"),approved:t("معتمد","Approved"),delivered:t("تم التسليم","Delivered")};
   const totalPending=orders.filter(o=>o.status==="pending").reduce((s,o)=>s+o.total,0);
@@ -5062,19 +4990,17 @@ function ProcNew() {
     { id:"PO-004",supplier:"مجموعة الوفاء",      brand:"برغر التاج",       items:8,total:22800,status:"pending",  date:t("أسبوع","1 week")    },
     { id:"PO-005",supplier:"شركة المروج",        brand:"بيتزا التاج",      items:4,total:9100, status:"approved", date:t("أسبوع","1 week")    },
   ];
-  const [localOrders] = useState(ORDERS_INLINE);
-  const orders = apiOrders.length > 0
-    ? apiOrders.map(o => ({
-        id: o.publicId || o.id,
-        supplier: o.supplierName || "—",
-        brand: o.brandName || "—",
-        items: o.itemsCount ?? 0,
-        total: Math.round((o.totalHalalas || 0) / 100),
-        status: o.status === "sent" ? "delivered" : o.status === "draft" ? "pending" : o.status,
-        date: o.createdAt,
-        _apiId: o.id,
-      }))
-    : localOrders.map(o => ({ ...o, _apiId: o.id }));
+  // Driven by GET /company/me/procurement/orders. No static fallback.
+  const orders = apiOrders.map(o => ({
+    id: o.publicId || o.id,
+    supplier: o.supplierName || "—",
+    brand: o.brandName || "—",
+    items: o.itemsCount ?? 0,
+    total: Math.round((o.totalHalalas || 0) / 100),
+    status: o.status === "sent" ? "delivered" : o.status === "draft" ? "pending" : o.status,
+    date: o.createdAt,
+    _apiId: o.id,
+  }));
   void approveMut; // exposed for future bulk-approve UI
   const [showAdd,setShowAdd]=useState(false);
   const SC:Record<string,string>={pending:"bg-amber-50 text-amber-700 border-amber-200",approved:"bg-blue-50 text-blue-700 border-blue-200",delivered:"bg-emerald-50 text-emerald-700 border-emerald-200"};
@@ -5125,20 +5051,18 @@ function ProcSuppliers() {
     { id:"S4",name:"مجموعة الوفاء",         category:t("مشروبات","Beverages"),          contact:"ناصر الوفاء",  phone:"+966 56 444 4444",rating:3.9,orders:12,totalSpent:68000, active:true  },
     { id:"S5",name:"شركة الأمانة للتغليف", category:t("تغليف وعبوات","Packaging"),     contact:"هدى الأمانة",  phone:"+966 58 555 5555",rating:4.6,orders:8, totalSpent:22000, active:false },
   ];
-  const suppliers = apiSuppliers.length > 0
-    ? apiSuppliers.map(s => ({
-        id: s.id, name: s.name, category: s.category || "—", contact: s.email || "—",
-        phone: s.phone || "", rating: s.rating ?? 0, orders: s.ordersCount ?? 0,
-        totalSpent: 0, active: s.isActive,
-      }))
-    : SUPPLIERS_INLINE;
+  const suppliers = apiSuppliers.map(s => ({
+    id: s.id, name: s.name, category: s.category || "—", contact: s.email || "—",
+    phone: s.phone || "", rating: s.rating ?? 0, orders: (s as any).ordersCount ?? 0,
+    totalSpent: 0, active: s.isActive,
+  }));
   return (
     <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("الموردون","Suppliers")}</h2><p className="text-gray-400 text-sm">{suppliers.filter(s=>s.active).length} {t("مورد نشط","active suppliers")}</p></div><Btn variant="primary" onClick={()=>createSupplierMut.mutate({name:"مورد جديد"} as any)}><Plus size={13}/> {t("إضافة مورد","Add Supplier")}</Btn></div>
       <div className="grid grid-cols-3 gap-4">
         <KpiCard label={t("موردون نشطون","Active Suppliers")} value={String(suppliers.filter(s=>s.active).length)} sub={t("مورد معتمد","approved")} icon={<Building2 size={18} className="text-blue-600"/>} accent="blue"/>
         <KpiCard label={t("إجمالي المشتريات","Total Purchases")} value={`${fmt(Math.round(suppliers.reduce((s,x)=>s+x.totalSpent,0)/1000))}K`} sub={SAR} icon={<Wallet size={18} className="text-purple-600"/>} accent="purple"/>
-        <KpiCard label={t("متوسط التقييم","Avg Rating")} value={(suppliers.length > 0 ? (suppliers.reduce((s,x)=>s+(x.rating||0),0)/suppliers.length) : 4.4).toFixed(1)} sub={t("من 5 نجوم","/ 5 stars")} icon={<Star size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label={t("متوسط التقييم","Avg Rating")} value={(suppliers.length > 0 ? (suppliers.reduce((s,x)=>s+(x.rating||0),0)/suppliers.length) : 0).toFixed(1)} sub={t("من 5 نجوم","/ 5 stars")} icon={<Star size={18} className="text-amber-600"/>} accent="amber"/>
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {suppliers.map(s=>(
@@ -5159,22 +5083,13 @@ function ProcItems() {
   const { data: apiItems = [] } = useProcurementItems();
   const createItemMut = useCreateProcurementItem();
   const SAR = t("ر.س","SAR");
-  const ITEMS_INLINE = [
-    { name:t("لحم بقري مفروم","Ground Beef"),   unit:t("كجم","kg"),  lastPrice:42,brand:"برغر التاج",        suppliers:2 },
-    { name:t("دقيق أبيض","White Flour"),          unit:t("كيس","bag"), lastPrice:18,brand:"بيتزا التاج",       suppliers:3 },
-    { name:t("زيت طهي 10L","Cooking Oil 10L"),    unit:t("عبوة","pack"),lastPrice:85,brand:t("جميع العلامات","All Brands"), suppliers:2 },
-    { name:t("جبن موزاريلا","Mozzarella"),         unit:t("كجم","kg"),  lastPrice:38,brand:"بيتزا التاج",       suppliers:1 },
-    { name:t("خبز برجر","Burger Buns"),            unit:t("كيس","bag"), lastPrice:12,brand:"برغر التاج",        suppliers:2 },
-  ];
-  const items = apiItems.length > 0
-    ? apiItems.map(i => ({
-        name: i.name,
-        unit: i.unit || "",
-        lastPrice: Math.round((i.lastPriceHalalas || 0) / 100),
-        brand: i.category || "—",
-        suppliers: i.preferredSupplierName ? 1 : 0,
-      }))
-    : ITEMS_INLINE;
+  const items = apiItems.map(i => ({
+    name: i.name,
+    unit: i.unit || "",
+    lastPrice: Math.round(((i as any).lastPriceHalalas || 0) / 100),
+    brand: i.category || "—",
+    suppliers: (i as any).preferredSupplierName ? 1 : 0,
+  }));
   return (
     <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("الأصناف والأسعار","Items & Prices")}</h2><p className="text-gray-400 text-sm">{items.length} {t("صنف","items")}</p></div><Btn variant="primary" onClick={()=>createItemMut.mutate({name:"صنف جديد"} as any)}><Plus size={13}/> {t("صنف جديد","New Item")}</Btn></div>
@@ -5199,15 +5114,7 @@ function ProcReports() {
   const { t, dir } = useCLang();
   const { data: apiReports = [] } = useProcurementReports();
   const downloadMut = useDownloadProcurementReport();
-  const REPORTS_INLINE: [string,string,string][] = [
-    [t("📊 تقرير المشتريات الشهري","📊 Monthly Purchases Report"),t("إجمالي مصنّف حسب المورد","Total classified by supplier"),"Purchases_Monthly_Mar2026.pdf"],
-    [t("📈 مقارنة الأسعار","📈 Price Comparison"),t("متابعة تغيرات أسعار الموردين","Track supplier price changes"),"Price_Comparison_Mar2026.pdf"],
-    [t("🏭 أداء الموردين","🏭 Supplier Performance"),t("تقييم والتزام المواعيد","Rating and on-time delivery"),"Supplier_Performance_Mar2026.pdf"],
-    [t("🛒 أوامر معلقة","🛒 Pending Orders"),t("الأوامر التي تحتاج اعتماد","Orders requiring approval"),"Pending_Orders_Mar2026.pdf"],
-  ];
-  const reports: [string,string,string][] = apiReports.length > 0
-    ? apiReports.map(r => [r.title, r.description || "", r.key] as [string,string,string])
-    : REPORTS_INLINE;
+  const reports: [string,string,string][] = apiReports.map(r => [r.title, r.description || "", r.key] as [string,string,string]);
   return (
     <div className="space-y-5" dir={dir}>
       <div><h2 className="text-xl font-bold text-gray-800">{t("تقارير المشتريات","Procurement Reports")}</h2></div>
@@ -5233,21 +5140,15 @@ function ProcGrouped() {
   const { data: apiGroups = [] } = useGroupedOrders();
   const sendGroupedMut = useSendGroupedOrder();
   const SAR = t("ر.س","SAR");
-  const GROUPS_INLINE: Array<{ supplier:string; orders:number; total:number; branches:string[]; pending:boolean; groupId?: string }> = [
-    { supplier:"شركة الدواجن الوطنية", orders:3, total:24800, branches:["فرع العليا","فرع النرجس","فرع الملقا"], pending:true  },
-    { supplier:"مؤسسة النخيل للأغذية", orders:2, total:16400, branches:["فرع حراء","فرع طويق"],               pending:false },
-    { supplier:"شركة الخليج للمواد",   orders:4, total:31200, branches:["فرع العليا","فرع النرجس","فرع إشبيلية","فرع ابن بجاد"], pending:true },
-  ];
-  const groups = apiGroups.length > 0
-    ? apiGroups.map(g => ({
-        supplier: g.supplierName,
-        orders: g.ordersCount,
-        total: Math.round(g.totalHalalas / 100),
-        branches: (g.orders ?? []).map(o => o.branchName || "—"),
-        pending: true,
-        groupId: g.groupId,
-      }))
-    : GROUPS_INLINE;
+  const groups: Array<{ supplier:string; orders:number; total:number; branches:string[]; pending:boolean; groupId?: string }> =
+    apiGroups.map(g => ({
+      supplier: g.supplierName,
+      orders: g.ordersCount,
+      total: Math.round((g.totalHalalas ?? 0) / 100),
+      branches: (g.orders ?? []).map(o => o.branchName || "—"),
+      pending: true,
+      groupId: g.groupId,
+    }));
   return (
     <div className="space-y-5" dir={dir}>
       <div className="flex items-center justify-between">
@@ -5277,22 +5178,14 @@ function ProcSent() {
   const { t, dir } = useCLang();
   const { data: apiSent = [] } = useSentOrders();
   const SAR = t("ر.س","SAR");
-  const SENT_INLINE = [
-    { id:"PO-BATCH-001", supplier:"شركة الدواجن الوطنية",  sentDate:t("اليوم 10:24 ص","Today 10:24 AM"),    total:24800, inTransit:true,  eta:t("غداً","Tomorrow")  },
-    { id:"PO-BATCH-002", supplier:"مؤسسة النخيل للأغذية",  sentDate:t("أمس 2:30 م","Yesterday 2:30 PM"),    total:16400, inTransit:false, eta:t("تم","Done")        },
-    { id:"PO-BATCH-003", supplier:"شركة الخليج للمواد",     sentDate:t("قبل يومين 9:15 ص","2 days ago 9:15 AM"),total:31200, inTransit:false, eta:t("تم","Done")     },
-    { id:"PO-SINGLE-004",supplier:"مجموعة الوفاء للتوزيع", sentDate:t("منذ 3 أيام","3 days ago"),            total:8700,  inTransit:false, eta:t("تم","Done")        },
-  ];
-  const sent = apiSent.length > 0
-    ? apiSent.map(o => ({
-        id: o.publicId || o.id,
-        supplier: o.supplierName || "—",
-        sentDate: o.sentAt || o.createdAt,
-        total: Math.round((o.totalHalalas || 0) / 100),
-        inTransit: o.status === "sent",
-        eta: o.status === "sent" ? t("قيد التسليم","In Transit") : t("تم","Done"),
-      }))
-    : SENT_INLINE;
+  const sent = apiSent.map(o => ({
+    id: o.publicId || o.id,
+    supplier: o.supplierName || "—",
+    sentDate: (o as any).sentAt || o.createdAt,
+    total: Math.round((o.totalHalalas || 0) / 100),
+    inTransit: o.status === "sent",
+    eta: o.status === "sent" ? t("قيد التسليم","In Transit") : t("تم","Done"),
+  }));
   return (
     <div className="space-y-5" dir={dir}>
       <div><h2 className="text-xl font-bold text-gray-800">{t("الأوامر المُرسَلة","Sent Orders")}</h2><p className="text-gray-400 text-sm">{sent.length} {t("أوامر مُرسَلة","sent orders")}</p></div>
