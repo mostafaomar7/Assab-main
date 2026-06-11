@@ -171,40 +171,13 @@ const fmt = (n:number) => n.toLocaleString("ar-SA");
 const COMPANY = { name:"مجموعة التاج للمطاعم", logo:"👑", plan:"Professional", city:"الرياض" };
 const PLAN_AR: Record<string,string> = { Basic:"أساسي", Professional:"احترافي", Enterprise:"مؤسسي" };
 
-const BRANDS = [
-  { id:"B1", name:"برغر التاج", color:"#E53E3E", abbr:"بر", restaurants:[
-    { id:"R1", name:"برغر التاج — الرياض", branches:[
-      { id:"BR1", name:"فرع العليا",   city:"الرياض", mgr:"فاطمة السالم",    salesM:128000, expM:41000, target:130000 },
-      { id:"BR2", name:"فرع النزهة",   city:"الرياض", mgr:"سامي الغامدي",    salesM:94000,  expM:31000, target:100000 },
-    ]},
-    { id:"R2", name:"برغر التاج — جدة", branches:[
-      { id:"BR3", name:"فرع الحمراء",  city:"جدة",    mgr:"خالد العتيبي",    salesM:112000, expM:36000, target:120000 },
-      { id:"BR4", name:"فرع العزيزية", city:"جدة",    mgr:"نورة البقمي",     salesM:78000,  expM:27000, target:85000  },
-    ]},
-  ]},
-  { id:"B2", name:"بيتزا التاج", color:"#2B6CB0", abbr:"بز", restaurants:[
-    { id:"R3", name:"بيتزا التاج — الرياض", branches:[
-      { id:"BR5", name:"فرع الملقا",   city:"الرياض", mgr:"أحمد الحربي",     salesM:96000,  expM:32000, target:100000 },
-    ]},
-    { id:"R4", name:"بيتزا التاج — الدمام", branches:[
-      { id:"BR6", name:"فرع الكورنيش",city:"الدمام",  mgr:"عبدالله الدوسري", salesM:71000,  expM:24000, target:75000  },
-      { id:"BR7", name:"فرع الدانة",  city:"الدمام",  mgr:"سعد الرشيد",      salesM:63000,  expM:22000, target:70000  },
-    ]},
-  ]},
-  { id:"B3", name:"مطعم التاج الراقي", color:"#805AD5", abbr:"تج", restaurants:[
-    { id:"R5", name:"مطعم التاج — الرياض", branches:[
-      { id:"BR8",  name:"فرع الورود",     city:"الرياض", mgr:"منى الزهراني",  salesM:145000, expM:52000, target:150000 },
-      { id:"BR9",  name:"فرع الملك فهد",  city:"الرياض", mgr:"وليد السبيعي",  salesM:118000, expM:44000, target:120000 },
-    ]},
-    { id:"R6", name:"مطعم التاج — مكة", branches:[
-      { id:"BR10", name:"فرع العزيزية", city:"مكة",    mgr:"حمد القحطاني",   salesM:89000,  expM:33000, target:90000  },
-      { id:"BR11", name:"فرع المعابدة", city:"مكة",    mgr:"ريم السهلي",     salesM:74000,  expM:28000, target:80000  },
-    ]},
-    { id:"R7", name:"مطعم التاج — الطائف", branches:[
-      { id:"BR12", name:"فرع المحطة",   city:"الطائف", mgr:"سلطان العمري",   salesM:52000,  expM:19000, target:60000  },
-    ]},
-  ]},
-];
+// Brand → restaurant → branch tree comes from the platform API (useCompanyBrands / dashboard
+// brandSummary) at point of use. This module-level list is intentionally empty — no static seed.
+// Brand filter dropdowns and color lookups read it; they degrade to "all / default" when empty.
+const BRANDS: {
+  id: string; name: string; color: string; abbr: string;
+  restaurants: { id: string; name: string; branches: { id: string; name: string; city: string }[] }[];
+}[] = [];
 
 const ALL_BRANCHES = BRANDS.flatMap(b=>b.restaurants.flatMap(r=>r.branches.map(br=>({...br,brandId:b.id,brandName:b.name,brandColor:b.color}))));
 
@@ -871,11 +844,8 @@ function CompanyLoginScreen({ onSelect }:{ onSelect:(r:CRole)=>void }) {
 // ═══════════════════════════════════════════════════
 // APP SHELL
 // ═══════════════════════════════════════════════════
-const SHELL_NOTIFICATIONS = [
-  { id:1, title:"بيان مبيعات معلق",    body:"فرع الملقا · برغر التاج", time:"منذ 10 دقائق", icon:"📊", unread:true  },
-  { id:2, title:"تم قبول مصروف",        body:"إيجار شهر مارس - تمت الموافقة", time:"منذ ساعة",    icon:"✅", unread:true  },
-  { id:3, title:"تذكير: جرد أسبوعي",   body:"موعد جرد هذا الأسبوع اليوم",    time:"منذ 3 ساعات", icon:"📦", unread:false },
-];
+// Notifications come from the platform API; empty until the backend returns them (no static seed).
+const SHELL_NOTIFICATIONS: { id:number; title:string; body:string; time:string; icon:string; unread:boolean }[] = [];
 function Shell({ role, page, navigate, onLogout, children, headPendingCount=0 }:{
   role:CRole; page:string; navigate:(p:string)=>void; onLogout:()=>void; children:ReactNode; headPendingCount?:number;
 }) {
@@ -2149,14 +2119,33 @@ function HeadBrands() {
   const { t, dir } = useCLang();
   const SAR = t("ر.س","SAR");
   const { data: apiHeadDash } = useHeadDashboard();
+  // Brand performance is driven by the head dashboard brandSummary API; no static seed.
   const apiBrandSummary = (apiHeadDash?.brandSummary ?? []) as any[];
-  void apiBrandSummary; // backend list available; UI renders rich tree from BRANDS
+  const brands = apiBrandSummary.map((b:any) => ({
+    id: b.id ?? b.brandId ?? b.name,
+    name: b.name ?? "—",
+    color: b.color ?? "#7C3AED",
+    abbr: b.abbr ?? (typeof b.name === "string" ? b.name.slice(0,2) : "—"),
+    restaurants: Array.isArray(b.restaurants) ? b.restaurants.map((r:any) => ({
+      id: r.id ?? r.name,
+      name: r.name ?? "—",
+      branches: Array.isArray(r.branches) ? r.branches.map((br:any) => ({
+        id: br.id ?? br.name,
+        name: br.name ?? "—",
+        mgr: br.mgr ?? br.managerName ?? "—",
+        salesM:  br.salesM  ?? (br.monthlySalesHalalas    != null ? Math.round(br.monthlySalesHalalas / 100)    : 0),
+        expM:    br.expM    ?? (br.monthlyExpensesHalalas != null ? Math.round(br.monthlyExpensesHalalas / 100) : 0),
+        target:  br.target  ?? (br.monthlyTargetHalalas   != null ? Math.round(br.monthlyTargetHalalas / 100)   : 0),
+      })) : [],
+    })) : [],
+  }));
   return (
     <div className="space-y-5" dir={dir}>
       <div><h2 className="text-xl font-bold text-gray-800">{t("أداء العلامات التجارية","Brand Performance")}</h2></div>
-      {BRANDS.map(b=>{
-        const allBrs=b.restaurants.flatMap(r=>r.branches);
-        const totalS=allBrs.reduce((s,br)=>s+br.salesM,0),totalE=allBrs.reduce((s,br)=>s+br.expM,0),totalT=allBrs.reduce((s,br)=>s+br.target,0);
+      {brands.length === 0 && <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8 text-center text-gray-400 text-sm">{t("لا توجد بيانات بعد","No data yet")}</div>}
+      {brands.map(b=>{
+        const allBrs=b.restaurants.flatMap((r:any)=>r.branches) as any[];
+        const totalS=allBrs.reduce((s:number,br:any)=>s+br.salesM,0),totalE=allBrs.reduce((s:number,br:any)=>s+br.expM,0),totalT=allBrs.reduce((s:number,br:any)=>s+br.target,0);
         return (
           <div key={b.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3" style={{borderRightWidth:4,borderRightColor:b.color}}>
@@ -2165,7 +2154,7 @@ function HeadBrands() {
               <div className="grid grid-cols-3 gap-4 text-center">{[["المبيعات",fmt(totalS)+" ر.س"],["المصروفات",fmt(totalE)+" ر.س"],["الصافي",fmt(totalS-totalE)+" ر.س"]].map(([l,v])=><div key={l}><p className="text-[10px] text-gray-400">{l}</p><p className="font-bold text-gray-800 text-sm">{v}</p></div>)}</div>
             </div>
             <div className="divide-y divide-gray-50">
-              {allBrs.map(br=>{
+              {allBrs.map((br:any)=>{
                 const pct=Math.round((br.salesM/br.target)*100);
                 return (
                   <div key={br.id} className="px-5 py-3 flex items-center gap-4">
@@ -2320,12 +2309,7 @@ function HeadReminders() {
   const patchMut = usePatchHeadReminder();
   const markAllMut = useMarkAllHeadRemindersDone();
   type RemItem = { id: string | number; titleAr: string; titleEn: string; bodyAr: string; bodyEn: string; timeAr: string; timeEn: string; type: string; done: boolean };
-  const REMINDERS_INLINE: RemItem[] = [
-    { id:1, titleAr:"اعتماد بيانات اليوم",  titleEn:"Approve today's data",    bodyAr:"12 عملية بانتظار اعتمادك النهائي",    bodyEn:"12 operations awaiting final approval",    timeAr:"الآن",         timeEn:"Now",         type:"urgent", done:false },
-    { id:2, titleAr:"مراجعة تقرير أسبوعي",  titleEn:"Review weekly report",    bodyAr:"P&L الأسبوع الثالث — جاهز للمراجعة", bodyEn:"Week 3 P&L — ready for review",            timeAr:"منذ 2 ساعة",   timeEn:"2 hrs ago",   type:"report", done:false },
-    { id:3, titleAr:"موافقة ميزانية مشتريات",titleEn:"Approve purchase budget", bodyAr:"مدير المشتريات طلب اعتماد ميزانية",  bodyEn:"Procurement mgr requested budget approval", timeAr:"منذ 4 ساعات",  timeEn:"4 hrs ago",   type:"finance",done:false },
-    { id:4, titleAr:"متابعة المحاسب — سارة", titleEn:"Follow up — Sara",        bodyAr:"لم ترفع بيانات فرع العليا منذ أمس",  bodyEn:"Al-Ulia branch data not uploaded since yesterday",timeAr:"أمس",    timeEn:"Yesterday",   type:"team",   done:true  },
-  ];
+  // Reminders come from the platform API (apiList below); no static seed.
   const apiList: RemItem[] = apiReminders.map((r): RemItem => ({
     id: r.id,
     titleAr: r.title,
@@ -2516,7 +2500,7 @@ function AccDashboard({ navigate, ops }:{ navigate:(p:string)=>void; ops:COp[] }
       <div>
         <h2 className="text-xl font-bold text-gray-800">{t("ملخص اليوم — السبت 22 مارس 2026","Today's Summary — Saturday, March 22, 2026")}</h2>
         <p className="text-gray-400 text-sm mt-0.5">
-          {COMPANY.name} · {t("مسؤول عن","Responsible for")} {ALL_BRANCHES.filter(b=>b.brandName==="برغر التاج"||b.brandName==="بيتزا التاج").length} {t("فروع · الموديولات: الأربعة الرئيسية","branches · Modules: Main Four")}
+          {COMPANY.name} · {t("مسؤول عن","Responsible for")} {new Set(ops.map(o=>o.branch)).size} {t("فروع · الموديولات: الأربعة الرئيسية","branches · Modules: Main Four")}
         </p>
       </div>
 
@@ -2537,7 +2521,7 @@ function AccDashboard({ navigate, ops }:{ navigate:(p:string)=>void; ops:COp[] }
             {ar:"المراجعة",   en:"Review",            done:ops.filter(o=>o.status!=="pending").length,              total:ops.length,                                    color:"bg-purple-500"},
             {ar:"الموافقة",   en:"Approval",           done:ops.filter(o=>o.status==="approved"||o.status==="final-approved").length, total:ops.length,               color:"bg-emerald-500"},
             {ar:"التوثيق",    en:"Documentation",      done:finalApproved.length,                                    total:ops.filter(o=>o.status!=="pending").length||1, color:"bg-blue-500"},
-            {ar:"الفروع المكتملة",en:"Completed Branches",done:4,                                                    total:ALL_BRANCHES.length,                           color:"bg-cyan-500"},
+            {ar:"الفروع المكتملة",en:"Completed Branches",done:new Set(ops.filter(o=>o.status!=="pending").map(o=>o.branch)).size, total:new Set(ops.map(o=>o.branch)).size||1, color:"bg-cyan-500"},
           ].map(({ar,en,done,total,color})=>{
             const pct = Math.min(100,total>0?Math.round(done/total*100):0);
             const label = t(ar, en);
@@ -2990,11 +2974,8 @@ function AccCompanyPurchases({ ops, approve, reject, bulkApprove }:{ ops:COp[]; 
     return true;
   });
 
-  const SUPPLIERS = [
-    { name:"شركة المروج للتوريد",   items:"دجاج · لحم · خضروات",  rating:4.8 },
-    { name:"مؤسسة النخيل للأغذية",  items:"جبن · ألبان · بيض",    rating:4.5 },
-    { name:"شركة الخليج للمواد",    items:"توابل · زيوت · صوصات",  rating:4.2 },
-  ];
+  // Suppliers come from the platform API; empty until the backend returns them (no static seed).
+  const SUPPLIERS: { name:string; items:string; rating:number }[] = [];
 
   const { t, dir } = useCLang();
   const SAR = t("ر.س","SAR");
@@ -4813,13 +4794,7 @@ function BranchItems() {
 function BranchEmployees() {
   const { t, dir } = useCLang();
   const { data: apiStaff = [] } = useBranchEmployees();
-  const STAFF_INLINE = [
-    { name:"أنس محمد",     role:t("كاشير","Cashier"), shift:t("صباحي","Morning"), status:"present",  phone:"+966 50 111 2222" },
-    { name:"ليلى سالم",    role:t("كاشير","Cashier"), shift:t("مسائي","Evening"), status:"upcoming", phone:"+966 55 222 3333" },
-    { name:"فهد العمري",   role:t("طاهٍ","Chef"),     shift:t("صباحي","Morning"), status:"present",  phone:"+966 53 333 4444" },
-    { name:"سارة الغامدي", role:t("خدمة","Service"),  shift:t("مسائي","Evening"), status:"upcoming", phone:"+966 56 444 5555" },
-    { name:"عمر الحربي",   role:t("مساعد","Assistant"),shift:t("صباحي","Morning"),status:"absent",   phone:"+966 58 555 6666" },
-  ];
+  // Staff comes from the platform API; empty until the backend returns it (no static seed).
   const staff = apiStaff.map(s => ({ name: s.name, role: s.role || "—", shift: "", status: s.active ? "present" : "absent", phone: "" }));
   return (
     <div className="space-y-5" dir={dir}>
@@ -4983,13 +4958,6 @@ function ProcNew() {
   const updateOrderMut = useUpdateOrder();
   const createOrderMut = useCreateProcurementOrder();
   const SAR = t("ر.س","SAR");
-  const ORDERS_INLINE = [
-    { id:"PO-001",supplier:"شركة المروج",       brand:"برغر التاج",       items:3,total:12400,status:"pending",  date:t("اليوم","Today")     },
-    { id:"PO-002",supplier:"مؤسسة النخيل",      brand:"بيتزا التاج",      items:5,total:8200, status:"approved", date:t("أمس","Yesterday")   },
-    { id:"PO-003",supplier:"شركة الخليج",        brand:"مطعم التاج الراقي",items:2,total:3600, status:"delivered",date:t("أمس","Yesterday")   },
-    { id:"PO-004",supplier:"مجموعة الوفاء",      brand:"برغر التاج",       items:8,total:22800,status:"pending",  date:t("أسبوع","1 week")    },
-    { id:"PO-005",supplier:"شركة المروج",        brand:"بيتزا التاج",      items:4,total:9100, status:"approved", date:t("أسبوع","1 week")    },
-  ];
   // Driven by GET /company/me/procurement/orders. No static fallback.
   const orders = apiOrders.map(o => ({
     id: o.publicId || o.id,
@@ -5044,13 +5012,7 @@ function ProcSuppliers() {
   const { data: apiSuppliers = [] } = useProcurementSuppliers();
   const createSupplierMut = useCreateSupplier();
   const SAR = t("ر.س","SAR");
-  const SUPPLIERS_INLINE = [
-    { id:"S1",name:"شركة المروج للتوريد",  category:t("مواد خام","Raw Materials"),     contact:"سليمان المروج",phone:"+966 50 111 1111",rating:4.8,orders:24,totalSpent:187000,active:true  },
-    { id:"S2",name:"مؤسسة النخيل للأغذية", category:t("خضروات وفاكهة","Vegetables"),   contact:"منى النخيل",   phone:"+966 55 222 2222",rating:4.5,orders:18,totalSpent:92000, active:true  },
-    { id:"S3",name:"شركة الخليج للمواد",    category:t("بهارات وتوابل","Spices"),       contact:"كريم الخليج",  phone:"+966 53 333 3333",rating:4.2,orders:31,totalSpent:45000, active:true  },
-    { id:"S4",name:"مجموعة الوفاء",         category:t("مشروبات","Beverages"),          contact:"ناصر الوفاء",  phone:"+966 56 444 4444",rating:3.9,orders:12,totalSpent:68000, active:true  },
-    { id:"S5",name:"شركة الأمانة للتغليف", category:t("تغليف وعبوات","Packaging"),     contact:"هدى الأمانة",  phone:"+966 58 555 5555",rating:4.6,orders:8, totalSpent:22000, active:false },
-  ];
+  // Suppliers come from GET /company/me/procurement/suppliers. No static fallback.
   const suppliers = apiSuppliers.map(s => ({
     id: s.id, name: s.name, category: s.category || "—", contact: s.email || "—",
     phone: s.phone || "", rating: s.rating ?? 0, orders: (s as any).ordersCount ?? 0,

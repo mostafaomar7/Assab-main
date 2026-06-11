@@ -1113,24 +1113,12 @@ function RejectModal({ opId, onReject, onClose }:{ opId:string; onReject:(id:str
 // ─────────────────────────────────────────────
 // ADD USER MODAL
 // ─────────────────────────────────────────────
-const BRANDS_CATALOG = [
-  { id:"reem",     name:"علامة الريم",         color:"#7C3AED", abbr:"ر", restaurants:[
-    { id:"reem-1", name:"مطعم الريم — العليا",  branches:["فرع العليا الرئيسي","فرع النزهة","فرع الملقا"] },
-    { id:"reem-2", name:"مطعم الريم — جدة",    branches:["فرع الحمراء","فرع العزيزية"] },
-  ]},
-  { id:"herfy",    name:"علامة هرفي",           color:"#D97706", abbr:"هـ", restaurants:[
-    { id:"herfy-1",name:"هرفي — الرياض",        branches:["فرع العليا","فرع الإزدهار","فرع السلي","فرع الدوبي"] },
-    { id:"herfy-2",name:"هرفي — جدة",           branches:["فرع الكورنيش","فرع بحرة"] },
-    { id:"herfy-3",name:"هرفي — مكة",           branches:["فرع المعابدة","فرع العزيزية"] },
-  ]},
-  { id:"mcd",      name:"ماكدونالدز",           color:"#DC2626", abbr:"م", restaurants:[
-    { id:"mcd-1",  name:"ماكدونالدز — الرياض",  branches:["فرع الدبلوماسي","فرع النخيل مول","فرع هايبر بنده"] },
-    { id:"mcd-2",  name:"ماكدونالدز — الدمام",  branches:["فرع الكورنيش","فرع الدانة مول"] },
-  ]},
-  { id:"broasted", name:"بروستد الوطني",         color:"#059669", abbr:"ب", restaurants:[
-    { id:"br-1",   name:"بروستد — الطائف",       branches:["فرع المحطة","فرع الشفا"] },
-  ]},
-];
+// Brand catalog (brand → restaurant → branch) for admin scope/shift selectors comes from
+// the platform API (useAdminBrands); intentionally empty — no static seed.
+const BRANDS_CATALOG: {
+  id: string; name: string; color: string; abbr: string;
+  restaurants: { id: string; name: string; branches: string[] }[];
+}[] = [];
 
 const ALL_MODULES = ["المبيعات","المصروفات","المشتريات","المخزون","الشفتات","كشف الحساب","العهد النقدية","الأصول الثابتة"];
 
@@ -1707,7 +1695,8 @@ function applyFilters(ops:Op[], f:Filters, moduleKey?:ModuleKey): Op[] {
   });
 }
 
-const BRANCHES = [...new Set(INITIAL_OPS.map(o=>o.branch))];
+// Branch list is derived from live operations at point of use; no static seed.
+const BRANCHES: string[] = [];
 
 // ─────────────────────────────────────────────
 // PAGE ROUTER
@@ -3014,7 +3003,7 @@ function AccSalesPage({ navigate, setModal, setDetailId, ops, approveOp, rejectO
   const filtered = applyFilters(ops, filters, "sales");
   const selectedDayInfo = DAY_OPTIONS.find((d:any)=>d.val===selectedDay);
 
-  const FALLBACK_BRAND_OPTIONS = [t("الكل","All"),"برغر خليفة","بيتزا باكو","وسطاوي"];
+  const FALLBACK_BRAND_OPTIONS = [t("الكل","All")];
   const apiBrandOptions = (salesApi as any)?.brandOptions;
   const BRAND_OPTIONS = (apiBrandOptions?.length > 0 ? apiBrandOptions : FALLBACK_BRAND_OPTIONS) as any[];
   const allBrandVal = t("الكل","All");
@@ -3148,13 +3137,8 @@ function AssetDraftProvider({ children }: { children: ReactNode }) {
 // ─────────────────────────────────────────────
 // CONVERT TO ASSET MODAL
 // ─────────────────────────────────────────────
-const ALL_BRANCHES_FULL = [
-  "فرع الرياض - العليا","فرع الرياض - السليمانية","فرع الرياض - النزهة",
-  "فرع جدة - الحمراء","فرع جدة - العزيزية",
-  "فرع مكة - المعابدة","فرع مكة - العزيزية",
-  "فرع الدمام - الخبر","فرع الدمام - الكورنيش","فرع الدمام - الدانة",
-  "فرع الطائف - المحطة",
-];
+// Branch list for selectors comes from the platform API; empty until the backend returns it.
+const ALL_BRANCHES_FULL: string[] = [];
 const ASSET_CATS: AssetCatType[] = ["معدات","تقنية","أثاث","مركبات","أخرى"];
 const USEFUL_LIFE_OPTS = [
   {label:"24 شهر (سنتان)",val:24},{label:"36 شهر (3 سنوات)",val:36},
@@ -3503,7 +3487,7 @@ function AccExpensesPage({ navigate, setModal, setDetailId, ops, approveOp, reje
           <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("العلامة التجارية","Brand")}</label>
             <select value={brand} onChange={e=>setBrand(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-              {[t("الكل","All"),"برغر خليفة","بيتزا باكو","وسطاوي"].map(b=><option key={b}>{b}</option>)}
+              {[t("الكل","All")].map(b=><option key={b}>{b}</option>)}
             </select>
           </div>
           <div>
@@ -3813,25 +3797,18 @@ function AccSalesDetail({ navigate, setModal, setDetailId, detailId, ops, approv
   const { data: detailApi } = useAccountantOperationsPlatform();
   const op = ops.find(o=>o.id===detailId) || ops[0];
 
-  const FALLBACK_RECON_EMP: Record<string,string> = {
-    "1001":"أحمد الشمري","1002":"محمد العبدلي","1003":"خالد النجار",
-    "1004":"سعد الغامدي","1005":"عبدالرحمن السيف","1006":"فيصل الحربي",
-  };
+  // Reconciliation employee lookup comes from the platform API; empty until returned.
   const apiReconEmp = (detailApi as any)?.reconEmployees;
-  const RECON_EMP: Record<string,string> = (apiReconEmp && Object.keys(apiReconEmp).length > 0 ? apiReconEmp : FALLBACK_RECON_EMP) as any;
+  const RECON_EMP: Record<string,string> = (apiReconEmp && Object.keys(apiReconEmp).length > 0 ? apiReconEmp : {}) as any;
 
-  const totalSales = op?.amount || 18340;
-  const [reconCash,      setReconCash]      = useState((detailApi as any)?.reconciliation?.cash ?? 4200);
-  const [reconBank,      setReconBank]      = useState((detailApi as any)?.reconciliation?.bank ?? 8500);
+  const totalSales = op?.amount || 0;
+  const [reconCash,      setReconCash]      = useState((detailApi as any)?.reconciliation?.cash ?? 0);
+  const [reconBank,      setReconBank]      = useState((detailApi as any)?.reconciliation?.bank ?? 0);
   const [reconEditMode,  setReconEditMode]  = useState(false);
-  const FALLBACK_DELIV_APPS = [
-    { app:"طلبات",         icon:"🔴", val:980,  orig:980  },
-    { app:"هنقرستيشن",     icon:"🟠", val:2800, orig:2800 },
-    { app:"جاهز",          icon:"🟡", val:1200, orig:1200 },
-    { app:"نينجا (Ninja)", icon:"⚫", val:660,  orig:660  },
-  ];
+  // Delivery-app reconciliation rows come from the platform API; empty until returned.
   const apiDelivApps = (detailApi as any)?.reconciliation?.deliveryApps;
-  const [reconDelivApps, setReconDelivApps] = useState<any[]>((apiDelivApps?.length > 0 ? apiDelivApps : FALLBACK_DELIV_APPS) as any[]);
+  const [reconDelivApps, setReconDelivApps] = useState<any[]>([]);
+  useEffect(() => { if (Array.isArray(apiDelivApps)) setReconDelivApps(apiDelivApps); }, [apiDelivApps]);
   type VEmp = { empId:string; empName:string; amount:string };
   const [varEmps, setVarEmps] = useState<VEmp[]>([{ empId:"", empName:"", amount:"" }]);
   const setVarEmpField = (i:number, field:keyof VEmp, val:string) =>
@@ -4226,54 +4203,8 @@ function AccSalesDetail({ navigate, setModal, setDetailId, detailId, ops, approv
 // ── Rich purchase records for Accountant module ─────────────────────────────
 interface PurItem { name:string; ordered:number; received:number; unit:string; price:number; histPrice:number; dailyAvg:number; recommended:number }
 interface PurRecord { id:string; branch:string; supplier:string; invNum:string; date:string; status:"pending"|"approved"|"rejected"; match:"exact"|"diff"; amount:number; items:PurItem[] }
-const PUR_RECORDS: PurRecord[] = [
-  { id:"PUR-001", branch:"فرع الرياض - العليا",       supplier:"شركة الدواجن الوطنية",  invNum:"INV-D001", date:"14 أكت", status:"pending",  match:"diff",  amount:5760,
-    items:[
-      {name:"دجاج طازج",   ordered:50,  received:48,  unit:"كجم", price:32, histPrice:30, dailyAvg:7,  recommended:49},
-      {name:"صدر دجاج",    ordered:30,  received:28,  unit:"كجم", price:45, histPrice:43, dailyAvg:4,  recommended:28},
-    ]},
-  { id:"PUR-002", branch:"فرع جدة - الحمراء",         supplier:"شركة الدواجن الوطنية",  invNum:"INV-D002", date:"13 أكت", status:"approved", match:"exact", amount:7040,
-    items:[
-      {name:"دجاج طازج",   ordered:60,  received:60,  unit:"كجم", price:32, histPrice:30, dailyAvg:9,  recommended:63},
-      {name:"أجنحة دجاج",  ordered:40,  received:40,  unit:"كجم", price:38, histPrice:36, dailyAvg:5,  recommended:35},
-    ]},
-  { id:"PUR-003", branch:"فرع مكة - المعابدة",         supplier:"شركة الدواجن الوطنية",  invNum:"INV-D003", date:"12 أكت", status:"pending",  match:"exact", amount:4800,
-    items:[
-      {name:"دجاج طازج",   ordered:50,  received:50,  unit:"كجم", price:32, histPrice:30, dailyAvg:7,  recommended:49},
-      {name:"صدر دجاج",    ordered:20,  received:20,  unit:"كجم", price:45, histPrice:43, dailyAvg:3,  recommended:21},
-    ]},
-  { id:"PUR-004", branch:"فرع الرياض - السليمانية",   supplier:"مطاحن الملك",            invNum:"INV-M001", date:"14 أكت", status:"pending",  match:"diff",  amount:3240,
-    items:[
-      {name:"دقيق أبيض",   ordered:100, received:90,  unit:"كجم", price:18, histPrice:18, dailyAvg:14, recommended:98},
-      {name:"سكر ناعم",    ordered:50,  received:50,  unit:"كجم", price:14, histPrice:14, dailyAvg:7,  recommended:49},
-    ]},
-  { id:"PUR-005", branch:"فرع الدمام",                 supplier:"مطاحن الملك",            invNum:"INV-M002", date:"13 أكت", status:"approved", match:"exact", amount:2800,
-    items:[
-      {name:"دقيق أبيض",   ordered:80,  received:80,  unit:"كجم", price:18, histPrice:18, dailyAvg:11, recommended:77},
-      {name:"ملح طعام",    ordered:20,  received:20,  unit:"كجم", price:5,  histPrice:5,  dailyAvg:3,  recommended:21},
-    ]},
-  { id:"PUR-006", branch:"فرع الدمام",                 supplier:"مزرعة الخير للخضار",    invNum:"INV-V001", date:"14 أكت", status:"pending",  match:"diff",  amount:1950,
-    items:[
-      {name:"خضار متنوعة", ordered:30,  received:27,  unit:"كجم", price:12, histPrice:11, dailyAvg:4,  recommended:28},
-      {name:"طماطم طازجة", ordered:20,  received:20,  unit:"كجم", price:8,  histPrice:8,  dailyAvg:3,  recommended:21},
-    ]},
-  { id:"PUR-007", branch:"فرع جدة - العزيزية",         supplier:"مزرعة الخير للخضار",    invNum:"INV-V002", date:"13 أكت", status:"approved", match:"exact", amount:2400,
-    items:[
-      {name:"خيار طازج",   ordered:15,  received:15,  unit:"كجم", price:9,  histPrice:9,  dailyAvg:2,  recommended:14},
-      {name:"طماطم طازجة", ordered:25,  received:25,  unit:"كجم", price:8,  histPrice:8,  dailyAvg:3,  recommended:21},
-      {name:"خضار متنوعة", ordered:20,  received:20,  unit:"كجم", price:12, histPrice:11, dailyAvg:3,  recommended:21},
-    ]},
-  { id:"PUR-008", branch:"فرع الرياض - العليا",       supplier:"موزع الأغذية الوطني",   invNum:"INV-N001", date:"14 أكت", status:"pending",  match:"exact", amount:3600,
-    items:[
-      {name:"بطاطس مجمدة", ordered:80,  received:80,  unit:"كجم", price:7,  histPrice:7,  dailyAvg:11, recommended:77},
-      {name:"زيت نباتي",   ordered:40,  received:40,  unit:"لتر", price:20, histPrice:19, dailyAvg:5,  recommended:35},
-    ]},
-  { id:"PUR-009", branch:"فرع جدة - الحمراء",         supplier:"موزع الأغذية الوطني",   invNum:"INV-N002", date:"12 أكت", status:"approved", match:"exact", amount:4100,
-    items:[
-      {name:"حليب طازج",   ordered:100, received:100, unit:"لتر", price:8,  histPrice:8,  dailyAvg:15, recommended:105},
-      {name:"بطاطس مجمدة", ordered:60,  received:60,  unit:"كجم", price:7,  histPrice:7,  dailyAvg:8,  recommended:56},
-    ]},
-];
+// Purchase records come from the platform API at point of use; no static seed.
+const PUR_RECORDS: PurRecord[] = [];
 
 // Keep PURCHASE_DETAIL for backwards compatibility with any remaining references
 const PURCHASE_DETAIL = { default: PUR_RECORDS[0] ? { supplier: PUR_RECORDS[0].supplier, invNum: PUR_RECORDS[0].invNum, items: PUR_RECORDS[0].items } : { supplier:"", invNum:"", items:[] } };
@@ -4589,7 +4520,7 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
           <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("العلامة التجارية / البراند","Brand")}</label>
             <select className="w-full text-xs border border-gray-200 rounded-lg px-2 py-2">
-              {[t("الكل","All"),"برغر خليفة","بيتزا باكو","وسطاوي"].map(b=><option key={b}>{b}</option>)}
+              {[t("الكل","All")].map(b=><option key={b}>{b}</option>)}
             </select>
           </div>
           <div>
@@ -4839,27 +4770,8 @@ function AccPurchases({ navigate, setModal, setDetailId, ops, approveOp, rejectO
 }
 
 // Simulated per-branch inventory data: current month vs previous month
-const INV_BRANCH_DATA: Record<string, {item:string; cat:string; unit:string; prev:number; curr:number}[]> = {
-  "فرع الرياض - العليا": [
-    {item:"دجاج طازج",    cat:"بروتين",    unit:"كجم",   prev:50,   curr:48  },
-    {item:"بطاطس",        cat:"خضروات",   unit:"كجم",   prev:80,   curr:85  },
-    {item:"مشروبات غازية",cat:"مشروبات",  unit:"علبة",  prev:200,  curr:620 }, // anomaly: +210%
-    {item:"زيت قلي",      cat:"زيوت",     unit:"لتر",   prev:30,   curr:28  },
-    {item:"خبز برجر",     cat:"مخبوزات",  unit:"قطعة",  prev:300,  curr:290 },
-  ],
-  "فرع جدة - الحمراء": [
-    {item:"دجاج طازج",    cat:"بروتين",    unit:"كجم",   prev:40,   curr:38  },
-    {item:"بطاطس",        cat:"خضروات",   unit:"كجم",   prev:60,   curr:180 }, // anomaly: +200%
-    {item:"ماء معدني",    cat:"مشروبات",  unit:"لتر",   prev:150,  curr:145 },
-    {item:"مايونيز",      cat:"صوصات",    unit:"كجم",   prev:15,   curr:12  },
-  ],
-  "فرع مكة - المعابدة": [
-    {item:"دجاج طازج",    cat:"بروتين",    unit:"كجم",   prev:35,   curr:1   }, // anomaly: -97%
-    {item:"حليب طازج",    cat:"ألبان",     unit:"لتر",   prev:50,   curr:52  },
-    {item:"طماطم",        cat:"خضروات",   unit:"كجم",   prev:20,   curr:18  },
-    {item:"عصير برتقال",  cat:"مشروبات",  unit:"لتر",   prev:30,   curr:28  },
-  ],
-};
+// Per-branch inventory rows come from the platform API; empty until the backend returns them.
+const INV_BRANCH_DATA: Record<string, {item:string; cat:string; unit:string; prev:number; curr:number}[]> = {};
 
 function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailId, bulkApprove }:PageProps) {
   const { t, lang, dir } = useLang();
@@ -4945,7 +4857,7 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
           <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">العلامة التجارية</label>
             <select className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-              {["الكل","برغر خليفة","بيتزا باكو","وسطاوي"].map(b=><option key={b}>{b}</option>)}
+              {["الكل"].map(b=><option key={b}>{b}</option>)}
             </select>
           </div>
           <div>
@@ -5250,33 +5162,8 @@ function AccInventory({ navigate, ops, approveOp, rejectOp, setModal, setDetailI
 function AccInventoryItems({ navigate }:PageProps) {
   usePlatformInventory();
   const { data: catalogApi } = usePlatformInventoryCatalog();
-  const BRAND_CATALOG_FALLBACK: Record<string,{name:string;cat:string;unit:string}[]> = {
-    "برغر خليفة": [
-      {name:"دجاج طازج",cat:"بروتين",unit:"كجم"},{name:"لحم برجر",cat:"بروتين",unit:"كجم"},
-      {name:"خبز برجر",cat:"مخبوزات",unit:"قطعة"},{name:"جبنة شيدر",cat:"ألبان",unit:"شريحة"},
-      {name:"طماطم",cat:"خضروات",unit:"كجم"},{name:"خس",cat:"خضروات",unit:"كجم"},
-      {name:"بطاطس",cat:"خضروات",unit:"كجم"},{name:"بصل",cat:"خضروات",unit:"كجم"},
-      {name:"صوص برجر خاص",cat:"صوصات",unit:"كجم"},{name:"مايونيز",cat:"صوصات",unit:"كجم"},
-      {name:"كاتشب",cat:"صوصات",unit:"كجم"},{name:"زيت قلي",cat:"زيوت",unit:"لتر"},
-      {name:"مشروبات غازية",cat:"مشروبات",unit:"علبة"},{name:"ماء معدني",cat:"مشروبات",unit:"لتر"},
-    ],
-    "بيتزا باكو": [
-      {name:"عجينة البيتزا",cat:"مخبوزات",unit:"كجم"},{name:"صوص الطماطم",cat:"صوصات",unit:"كجم"},
-      {name:"جبنة موزاريلا",cat:"ألبان",unit:"كجم"},{name:"فلفل رومي",cat:"خضروات",unit:"كجم"},
-      {name:"مشروم",cat:"خضروات",unit:"كجم"},{name:"دجاج مشوي",cat:"بروتين",unit:"كجم"},
-      {name:"لحم مدخن",cat:"بروتين",unit:"كجم"},{name:"زيت زيتون",cat:"زيوت",unit:"لتر"},
-      {name:"أوريجانو",cat:"توابل",unit:"كجم"},{name:"ثوم",cat:"خضروات",unit:"كجم"},
-      {name:"مشروبات غازية",cat:"مشروبات",unit:"علبة"},{name:"ماء معدني",cat:"مشروبات",unit:"لتر"},
-    ],
-    "وسطاوي": [
-      {name:"أرز بسمتي",cat:"حبوب",unit:"كجم"},{name:"دجاج طازج",cat:"بروتين",unit:"كجم"},
-      {name:"لحم ضأن",cat:"بروتين",unit:"كجم"},{name:"بهارات مشوي",cat:"توابل",unit:"كجم"},
-      {name:"طماطم",cat:"خضروات",unit:"كجم"},{name:"بصل",cat:"خضروات",unit:"كجم"},
-      {name:"ثوم",cat:"خضروات",unit:"كجم"},{name:"زيت نباتي",cat:"زيوت",unit:"لتر"},
-      {name:"حليب طازج",cat:"ألبان",unit:"لتر"},{name:"خبز تنور",cat:"مخبوزات",unit:"قطعة"},
-      {name:"ليمون",cat:"فواكه",unit:"كجم"},{name:"مشروبات غازية",cat:"مشروبات",unit:"علبة"},
-    ],
-  };
+  // Catalog comes from the platform API; empty until the backend returns it (no static seed).
+  const BRAND_CATALOG_FALLBACK: Record<string,{name:string;cat:string;unit:string}[]> = {};
   const BRAND_CATALOG = (((catalogApi as any) && Object.keys(catalogApi as any).length>0)
     ? (catalogApi as any)
     : BRAND_CATALOG_FALLBACK) as typeof BRAND_CATALOG_FALLBACK;
@@ -5645,7 +5532,7 @@ function AccShifts({ navigate, setModal }:PageProps) {
 
   // ─── Shift Setup state ─────────────────────────────────────────────────────
   const [brandCfgs,  setBrandCfgs]  = useState<BrandShiftState[]>(()=>BRANDS_CATALOG.map(sInitBrand));
-  const [selBrandId, setSelBrandId] = useState(BRANDS_CATALOG[0].id);
+  const [selBrandId, setSelBrandId] = useState(BRANDS_CATALOG[0]?.id ?? "");
   const [expandedRest,setExpandedRest] = useState<string|null>(null);
   const [brandEdit,  setBrandEdit]  = useState<ShiftEditState>(null);
   const [restEdits,  setRestEdits]  = useState<Record<string,ShiftEditState>>({});
@@ -5677,23 +5564,13 @@ function AccShifts({ navigate, setModal }:PageProps) {
     setRestEdits(p=>({...p,[rId]:null}));
   };
 
-  const LIVE_SHIFTS_FALLBACK = [
-    { name:"خالد الشمري", role:"مشرف الشفت", branch:"فرع الرياض - العليا", start:"8:00 ص", duration:"3:22 ساعة", durationHrs:3.4, orders:87, sales:12500, status:"active" as const },
-    { name:"محمد العتيبي", role:"كاشير رئيسي", branch:"فرع الرياض - العليا", start:"8:00 ص", duration:"3:22 ساعة", durationHrs:3.4, orders:87, sales:12500, status:"active" as const },
-    { name:"سعد الدوسري", role:"مشرف الشفت", branch:"فرع مكة - المعابدة", start:"6:00 ص", duration:"9:22 ساعة", durationHrs:9.4, orders:45, sales:9200, status:"late" as const },
-    { name:"فهد القحطاني", role:"كاشير", branch:"فرع جدة - الحمراء", start:"7:00 ص", duration:"4:22 ساعة", durationHrs:4.4, orders:63, sales:9200, status:"active" as const },
-  ];
-  const liveShifts = ((apiLiveShifts as any)?.length > 0 ? apiLiveShifts : LIVE_SHIFTS_FALLBACK) as typeof LIVE_SHIFTS_FALLBACK;
+  // Live & historical shifts come from the platform API; empty until the backend returns them.
+  const LIVE_SHIFTS_FALLBACK: any[] = [];
+  const liveShifts = (Array.isArray(apiLiveShifts) ? apiLiveShifts : []) as any[];
   const overdueShifts = liveShifts.filter(s=>s.durationHrs>8);
 
-  const SHIFT_HISTORY_FALLBACK = [
-    {branch:"فرع الرياض - العليا", supervisor:"خالد الشمري", date:"13 أكت", startT:"8:00 ص", endT:"4:00 م", orders:145, sales:22400, cashExpected:8200, cashActual:8150, diff:-50},
-    {branch:"فرع جدة - الحمراء",    supervisor:"فهد القحطاني", date:"13 أكت", startT:"7:00 ص", endT:"3:30 م", orders:118, sales:18900, cashExpected:7200, cashActual:7200, diff:0},
-    {branch:"فرع مكة - المعابدة",   supervisor:"سعد الدوسري",  date:"13 أكت", startT:"6:00 ص", endT:"2:00 م", orders:92,  sales:14300, cashExpected:5800, cashActual:5920, diff:120},
-    {branch:"فرع الرياض - العليا", supervisor:"خالد الشمري", date:"12 أكت", startT:"8:00 ص", endT:"4:00 م", orders:138, sales:21000, cashExpected:7800, cashActual:7800, diff:0},
-    {branch:"فرع جدة - الحمراء",    supervisor:"فهد القحطاني", date:"12 أكت", startT:"7:00 ص", endT:"3:30 م", orders:99,  sales:15600, cashExpected:6100, cashActual:6050, diff:-50},
-  ];
-  const shiftHistory = (((apiHistoryShifts as any)?.data?.length > 0 ? (apiHistoryShifts as any).data : SHIFT_HISTORY_FALLBACK)) as typeof SHIFT_HISTORY_FALLBACK;
+  const SHIFT_HISTORY_FALLBACK: any[] = [];
+  const shiftHistory = ((apiHistoryShifts as any)?.data?.length > 0 ? (apiHistoryShifts as any).data : []) as any[];
 
   const cashIn  = parseFloat(closeForm.cashInDrawer)||0;
   const salesSys = parseFloat(closeForm.salesSystem)||0;
@@ -5719,10 +5596,10 @@ function AccShifts({ navigate, setModal }:PageProps) {
 
       {/* KPIs */}
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label="شفتات نشطة"      value="4"         sub=""                  icon={<span className="w-2 h-2 rounded-full bg-emerald-500"/>} accent="emerald"/>
-        <KpiCard label="شفت متأخر"        value="1"         sub="يحتاج متابعة"      icon={<AlertTriangle size={18} className="text-amber-600"/>} accent="amber"/>
-        <KpiCard label="متوسط مدة الشفت" value="4.2 ساعة"  sub="هذا اليوم"         icon={<TrendingUp size={18} className="text-purple-600"/>} accent="purple"/>
-        <KpiCard label="إجمالي الطلبات"  value="282"       sub="هذا اليوم"         icon={<ShoppingCart size={18} className="text-blue-600"/>} accent="blue"/>
+        <KpiCard label="شفتات نشطة"      value={String(liveShifts.length)}         sub=""                  icon={<span className="w-2 h-2 rounded-full bg-emerald-500"/>} accent="emerald"/>
+        <KpiCard label="شفت متأخر"        value={String(overdueShifts.length)}      sub="يحتاج متابعة"      icon={<AlertTriangle size={18} className="text-amber-600"/>} accent="amber"/>
+        <KpiCard label="متوسط مدة الشفت" value={`${liveShifts.length ? (liveShifts.reduce((s,x)=>s+(x.durationHrs||0),0)/liveShifts.length).toFixed(1) : "0"} ساعة`}  sub="هذا اليوم"         icon={<TrendingUp size={18} className="text-purple-600"/>} accent="purple"/>
+        <KpiCard label="إجمالي الطلبات"  value={String(liveShifts.reduce((s,x)=>s+(x.orders||0),0))}       sub="هذا اليوم"         icon={<ShoppingCart size={18} className="text-blue-600"/>} accent="blue"/>
       </div>
 
       {/* Tabs */}
@@ -6060,27 +5937,12 @@ function AccEmployees({ navigate, setModal }:PageProps) {
   const exportPayrollMut = useExportPayroll();
   const [selectedIdx, setSelectedIdx] = useState<number>(0);
   const [empFilter, setEmpFilter] = useState({empNum:"", branch:"", brand:""});
-  const EMPLOYEES_FALLBACK = [
-    { name:"أحمد الشمري", role:"مشرف الشفت", branch:"الرياض - العليا", balance:1250, movements:[
-      { date:"14 أكتوبر", desc:"عمولة الشفت الصباحي", type:"credit", amt:500 },
-      { date:"14 أكتوبر", desc:"خصم — نقص في الصندوق", type:"debit", amt:150 },
-      { date:"13 أكتوبر", desc:"عمولة الشفت المسائي", type:"credit", amt:500 },
-      { date:"12 أكتوبر", desc:"سلفة بطلب", type:"debit", amt:500 },
-      { date:"11 أكتوبر", desc:"عمولة الشفت الصباحي", type:"credit", amt:500 },
-      { date:"10 أكتوبر", desc:"حافز أداء — أفضل مبيعات", type:"credit", amt:400 },
-    ]},
-    { name:"محمد العتيبي", role:"كاشير رئيسي", branch:"الرياض - العليا", balance:-350, movements:[
-      { date:"14 أكتوبر", desc:"خصم — فرق في الصندوق", type:"debit", amt:350 },
-      { date:"13 أكتوبر", desc:"عمولة الشفت المسائي", type:"credit", amt:450 },
-    ]},
-    { name:"سعد الدوسري", role:"مشرف الشفت", branch:"مكة - المعابدة", balance:800, movements:[
-      { date:"14 أكتوبر", desc:"عمولة الشفت الصباحي", type:"credit", amt:800 },
-    ]},
-  ];
-  const employees = (((apiEmployees as any)?.data?.length > 0 ? (apiEmployees as any).data : EMPLOYEES_FALLBACK)) as typeof EMPLOYEES_FALLBACK;
-  const emp = employees[selectedIdx];
-  const totalCredit = emp.movements.filter(m=>m.type==="credit").reduce((s,m)=>s+m.amt,0);
-  const totalDebit = emp.movements.filter(m=>m.type==="debit").reduce((s,m)=>s+m.amt,0);
+  // Employees come from the platform API; empty until the backend returns them (no static seed).
+  const EMPLOYEES_FALLBACK: any[] = [];
+  const employees = ((apiEmployees as any)?.data?.length > 0 ? (apiEmployees as any).data : []) as any[];
+  const emp = employees[selectedIdx] ?? { name:"", role:"", branch:"", balance:0, movements:[] as {date:string;desc:string;type:string;amt:number}[] };
+  const totalCredit = emp.movements.filter((m:any)=>m.type==="credit").reduce((s:number,m:any)=>s+m.amt,0);
+  const totalDebit = emp.movements.filter((m:any)=>m.type==="debit").reduce((s:number,m:any)=>s+m.amt,0);
 
   const filteredEmps = employees.filter(e=>{
     if(empFilter.empNum && !e.name.includes(empFilter.empNum)) return false;
@@ -6116,7 +5978,7 @@ function AccEmployees({ navigate, setModal }:PageProps) {
           <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">العلامة التجارية</label>
             <select value={empFilter.brand} onChange={e=>setEmpFilter(p=>({...p,brand:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-              {["الكل","علامة الريم","برغر خليفة","بيتزا باكو","وسطاوي","هرفي الكويتي"].map(b=><option key={b}>{b}</option>)}
+              {["الكل"].map(b=><option key={b}>{b}</option>)}
             </select>
           </div>
         </div>
@@ -6162,7 +6024,7 @@ function AccEmployees({ navigate, setModal }:PageProps) {
                 <div><p className="text-[10px] text-gray-400">إجمالي المدين</p><p className="font-bold text-red-600">-{fmtAmt(totalDebit)} ر.س</p></div>
               </div>
               <div className="space-y-2">
-                {emp.movements.map((m,i)=>(
+                {emp.movements.map((m:any,i:number)=>(
                   <div key={i} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
                     <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0 ${m.type==="credit"?"bg-emerald-50":"bg-red-50"}`}>{m.type==="credit"?"⬆":"⬇"}</div>
                     <div className="flex-1"><p className="text-xs font-medium text-gray-700">{m.desc}</p><p className="text-[10px] text-gray-400">{m.date} 2025</p></div>
@@ -6187,42 +6049,9 @@ function AccCash({}: PageProps) {
   const [statusFilter,   setStatusFilter]   = useState("");
   const [settlementReqs, setSettlementReqs] = useState<Record<string,boolean>>({});
 
-  const BRANCHES_FALLBACK = [
-    { branch:"فرع الرياض - العليا", custodian:"أحمد الشمري", amount:5000, used:3200, daysSinceSettlement:18,
-      txns:[
-        {date:"14 أكت", desc:"صيانة طارئة — مكيف",      type:"debit",  amt:450},
-        {date:"14 أكت", desc:"مواد تنظيف",               type:"debit",  amt:180},
-        {date:"13 أكت", desc:"إيداع عهدة شهر أكتوبر",    type:"credit", amt:5000},
-        {date:"12 أكت", desc:"مستلزمات مكتبية",          type:"debit",  amt:95},
-        {date:"11 أكت", desc:"إصلاح معدات",              type:"debit",  amt:320},
-        {date:"10 أكت", desc:"أدوات خدمة",               type:"debit",  amt:210},
-        {date:"10 أكت", desc:"متفرقات",                   type:"debit",  amt:145},
-        {date:"09 أكت", desc:"مواد نظافة إضافية",        type:"debit",  amt:800},
-        {date:"09 أكت", desc:"قطع غيار",                 type:"debit",  amt:1000},
-      ],
-      pendingTxns:1
-    },
-    { branch:"فرع جدة - الحمراء", custodian:"سعد القحطاني", amount:3000, used:2800, daysSinceSettlement:32,
-      txns:[
-        {date:"14 أكت", desc:"إيداع عهدة شهر أكتوبر",    type:"credit", amt:3000},
-        {date:"13 أكت", desc:"صيانة شبكة كهرباء",        type:"debit",  amt:750},
-        {date:"12 أكت", desc:"مواد تنظيف وتعقيم",        type:"debit",  amt:420},
-        {date:"11 أكت", desc:"مستلزمات المطبخ",           type:"debit",  amt:850},
-        {date:"10 أكت", desc:"إصلاح باب طوارئ",          type:"debit",  amt:380},
-        {date:"09 أكت", desc:"متفرقات أخرى",             type:"debit",  amt:400},
-      ],
-      pendingTxns:2
-    },
-    { branch:"فرع مكة - المعابدة", custodian:"فهد العتيبي", amount:4000, used:1500, daysSinceSettlement:7,
-      txns:[
-        {date:"14 أكت", desc:"إيداع عهدة شهر أكتوبر",    type:"credit", amt:4000},
-        {date:"13 أكت", desc:"مواد تنظيف",               type:"debit",  amt:600},
-        {date:"12 أكت", desc:"صيانة مكيفات",             type:"debit",  amt:900},
-      ],
-      pendingTxns:0
-    },
-  ];
-  const branches = ((apiCashCustody as any)?.length > 0 ? apiCashCustody : BRANCHES_FALLBACK) as typeof BRANCHES_FALLBACK;
+  // Cash-custody branches come from the platform API; empty until the backend returns them.
+  const BRANCHES_FALLBACK: any[] = [];
+  const branches = ((apiCashCustody as any)?.length > 0 ? apiCashCustody : []) as any[];
   const overdueSettlement = branches.filter(b=>b.daysSinceSettlement>=30);
 
   const filtered = branches.filter(b=>{
@@ -6265,7 +6094,7 @@ function AccCash({}: PageProps) {
           <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">العلامة التجارية</label>
             <select className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-              {["الكل","برغر خليفة","بيتزا باكو","وسطاوي"].map(b=><option key={b}>{b}</option>)}
+              {["الكل"].map(b=><option key={b}>{b}</option>)}
             </select>
           </div>
           <div>
@@ -6346,7 +6175,7 @@ function AccCash({}: PageProps) {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50">
-                        {b.txns.map((t,k)=>(
+                        {b.txns.map((t:any,k:number)=>(
                           <tr key={k} className="hover:bg-gray-50">
                             <td className="px-3 py-2 text-gray-500">{t.date}</td>
                             <td className="px-3 py-2 font-medium text-gray-800">{t.desc}</td>
@@ -6436,7 +6265,7 @@ function ExcelImportModal({ assets, setAssets, onClose }:{ assets:any[]; setAsse
     setStep(3);
   };
 
-  const ALL_BRANCHES = ["فرع الرياض - العليا","فرع الرياض - السليمانية","فرع جدة - الحمراء","فرع جدة - العزيزية","فرع مكة - المعابدة","فرع الدمام - الخبر"];
+  const ALL_BRANCHES: string[] = [];
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose} dir="rtl">
@@ -6673,32 +6502,10 @@ function AccAssets({ navigate }: PageProps) {
   const CAT_ICON: Record<AssetCat,string> = { "معدات":"🔧","تقنية":"💻","أثاث":"🪑","مركبات":"🚗","أخرى":"📦" };
   const CAT_CLR:  Record<AssetCat,string> = { "معدات":"bg-blue-500","تقنية":"bg-purple-500","أثاث":"bg-amber-500","مركبات":"bg-green-500","أخرى":"bg-gray-400" };
 
-  const ASSETS_FALLBACK: AssetEntry[] = [
-    { id:"FA-001", name:"ثلاجة عرض كبيرة",    cat:"معدات", branch:"فرع الرياض - العليا",     cost:28000, book:21000, usefulLife:60,  case_:"branch_upload",  status:"pending_accountant", invNum:"INV-A001", submittedBy:"مدير الفرع: خالد العمري", date:"12 أكت", custodian:"خالد العمري",
-      history:[{date:"12 أكت", from:"—",       to:"خالد العمري",   note:"تسجيل أولي عبر الموبايل",      by:"مدير الفرع"}] },
-    { id:"FA-002", name:"نظام POS متكامل",    cat:"تقنية", branch:"فرع جدة - الحمراء",       cost:15000, book:9000,  usefulLife:36,  case_:"acc_register",   status:"pending_branch",     invNum:"INV-A002", submittedBy:"المحاسب: سارة الزهراني",  date:"11 أكت", custodian:"مدير الفرع — قيد التأكيد",
-      history:[{date:"11 أكت", from:"—",       to:"—",             note:"سُجِّل من المحاسب — ينتظر تأكيد الفرع", by:"المحاسب"}] },
-    { id:"FA-003", name:"شاشات عرض المنيو",   cat:"تقنية", branch:"فرع مكة - المعابدة",      cost:8500,  book:7083,  usefulLife:48,  case_:"branch_upload",  status:"confirmed",          invNum:"INV-A003", submittedBy:"مدير الفرع: فهد الشمري",  date:"10 أكت", custodian:"فهد الشمري",
-      history:[
-        {date:"01 سبت", from:"—",              to:"فهد الشمري",    note:"تسجيل أولي",                    by:"مدير الفرع"},
-        {date:"10 أكت", from:"فهد الشمري",     to:"فهد الشمري",    note:"تأكيد من المحاسب — مسجّل رسمياً", by:"المحاسب"},
-      ]},
-    { id:"FA-004", name:"فرن صناعي",           cat:"معدات", branch:"فرع الدمام - الخبر",      cost:45000, book:37500, usefulLife:120, case_:"acc_register",   status:"confirmed",          invNum:"INV-A004", submittedBy:"المحاسب: أحمد الفيصل",    date:"09 أكت", custodian:"ماجد المحيسن",
-      history:[
-        {date:"01 يون", from:"—",              to:"ناصر البقمي",   note:"استلام أولي",                   by:"مدير الفرع"},
-        {date:"15 أغس", from:"ناصر البقمي",    to:"ماجد المحيسن",  note:"نقل عهدة بسبب تغيير المناوبة",   by:"المحاسب"},
-        {date:"09 أكت", from:"ماجد المحيسن",   to:"ماجد المحيسن",  note:"تأكيد المحاسب للعهدة",           by:"المحاسب"},
-      ]},
-    { id:"FA-005", name:"مكيف مركزي",          cat:"معدات", branch:"فرع الرياض - السليمانية", cost:22000, book:18000, usefulLife:96,  case_:"branch_upload",  status:"pending_accountant", invNum:"INV-A005", submittedBy:"مدير الفرع: نواف السالم",  date:"13 أكت", custodian:"نواف السالم",
-      history:[{date:"13 أكت", from:"—",       to:"نواف السالم",   note:"تسجيل أولي عبر الموبايل",      by:"مدير الفرع"}] },
-    { id:"FA-006", name:"طاولات وكراسي خدمة",  cat:"أثاث", branch:"فرع جدة - الحمراء",       cost:12000, book:10000, usefulLife:60,  case_:"acc_register",   status:"confirmed",          invNum:"INV-A006", submittedBy:"المحاسب: سارة الزهراني",  date:"05 أكت", custodian:"طارق الرشيدي",
-      history:[
-        {date:"01 مار", from:"—",              to:"طارق الرشيدي",  note:"شراء وتسجيل",                   by:"المحاسب"},
-        {date:"05 أكت", from:"طارق الرشيدي",   to:"طارق الرشيدي",  note:"مراجعة سنوية — بدون تغيير",    by:"المحاسب"},
-      ]},
-  ];
   const apiAssetsList = (apiAssetsPage as any)?.data ?? (apiAssetsPage as any);
-  const [assets, setAssets] = useState<AssetEntry[]>(((apiAssetsList as any[])?.length > 0 ? (apiAssetsList as AssetEntry[]) : ASSETS_FALLBACK));
+  const [assets, setAssets] = useState<AssetEntry[]>([]);
+  // Sync live assets from the platform API; empty until the backend returns data (no static seed).
+  useEffect(() => { if (Array.isArray(apiAssetsList)) setAssets(apiAssetsList as AssetEntry[]); }, [apiAssetsList]);
 
   const [expandedId,     setExpandedId]    = useState<string|null>(null);
   const [filterStatus,   setFilterStatus]  = useState<"الكل"|AssetStatus>("الكل");
@@ -6842,7 +6649,7 @@ function AccAssets({ navigate }: PageProps) {
           <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">العلامة التجارية</label>
             <select className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-              {["الكل","برغر خليفة","بيتزا باكو","وسطاوي"].map(b=><option key={b}>{b}</option>)}
+              {["الكل"].map(b=><option key={b}>{b}</option>)}
             </select>
           </div>
           <div>
@@ -7481,31 +7288,10 @@ function AccWaste({}: PageProps) {
   const [expandedId,   setExpandedId]   = useState<string|null>(null);
   const [expandedProd, setExpandedProd] = useState<Record<string,number|null>>({});
 
-  const ENTRIES_FALLBACK: WasteEntry[] = [
-    { id:"WD-001", branch:"فرع الرياض - العليا", date:"14 أكت", status:"pending",
-      products:[
-        { name:"دجاج طازج",   qty:3,  unit:"كجم",   unitPrice:35, class_:"تالف", resp:"موظف", hasImg:true,
-          empAllocs:[{empId:"1001",empName:"أحمد العمري",amount:"75"},{empId:"",empName:"",amount:""}] },
-        { name:"زيت قلي",     qty:10, unit:"لتر",   unitPrice:18, class_:"هدر",  resp:"مطعم", hasImg:false,
-          empAllocs:[{empId:"",empName:"",amount:""}] },
-      ]},
-    { id:"WD-002", branch:"فرع جدة - الحمراء", date:"13 أكت", status:"pending",
-      products:[
-        { name:"خبز برجر",     qty:20, unit:"قطعة", unitPrice:2,  class_:"هدر",  resp:"مطعم", hasImg:false,
-          empAllocs:[{empId:"",empName:"",amount:""}] },
-        { name:"صوص مايونيز", qty:2,  unit:"كجم",   unitPrice:25, class_:"تالف", resp:"موظف", hasImg:true,
-          empAllocs:[{empId:"1003",empName:"فهد القحطاني",amount:"30"},{empId:"1005",empName:"خالد السالم",amount:"20"}] },
-        { name:"مشروبات غازية",qty:6,  unit:"علبة", unitPrice:4,  class_:"هدر",  resp:"مطعم", hasImg:false,
-          empAllocs:[{empId:"",empName:"",amount:""}] },
-      ]},
-    { id:"WD-003", branch:"فرع مكة - المعابدة", date:"12 أكت", status:"approved",
-      products:[
-        { name:"دجاج طازج",   qty:1,  unit:"كجم",   unitPrice:35, class_:"تالف", resp:"موظف", hasImg:true,
-          empAllocs:[{empId:"1002",empName:"سارة الزهراني",amount:"35"}] },
-      ]},
-  ];
+  // Waste entries come from the platform API; empty until the backend returns them (no static seed).
   const apiWasteList = (apiWaste as any)?.data ?? (apiWaste as any);
-  const [entries, setEntries] = useState<WasteEntry[]>(((apiWasteList as any[])?.length > 0 ? (apiWasteList as WasteEntry[]) : ENTRIES_FALLBACK));
+  const [entries, setEntries] = useState<WasteEntry[]>([]);
+  useEffect(() => { if (Array.isArray(apiWasteList)) setEntries(apiWasteList as WasteEntry[]); }, [apiWasteList]);
 
   const updProd = (eid:string, pi:number, fn:(p:WasteProduct)=>WasteProduct) =>
     setEntries(prev=>prev.map(e=>e.id===eid?{...e,products:e.products.map((p,i)=>i===pi?fn(p):p)}:e));
@@ -7576,7 +7362,7 @@ function AccWaste({}: PageProps) {
           <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">العلامة التجارية</label>
             <select className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-              {["الكل","برغر خليفة","بيتزا باكو","وسطاوي"].map(b=><option key={b}>{b}</option>)}
+              {["الكل"].map(b=><option key={b}>{b}</option>)}
             </select>
           </div>
           <div className="flex items-end">
@@ -7837,18 +7623,10 @@ function AccReminders({}: PageProps) {
   const [broadcastModule, setBroadcastModule] = useState("");
   const [broadcastMsg,    setBroadcastMsg]    = useState("");
 
-  const REMINDERS_FALLBACK: MissingReport[] = [
-    { id:"R001", branch:"فرع الرياض - العليا",      reportType:"جرد المخزون اليومي",    moduleKey:"inventory_daily",   requiredBy:"14 أكت",  daysMissing:1, urgency:"high",   reminderStatus:"not_sent", response:null },
-    { id:"R002", branch:"فرع جدة - الحمراء",        reportType:"تقرير المبيعات اليومي", moduleKey:"sales",             requiredBy:"14 أكت",  daysMissing:1, urgency:"high",   reminderStatus:"sent",     response:null },
-    { id:"R003", branch:"فرع مكة - المعابدة",       reportType:"طلب الشراء الأسبوعي",   moduleKey:"purchases",         requiredBy:"13 أكت",  daysMissing:2, urgency:"medium", reminderStatus:"responded", response:"سيرسل لاحقاً" },
-    { id:"R004", branch:"فرع الدمام",               reportType:"تقرير الهدر والتالف",   moduleKey:"waste",             requiredBy:"13 أكت",  daysMissing:2, urgency:"low",    reminderStatus:"responded", response:"توضيح: لا يوجد هدر اليوم" },
-    { id:"R005", branch:"فرع الرياض - السليمانية",  reportType:"جرد المخزون اليومي",    moduleKey:"inventory_daily",   requiredBy:"12 أكت",  daysMissing:3, urgency:"high",   reminderStatus:"not_sent", response:null },
-    { id:"R006", branch:"فرع جدة - العزيزية",       reportType:"تقرير المشتريات",        moduleKey:"purchases",         requiredBy:"12 أكت",  daysMissing:3, urgency:"medium", reminderStatus:"responded", response:"لا مشتريات اليوم" },
-    { id:"R007", branch:"فرع الرياض - السليمانية",  reportType:"الجرد الشهري",           moduleKey:"inventory_monthly", requiredBy:"11 أكت",  daysMissing:4, urgency:"high",   reminderStatus:"not_sent", response:null },
-    { id:"R008", branch:"فرع جدة - العزيزية",       reportType:"المصروفات اليومية",      moduleKey:"expenses",          requiredBy:"11 أكت",  daysMissing:4, urgency:"medium", reminderStatus:"sent",     response:null },
-  ];
+  // Missing-report reminders come from the platform API; empty until the backend returns them.
   const apiRemList = (apiReminders as any)?.data ?? (apiReminders as any);
-  const [reminders, setReminders] = useState<MissingReport[]>(((apiRemList as any[])?.length > 0 ? (apiRemList as MissingReport[]) : REMINDERS_FALLBACK));
+  const [reminders, setReminders] = useState<MissingReport[]>([]);
+  useEffect(() => { if (Array.isArray(apiRemList)) setReminders(apiRemList as MissingReport[]); }, [apiRemList]);
   const [expandedId, setExpandedId] = useState<string|null>(null);
   const [responseOptions] = useState<ResponseType[]>(["سيرسل لاحقاً","لا مشتريات اليوم","تم الجرد — قيد الرفع","توضيح: لا يوجد هدر اليوم"]);
 
@@ -7921,7 +7699,7 @@ function AccReminders({}: PageProps) {
           <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">العلامة التجارية</label>
             <select className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-              {["الكل","برغر خليفة","بيتزا باكو","وسطاوي"].map(b=><option key={b}>{b}</option>)}
+              {["الكل"].map(b=><option key={b}>{b}</option>)}
             </select>
           </div>
           <div className="flex items-end">
@@ -8440,7 +8218,7 @@ function HeadPending({ navigate, setModal, setDetailId, ops, finalApproveOp, rej
           <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("العلامة التجارية","Brand")}</label>
             <select value={brandFilter} onChange={e=>setBrandFilter(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-              {[t("الكل","All"),"برغر خليفة","بيتزا باكو","وسطاوي"].map(b=><option key={b}>{b}</option>)}
+              {[t("الكل","All")].map(b=><option key={b}>{b}</option>)}
             </select>
           </div>
           <div>
@@ -8694,7 +8472,7 @@ function HeadModulePage({ moduleKey, navigate, setModal, setDetailId, ops, final
           <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("العلامة التجارية","Brand")}</label>
             <select value={brandFilter} onChange={e=>setBrandFilter(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-              {[allVal,"برغر خليفة","بيتزا باكو","وسطاوي"].map(b=><option key={b}>{b}</option>)}
+              {[allVal].map(b=><option key={b}>{b}</option>)}
             </select>
           </div>
           <div>
@@ -8791,23 +8569,11 @@ function HeadAccountants({}: PageProps) {
   const { data: apiPerf } = useAccountantsPerformancePlatform();
   const { t, dir } = useLang();
   const [expandedAcc, setExpandedAcc] = useState<number|null>(null);
-  const ACCOUNTANTS_FALLBACK = [
-    { name:"أحمد محمد الشهري", branches:20, reviewed:250, approved:230, pending:5,  rate:92, prevRate:88, rating:4.8, avgTime:4.5,  level:t("ممتاز","Excellent"),   levelCls:"bg-emerald-100 text-emerald-700" },
-    { name:"سارة العمري",      branches:20, reviewed:210, approved:197, pending:2,  rate:94, prevRate:95, rating:4.9, avgTime:3.8,  level:t("ممتاز","Excellent"),   levelCls:"bg-emerald-100 text-emerald-700" },
-    { name:"محمد الحربي",      branches:20, reviewed:185, approved:128, pending:8,  rate:69, prevRate:64, rating:3.8, avgTime:8.2,  level:t("مقبول","Acceptable"),  levelCls:"bg-amber-100 text-amber-700"   },
-    { name:"فاطمة السالم",     branches:20, reviewed:290, approved:284, pending:1,  rate:98, prevRate:97, rating:5.0, avgTime:2.9,  level:t("ممتاز","Excellent"),   levelCls:"bg-emerald-100 text-emerald-700" },
-  ];
-  const accountants = (((apiPerf as any)?.length > 0 ? (apiPerf as any) : ACCOUNTANTS_FALLBACK)) as typeof ACCOUNTANTS_FALLBACK;
+  // Accountant performance + recent movements come from the platform API; empty until returned.
+  const accountants = ((apiPerf as any)?.length > 0 ? (apiPerf as any) : []) as any[];
 
-  const RECENT_MOVEMENTS_FALLBACK = [
-    [t("اعتماد مبيعات فرع العليا","Sales approval — Al-Alia branch"),t("قبل 12 دقيقة","12 min ago"),t("مبيعات","Sales")],
-    [t("اعتماد مصروفات فرع الحمراء","Expenses approval — Al-Hamra branch"),t("قبل 28 دقيقة","28 min ago"),t("مصروفات","Expenses")],
-    [t("رفض مشتريات — فرق في الكمية","Purchases rejected — quantity diff"),t("قبل 45 دقيقة","45 min ago"),t("مشتريات","Purchases")],
-    [t("اعتماد مخزون فرع المعابدة","Inventory approval — Al-Maaabdah"),t("قبل ساعة","1 hr ago"),t("مخزون","Inventory")],
-    [t("طلب توضيح — فرع الدمام","Clarification request — Dammam"),t("قبل ساعتين","2 hr ago"),t("مبيعات","Sales")],
-  ];
   const apiMovements = (apiPerf as any)?.recentMovements;
-  const recentMovements = ((apiMovements as any[])?.length > 0 ? apiMovements : RECENT_MOVEMENTS_FALLBACK) as typeof RECENT_MOVEMENTS_FALLBACK;
+  const recentMovements = ((apiMovements as any[])?.length > 0 ? apiMovements : []) as any[];
 
   return (
     <div className="space-y-4" dir={dir}>
@@ -12061,10 +11827,10 @@ function BranchOverview({ navigate }: PageProps) {
   const { t, lang, dir } = useLang(); const en = lang==="en";
   const { data: apiOverview } = useBranchOverviewPlatform();
   const kpis = (apiOverview as any)?.kpis ?? {};
-  const todaySales = kpis.todaySalesHalalas != null ? Math.round(kpis.todaySalesHalalas / 100) : 18340;
-  const orders     = kpis.ordersCount   ?? 87;
-  const empsActive = kpis.activeEmployees ?? 12;
-  const reqReports = kpis.requiredReportsCount ?? 3;
+  const todaySales = kpis.todaySalesHalalas != null ? Math.round(kpis.todaySalesHalalas / 100) : 0;
+  const orders     = kpis.ordersCount   ?? 0;
+  const empsActive = kpis.activeEmployees ?? 0;
+  const reqReports = kpis.requiredReportsCount ?? 0;
   return (
     <div className="space-y-5">
       <div><h2 className="text-xl font-bold text-gray-800">{t("نظرة عامة — فرع الرياض العليا","Overview — Riyadh Al-Olaya Branch")}</h2><p className="text-gray-400 text-sm mt-0.5">{t("الاثنين، 14 أكتوبر 2025","Monday, 14 October 2025")}</p></div>
@@ -12106,8 +11872,7 @@ function BranchOverview({ navigate }: PageProps) {
 function BranchEmployees({}: PageProps) {
   const { t } = useLang();
   const { data: apiEmps = [] } = useBranchEmployeesPlatform();
-  const EMPS_INLINE = [{name:"خالد الشمري",role:t("مشرف الشفت","Shift Supervisor"),salary:4500,shift:t("صباحي","Morning"),active:true},{name:"محمد العتيبي",role:t("كاشير رئيسي","Head Cashier"),salary:3200,shift:t("صباحي","Morning"),active:true},{name:"سعد الدوسري",role:t("كاشير","Cashier"),salary:2800,shift:t("مسائي","Evening"),active:false},{name:"أحمد الغامدي",role:t("عامل مطبخ","Kitchen Staff"),salary:2500,shift:t("صباحي","Morning"),active:true}];
-  const emps = ((apiEmps as any[]).length > 0 ? (apiEmps as any) : EMPS_INLINE) as typeof EMPS_INLINE;
+  const emps = ((apiEmps as any[]).length > 0 ? (apiEmps as any) : []) as any[];
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between"><h2 className="text-xl font-bold text-gray-800">{t("الموظفون","Employees")}</h2><Btn variant="primary" size="sm"><Plus size={13}/> {t("إضافة موظف","Add Employee")}</Btn></div>
@@ -12134,9 +11899,8 @@ function BranchEmployees({}: PageProps) {
 function BranchItems({}: PageProps) {
   const { t } = useLang();
   const { data: apiItems } = useBranchInventoryItemsPlatform();
-  const ITEMS_FALLBACK = ["دجاج طازج","حليب طازج","خس","طماطم","بطاطس","زيت قلي","كاتشب","ماء معدني","عصير برتقال","خبز برجر"];
   const apiNames = (apiItems as any)?.items ? (apiItems as any).items.map((i: any) => i.name) : [];
-  const items: string[] = apiNames.length > 0 ? apiNames : ITEMS_FALLBACK;
+  const items: string[] = apiNames;
   return (
     <div className="space-y-5">
       <h2 className="text-xl font-bold text-gray-800">{t("الأصناف المحددة للجرد","Items for Inventory")}</h2>
@@ -12161,8 +11925,7 @@ function BranchItems({}: PageProps) {
 function BranchSuppliers({}: PageProps) {
   const { t } = useLang();
   const { data: apiSuppliers } = useBranchSuppliersPlatform();
-  const SUPPLIERS_FALLBACK = [{name:"شركة الدواجن الوطنية",cat:"دواجن ولحوم",contact:"محمد العلي",phone:"0501234567"},{name:"مطاحن الملك",cat:"دقيق ومخبوزات",contact:"سعد الدوسري",phone:"0507654321"},{name:"مزرعة الخير",cat:"خضار وفواكه",contact:"فهد الشمري",phone:"0509876543"}];
-  const suppliers = (((apiSuppliers as any)?.length > 0 ? (apiSuppliers as any) : SUPPLIERS_FALLBACK)) as typeof SUPPLIERS_FALLBACK;
+  const suppliers = ((apiSuppliers as any)?.length > 0 ? (apiSuppliers as any) : []) as any[];
   return (
     <div className="space-y-5">
       <h2 className="text-xl font-bold text-gray-800">{t("الموردون","Suppliers")}</h2>
@@ -12183,16 +11946,9 @@ function BranchUpload({}: PageProps) {
   const { t } = useLang();
   const { data: apiUploadStatus } = useBranchUploadStatusPlatform();
   const [uploads, setUploads] = useState<Record<string,boolean>>({});
-  const REPORTS_FALLBACK = [
-    {id:"sales",    name:"تقرير المبيعات اليومي",  desc:"POS + التطبيقات",     required:true,  lastUpload:"أمس 11:23 م",  lastStatus:"success", todayDeadline:"11:59 م"},
-    {id:"inventory",name:"جرد المخزون اليومي",      desc:"10 أصناف محددة",      required:true,  lastUpload:"أمس 10:47 م",  lastStatus:"success", todayDeadline:"11:59 م"},
-    {id:"cash",     name:"كشف حساب الصندوق",        desc:"نقدي + مدفوعات",      required:true,  lastUpload:"13 أكت 09:15 ص",lastStatus:"late",    todayDeadline:"10:00 ص"},
-    {id:"waste",    name:"تقرير الهدر والتالف",     desc:"الأصناف التالفة",     required:false, lastUpload:"12 أكت 10:30 ص",lastStatus:"success", todayDeadline:"اختياري"},
-    {id:"purchases",name:"طلبات الشراء",             desc:"الكميات والأصناف",    required:true,  lastUpload:"لم يُرفع بعد",  lastStatus:"missing", todayDeadline:"02:00 م"},
-    {id:"expenses", name:"المصروفات اليومية",        desc:"فواتير + مستندات",    required:false, lastUpload:"أمس 08:55 م",  lastStatus:"success", todayDeadline:"اختياري"},
-  ];
+  // Daily-upload checklist comes from the platform API; empty until the backend returns it.
   const apiReports = (apiUploadStatus as any)?.reports;
-  const reports = ((apiReports?.length > 0 ? apiReports : REPORTS_FALLBACK)) as typeof REPORTS_FALLBACK;
+  const reports = ((apiReports?.length > 0 ? apiReports : [])) as any[];
   const dueToday = reports.filter(r=>r.required && !uploads[r.id] && r.lastStatus!=="success");
   return (
     <div className="space-y-5">
@@ -12258,11 +12014,11 @@ function ProcOverview({ navigate }:PageProps) {
   const { t } = useLang();
   const { data: apiOverview } = useProcurementOverviewPlatform();
   const kpis = (apiOverview as any)?.kpis ?? {};
-  const newOrders     = kpis.newOrdersCount     ?? 45;
-  const fromBranches  = kpis.fromBranchesCount  ?? 40;
-  const consolidated  = kpis.consolidatedCount  ?? 12;
-  const sentToSuppliers = kpis.sentToSuppliersCount ?? 8;
-  const ordersValueK  = kpis.ordersValueHalalas != null ? Math.round(kpis.ordersValueHalalas / 100_000) : 148;
+  const newOrders     = kpis.newOrdersCount     ?? 0;
+  const fromBranches  = kpis.fromBranchesCount  ?? 0;
+  const consolidated  = kpis.consolidatedCount  ?? 0;
+  const sentToSuppliers = kpis.sentToSuppliersCount ?? 0;
+  const ordersValueK  = kpis.ordersValueHalalas != null ? Math.round(kpis.ordersValueHalalas / 100_000) : 0;
   return (
     <div className="space-y-5">
       <div><h2 className="text-xl font-bold text-gray-800">{t("لوحة تحكم المشتريات","Procurement Dashboard")}</h2><p className="text-gray-400 text-sm mt-0.5">{t("تجميع الطلبات والتنسيق مع الموردين","Consolidate orders and coordinate with suppliers")}</p></div>
@@ -12334,17 +12090,10 @@ function ProcNewOrders({}: PageProps) {
   const { t } = useLang();
   const { data: apiOrdersPage } = useProcurementOrdersPlatform({ status: "pending" });
   type ProcOrder = { id:string; branch:string; city:string; supplier:string; items:number; total:number; urgency:string; status:"pending"|"approved"; time:string };
-  const ORDERS_FALLBACK: ProcOrder[] = [
-    { id:"PO-101", branch:"فرع الرياض - العليا", city:"الرياض",  supplier:"شركة الدواجن الوطنية",  items:4, total:4800, urgency:"عادي", status:"pending", time:"قبل 30 دقيقة" },
-    { id:"PO-102", branch:"فرع الرياض - العليا", city:"الرياض",  supplier:"شركة الدواجن الوطنية",  items:2, total:2200, urgency:"عادي", status:"pending", time:"قبل ساعة" },
-    { id:"PO-103", branch:"فرع الرياض - العليا", city:"الرياض",  supplier:"مطاحن الملك",            items:3, total:1900, urgency:"عادي", status:"pending", time:"قبل ساعتين" },
-    { id:"PO-104", branch:"فرع جدة - الحمراء",   city:"جدة",     supplier:"شركة الدواجن الوطنية",  items:6, total:8200, urgency:"عاجل", status:"pending", time:"قبل ساعة" },
-    { id:"PO-105", branch:"فرع جدة - الحمراء",   city:"جدة",     supplier:"مزرعة الخير",            items:4, total:5400, urgency:"عاجل", status:"pending", time:"قبل ساعتين" },
-    { id:"PO-106", branch:"فرع مكة - المعابدة",  city:"مكة",     supplier:"مطاحن الملك",            items:3, total:3100, urgency:"عادي", status:"pending", time:"قبل ساعتين" },
-    { id:"PO-107", branch:"فرع الدمام",           city:"الدمام",  supplier:"مزرعة الخير",            items:5, total:5600, urgency:"عاجل", status:"pending", time:"قبل 3 ساعات" },
-  ];
+  // Pending purchase orders come from the platform API; empty until the backend returns them.
   const apiOrdersList = (apiOrdersPage as any)?.data;
-  const [orders, setOrders] = useState<ProcOrder[]>(((apiOrdersList as any[])?.length > 0 ? (apiOrdersList as ProcOrder[]) : ORDERS_FALLBACK));
+  const [orders, setOrders] = useState<ProcOrder[]>([]);
+  useEffect(() => { if (Array.isArray(apiOrdersList)) setOrders(apiOrdersList as ProcOrder[]); }, [apiOrdersList]);
   const [groupBy, setGroupBy] = useState<"branch"|"supplier">("branch");
   const [expandedId, setExpandedId] = useState<string|null>(null);
   const [filterCity, setFilterCity]         = useState("الكل");
@@ -12619,34 +12368,11 @@ function ProcGrouped({}: PageProps) {
   const [viewMode, setViewMode] = useState<"supplier"|"city">("supplier");
   const [expandedGroup, setExpandedGroup] = useState<string|null>(null);
 
-  const SUPPLIER_GROUPS_FALLBACK = [
-    { key:"شركة الدواجن الوطنية", city:"الرياض / جدة / الدمام", branches:12, items:[
-      {name:"دجاج طازج",   unit:"كجم", totalQty:680, maxCapacity:700, price:32},
-      {name:"صدر دجاج",    unit:"كجم", totalQty:320, maxCapacity:300, price:45},
-      {name:"أجنحة دجاج",  unit:"كجم", totalQty:220, maxCapacity:250, price:38},
-    ], total:28400 },
-    { key:"مطاحن الملك", city:"الرياض / مكة", branches:8, items:[
-      {name:"دقيق أبيض",   unit:"كجم", totalQty:1200, maxCapacity:1500, price:18},
-      {name:"سكر ناعم",    unit:"كجم", totalQty:480,  maxCapacity:500,  price:14},
-    ], total:14200 },
-    { key:"مزرعة الخير", city:"جدة / مكة / الدمام", branches:15, items:[
-      {name:"خضار متنوعة", unit:"كجم", totalQty:540,  maxCapacity:400, price:12},
-      {name:"طماطم طازجة", unit:"كجم", totalQty:310,  maxCapacity:350, price:8},
-      {name:"خيار طازج",   unit:"كجم", totalQty:185,  maxCapacity:200, price:9},
-      {name:"ثوم",          unit:"كجم", totalQty:95,   maxCapacity:80,  price:22},
-      {name:"بصل",          unit:"كجم", totalQty:260,  maxCapacity:300, price:7},
-      {name:"فلفل",         unit:"كجم", totalQty:130,  maxCapacity:100, price:15},
-    ], total:32100 },
-  ];
+  // Consolidated supplier & city groups come from the platform API; empty until returned.
   const apiSupGroupsList = (apiGroupedSup as any)?.supplierGroups ?? (apiGroupedSup as any)?.data;
-  const supplierGroups = (((apiSupGroupsList as any[])?.length > 0 ? (apiSupGroupsList as any) : SUPPLIER_GROUPS_FALLBACK)) as typeof SUPPLIER_GROUPS_FALLBACK;
+  const supplierGroups = ((apiSupGroupsList as any[])?.length > 0 ? (apiSupGroupsList as any) : []) as any[];
 
-  const cityGroups = [
-    { city:"الرياض",  ordersCount:3, total:8900,  suppliers:["شركة الدواجن الوطنية","مطاحن الملك"],     urgentCount:0 },
-    { city:"جدة",     ordersCount:2, total:13600, suppliers:["شركة الدواجن الوطنية","مزرعة الخير"],     urgentCount:2 },
-    { city:"مكة",     ordersCount:1, total:3100,  suppliers:["مطاحن الملك"],                            urgentCount:0 },
-    { city:"الدمام",  ordersCount:1, total:5600,  suppliers:["مزرعة الخير"],                            urgentCount:1 },
-  ];
+  const cityGroups = (((apiGroupedSup as any)?.cityGroups as any[]) ?? []) as any[];
 
   return (
     <div className="space-y-5">
@@ -12668,7 +12394,7 @@ function ProcGrouped({}: PageProps) {
       {viewMode==="supplier" ? (
         <div className="space-y-3">
           {supplierGroups.map((g,i)=>{
-            const hasOverCapacity = g.items.some(it=>it.totalQty>it.maxCapacity);
+            const hasOverCapacity = g.items.some((it:any)=>it.totalQty>it.maxCapacity);
             return (
               <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="px-5 py-4 flex items-center gap-4 cursor-pointer hover:bg-gray-50"
@@ -12699,7 +12425,7 @@ function ProcGrouped({}: PageProps) {
                         <th className="text-center py-1">{t("سعر الوحدة","Unit Price")}</th>
                       </tr></thead>
                       <tbody className="divide-y divide-gray-100">
-                        {g.items.map((it,j)=>{
+                        {g.items.map((it:any,j:number)=>{
                           const pct = Math.round(it.totalQty/it.maxCapacity*100);
                           const over = it.totalQty>it.maxCapacity;
                           return (
@@ -12754,7 +12480,7 @@ function ProcGrouped({}: PageProps) {
                 <span className="font-mono font-bold text-purple-700">{fmtAmt(cg.total)} {t("ر.س","SAR")}</span>
               </div>
               <div className="space-y-1 text-xs text-gray-600">
-                {cg.suppliers.map((s,j)=>(
+                {cg.suppliers.map((s:any,j:number)=>(
                   <div key={j} className="flex items-center gap-1.5 py-1 border-b border-gray-50 last:border-0">
                     <Truck size={10} className="text-gray-400"/>
                     <span>{s}</span>
@@ -12775,12 +12501,8 @@ function ProcGrouped({}: PageProps) {
 function ProcSent({}: PageProps) {
   const { t } = useLang();
   const { data: apiSent = [] } = useProcurementOrdersPlatform({ status: "sent" });
-  const ORDERS_INLINE = [
-    {supplier:"شركة الدواجن الوطنية",sent:t("قبل ساعة","1 hour ago"),status:"confirmed",total:28400},
-    {supplier:"مطاحن الملك",sent:t("أمس","yesterday"),status:"preparing",total:14200},
-    {supplier:"مزرعة الخير",sent:t("قبل يومين","2 days ago"),status:"onway",total:32100},
-  ];
-  const orders = ((apiSent as any[]).length > 0 ? (apiSent as any) : ORDERS_INLINE) as typeof ORDERS_INLINE;
+  // Sent orders come from the platform API; empty until the backend returns them.
+  const orders = ((apiSent as any[]).length > 0 ? (apiSent as any) : []) as any[];
   const statusCfg: Record<string,{cls:string;label:string}> = {
     confirmed:{cls:"bg-emerald-50 text-emerald-700",label:t("مؤكد","Confirmed")},
     preparing:{cls:"bg-amber-50 text-amber-700",label:t("قيد التحضير","Preparing")},
@@ -12810,10 +12532,10 @@ function SupOverview({ navigate }:PageProps) {
   const { data: apiOverview } = useSupplierOverview();
   const { t } = useLang();
   const kpis = (apiOverview as any)?.kpis ?? {};
-  const newOrders     = kpis.newOrdersCount     ?? 3;
-  const acceptedOrders = kpis.acceptedOrdersCount ?? 12;
-  const salesK        = kpis.totalSalesHalalas != null ? Math.round(kpis.totalSalesHalalas / 100_000) : 285;
-  const activeClients = kpis.activeClientsCount ?? 18;
+  const newOrders     = kpis.newOrdersCount     ?? 0;
+  const acceptedOrders = kpis.acceptedOrdersCount ?? 0;
+  const salesK        = kpis.totalSalesHalalas != null ? Math.round(kpis.totalSalesHalalas / 100_000) : 0;
+  const activeClients = kpis.activeClientsCount ?? 0;
   return (
     <div className="space-y-5">
       <div><h2 className="text-xl font-bold text-gray-800">{t("لوحة تحكم المورد","Supplier Dashboard")}</h2><p className="text-gray-400 text-sm mt-0.5">{t("شركة الدواجن الوطنية","National Poultry Company")}</p></div>
@@ -12848,13 +12570,10 @@ function SupNewOrders({}: PageProps) {
   const { t } = useLang();
   const exportSupOrdersMut = useExportSupplierOrders();
   type SupOrder = { id:string; rest:string; items:{name:string;qty:number;unit:string;price:number}[]; deadline:string; status:"pending"|"accepted"|"rejected" };
-  const ORDERS_FALLBACK: SupOrder[] = [
-    { id:"ORD-5501", rest:t("مطعم هرفي","Herfy Restaurant"), items:[{name:t("دجاج طازج","Fresh Chicken"),qty:200,unit:t("كجم","kg"),price:24}], deadline:t("غداً 8 ص","Tomorrow 8 AM"), status:"pending" },
-    { id:"ORD-5500", rest:t("ماكدونالدز السعودية","McDonald's KSA"), items:[{name:t("دجاج مجمد","Frozen Chicken"),qty:500,unit:t("كجم","kg"),price:21}], deadline:t("بعد غد","Day after tomorrow"), status:"pending" },
-    { id:"ORD-5499", rest:t("مطعم الريم","Al-Reem Restaurant"), items:[{name:t("قطع مشكلة","Mixed Cuts"),qty:150,unit:t("كجم","kg"),price:24}], deadline:t("اليوم 6 م","Today 6 PM"), status:"pending" },
-  ];
+  // Incoming supplier orders come from the platform API; empty until the backend returns them.
   const apiOrders = (apiOrdersResp as any)?.data;
-  const [orders, setOrders] = useState<SupOrder[]>(apiOrders?.length > 0 ? apiOrders : ORDERS_FALLBACK);
+  const [orders, setOrders] = useState<SupOrder[]>([]);
+  useEffect(() => { if (Array.isArray(apiOrders)) setOrders(apiOrders as SupOrder[]); }, [apiOrders]);
   const accept = (id:string) => setOrders(p=>p.map(o=>o.id===id?{...o,status:"accepted" as const}:o));
   const reject = (id:string) => setOrders(p=>p.map(o=>o.id===id?{...o,status:"rejected" as const}:o));
 
@@ -13001,15 +12720,8 @@ function ProcItems({}: PageProps) {
   const exportItemsMut = useExportProcurementItems();
   const createItemMut = useCreateProcurementItem();
   const [search, setSearch] = useState("");
-  const ITEMS_FALLBACK = [
-    {name:"دجاج طازج",unit:"كجم",category:"لحوم ودواجن",supplier:"شركة الدواجن الوطنية",avgPrice:24,lastOrder:"أمس",monthlyUsage:2400,stock:180},
-    {name:"دجاج مجمد",unit:"كجم",category:"لحوم ودواجن",supplier:"شركة الدواجن الوطنية",avgPrice:21,lastOrder:"قبل 3 أيام",monthlyUsage:1800,stock:320},
-    {name:"طحين قمح",unit:"كيس 50كجم",category:"مواد جافة",supplier:"مطاحن الملك",avgPrice:185,lastOrder:"الأسبوع الماضي",monthlyUsage:40,stock:12},
-    {name:"زيت نباتي",unit:"جالون 20ل",category:"مواد جافة",supplier:"مطاحن الملك",avgPrice:95,lastOrder:"قبل 5 أيام",monthlyUsage:60,stock:8},
-    {name:"طماطم طازجة",unit:"كرتون 10كجم",category:"خضروات وفواكه",supplier:"مزرعة الخير",avgPrice:45,lastOrder:"اليوم",monthlyUsage:300,stock:25},
-    {name:"خس",unit:"كرتون",category:"خضروات وفواكه",supplier:"مزرعة الخير",avgPrice:38,lastOrder:"اليوم",monthlyUsage:120,stock:10},
-  ];
-  const items = (((apiItems as any)?.length > 0 ? (apiItems as any) : ITEMS_FALLBACK)) as typeof ITEMS_FALLBACK;
+  // Procurement items come from the platform API; empty until the backend returns them.
+  const items = ((apiItems as any)?.length > 0 ? (apiItems as any) : []) as any[];
   const filtered = items.filter(i=>!search||i.name.includes(search)||i.category.includes(search)||i.supplier.includes(search));
   const totalMonthly = filtered.reduce((s,i)=>s+i.avgPrice*i.monthlyUsage,0);
 
@@ -13078,53 +12790,8 @@ function ProcSuppliers({}: PageProps) {
   const [expandedSup, setExpandedSup] = useState<string|null>(null);
   const [activeTab, setActiveTab] = useState<"deliveries"|"prices">("deliveries");
 
-  const SUPPLIERS_FALLBACK = [
-    { name:"شركة الدواجن الوطنية", category:"لحوم ودواجن", contact:"0553421100", rating:4.8, orders:42, monthlyTotal:148000, onTime:96, status:"نشط",
-      deliveries:[
-        {date:"14 أكتوبر 2025", items:"دجاج طازج 200كجم", status:"في الموعد", rating:5, note:"جودة ممتازة"},
-        {date:"7 أكتوبر 2025",  items:"صدر دجاج 100كجم",  status:"في الموعد", rating:5, note:""},
-        {date:"1 أكتوبر 2025",  items:"دجاج طازج 180كجم", status:"تأخر يوم",  rating:3, note:"تأخر بسبب ظروف الطقس"},
-        {date:"24 سبتمبر 2025", items:"أجنحة دجاج 80كجم",  status:"في الموعد", rating:5, note:""},
-        {date:"17 سبتمبر 2025", items:"دجاج طازج 200كجم", status:"في الموعد", rating:4, note:"كمية ناقصة 5كجم"},
-      ],
-      priceHistory:[
-        {item:"دجاج طازج",  unit:"كجم", prices:[{month:"أغسطس",price:30},{month:"سبتمبر",price:31},{month:"أكتوبر",price:32}]},
-        {item:"صدر دجاج",   unit:"كجم", prices:[{month:"أغسطس",price:43},{month:"سبتمبر",price:43},{month:"أكتوبر",price:45}]},
-      ]
-    },
-    { name:"مطاحن الملك", category:"مواد جافة", contact:"0112345678", rating:4.5, orders:28, monthlyTotal:62000, onTime:91, status:"نشط",
-      deliveries:[
-        {date:"12 أكتوبر 2025", items:"دقيق أبيض 500كجم", status:"في الموعد", rating:5, note:""},
-        {date:"5 أكتوبر 2025",  items:"سكر ناعم 200كجم",  status:"في الموعد", rating:4, note:""},
-        {date:"28 سبتمبر 2025", items:"دقيق أبيض 400كجم", status:"تأخر يومين", rating:2, note:"تأخر ملحوظ — جاري التوثيق"},
-      ],
-      priceHistory:[
-        {item:"دقيق أبيض", unit:"كجم", prices:[{month:"أغسطس",price:17},{month:"سبتمبر",price:18},{month:"أكتوبر",price:18}]},
-        {item:"سكر ناعم",  unit:"كجم", prices:[{month:"أغسطس",price:13},{month:"سبتمبر",price:14},{month:"أكتوبر",price:14}]},
-      ]
-    },
-    { name:"مزرعة الخير", category:"خضروات وفواكه", contact:"0564312200", rating:4.2, orders:35, monthlyTotal:38500, onTime:84, status:"نشط",
-      deliveries:[
-        {date:"13 أكتوبر 2025", items:"خضار متنوعة 150كجم", status:"في الموعد", rating:4, note:""},
-        {date:"9 أكتوبر 2025",  items:"طماطم 100كجم",       status:"تأخر يوم",  rating:3, note:""},
-        {date:"5 أكتوبر 2025",  items:"خيار طازج 60كجم",    status:"في الموعد", rating:5, note:"جودة ممتازة"},
-      ],
-      priceHistory:[
-        {item:"خضار متنوعة", unit:"كجم", prices:[{month:"أغسطس",price:11},{month:"سبتمبر",price:11},{month:"أكتوبر",price:12}]},
-        {item:"طماطم",        unit:"كجم", prices:[{month:"أغسطس",price:8},{month:"سبتمبر",price:8},{month:"أكتوبر",price:8}]},
-      ]
-    },
-    { name:"مستودعات البحر", category:"مأكولات بحرية", contact:"0126789000", rating:3.8, orders:15, monthlyTotal:22000, onTime:77, status:"موقوف مؤقتاً",
-      deliveries:[
-        {date:"3 أكتوبر 2025",  items:"سمك 80كجم",     status:"تأخر 3 أيام", rating:1, note:"تجاوز الحد المقبول — تم تعليق المورد"},
-        {date:"25 سبتمبر 2025", items:"روبيان 40كجم",   status:"في الموعد",   rating:4, note:""},
-      ],
-      priceHistory:[
-        {item:"سمك طازج", unit:"كجم", prices:[{month:"أغسطس",price:55},{month:"سبتمبر",price:58},{month:"أكتوبر",price:60}]},
-      ]
-    },
-  ];
-  const suppliers = (((apiSuppliers as any)?.length > 0 ? (apiSuppliers as any) : SUPPLIERS_FALLBACK)) as typeof SUPPLIERS_FALLBACK;
+  // Suppliers (with deliveries + price history) come from the platform API; empty until returned.
+  const suppliers = ((apiSuppliers as any)?.length > 0 ? (apiSuppliers as any) : []) as any[];
   const totalMonthly = suppliers.reduce((s,sup)=>s+sup.monthlyTotal,0);
 
   return (
@@ -13139,7 +12806,7 @@ function ProcSuppliers({}: PageProps) {
       <div className="grid grid-cols-2 gap-4">
         {suppliers.map((sup,i)=>{
           const isExpanded = expandedSup===sup.name;
-          const avgDeliveryRating = sup.deliveries.reduce((s,d)=>s+d.rating,0)/sup.deliveries.length;
+          const avgDeliveryRating = sup.deliveries.reduce((s:number,d:any)=>s+d.rating,0)/sup.deliveries.length;
           return (
           <div key={i} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="p-4">
@@ -13195,7 +12862,7 @@ function ProcSuppliers({}: PageProps) {
                       <p className="text-[11px] font-bold text-gray-600">{t("آخر","Last")} {sup.deliveries.length} {t("تسليمات","deliveries")}</p>
                       <span className="text-[10px] text-gray-400">{t("متوسط التقييم:","Avg rating:")} {avgDeliveryRating.toFixed(1)}/5</span>
                     </div>
-                    {sup.deliveries.map((d,j)=>(
+                    {sup.deliveries.map((d:any,j:number)=>(
                       <div key={j} className={`flex items-start gap-2 p-2 rounded-lg border ${d.status.includes("تأخر")?"border-red-100 bg-red-50/40":"border-gray-100 bg-gray-50/60"}`}>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-medium text-gray-700">{d.items}</p>
@@ -13223,13 +12890,13 @@ function ProcSuppliers({}: PageProps) {
                         <th className="text-center pb-1.5">{t("التغيير","Change")}</th>
                       </tr></thead>
                       <tbody className="divide-y divide-gray-100">
-                        {sup.priceHistory.map((ph,k)=>{
+                        {sup.priceHistory.map((ph:any,k:number)=>{
                           const first=ph.prices[0].price; const last=ph.prices[ph.prices.length-1].price;
                           const change=last-first;
                           return (
                             <tr key={k}>
                               <td className="py-1.5 font-medium text-gray-700">{ph.item} <span className="text-gray-400">/{ph.unit}</span></td>
-                              {ph.prices.map((p,m)=>(
+                              {ph.prices.map((p:any,m:number)=>(
                                 <td key={m} className="py-1.5 text-center font-mono">{p.price} {t("ر.س","SAR")}</td>
                               ))}
                               <td className="py-1.5 text-center">
@@ -13262,15 +12929,12 @@ function ProcSuppliers({}: PageProps) {
 // SUPPLIER EXTRA PAGES
 // ════════════════════════════════════════════════════════════
 function SupAccepted({}: PageProps) {
-  useSupplierOrders({ status: "accepted" });
+  const { data: apiAccepted } = useSupplierOrders({ status: "accepted" });
   const { t } = useLang();
   const exportSupOrdersMut = useExportSupplierOrders();
-  const orders = [
-    {id:"ORD-5498",rest:"مطعم هرفي",items:"دجاج طازج — 200 كجم",accepted:"اليوم 9:15 ص",deliveryDate:"غداً 8 ص",total:4800,status:"قيد التحضير"},
-    {id:"ORD-5495",rest:"ماكدونالدز السعودية",items:"دجاج مجمد — 500 كجم",accepted:"أمس 2:30 م",deliveryDate:"اليوم 6 م",total:10500,status:"في الطريق"},
-    {id:"ORD-5491",rest:"مطعم الريم",items:"قطع مشكلة — 150 كجم",accepted:"قبل يومين",deliveryDate:"اليوم 10 ص",total:3600,status:"تم التسليم"},
-    {id:"ORD-5488",rest:"فرع النخيل",items:"دجاج طازج — 100 كجم",accepted:"قبل 3 أيام",deliveryDate:"تم",total:2400,status:"تم التسليم"},
-  ];
+  // Accepted orders come from the platform API; empty until the backend returns them.
+  const apiAcceptedList = (apiAccepted as any)?.data ?? (apiAccepted as any);
+  const orders = (Array.isArray(apiAcceptedList) ? apiAcceptedList : []) as any[];
   const totalRunning = orders.reduce((s,o)=>s+o.total,0);
   const statusStyle = (s:string)=> s.includes("تم")||s.includes("Delivered")?"bg-emerald-50 text-emerald-700":s.includes("الطريق")||s.includes("Way")?"bg-blue-50 text-blue-700":"bg-amber-50 text-amber-700";
 
@@ -13306,13 +12970,12 @@ function SupAccepted({}: PageProps) {
 }
 
 function SupRejected({}: PageProps) {
-  useSupplierOrders({ status: "rejected" });
+  const { data: apiRejected } = useSupplierOrders({ status: "rejected" });
   const { t } = useLang();
   const [reason, setReason] = useState<string|null>(null);
-  const orders = [
-    {id:"ORD-5490",rest:"مطعم الكوخ",items:"دجاج طازج — 300 كجم",rejected:"أمس",total:7200,reason:"الكمية تتجاوز طاقتنا الإنتاجية اليومية"},
-    {id:"ORD-5486",rest:"فرع الشرقية",items:"قطع مشكلة — 400 كجم",rejected:"قبل يومين",total:9600,reason:"موعد التسليم المطلوب (نفس اليوم) غير ممكن"},
-  ];
+  // Rejected orders come from the platform API; empty until the backend returns them.
+  const apiRejectedList = (apiRejected as any)?.data ?? (apiRejected as any);
+  const orders = (Array.isArray(apiRejectedList) ? apiRejectedList : []) as any[];
 
   return (
     <div className="space-y-5">
@@ -13348,13 +13011,8 @@ function SupItems({}: PageProps) {
   const { data: apiItems } = useSupplierItems();
   const { t } = useLang();
   const exportSupItemsMut = useExportSupplierItems();
-  const ITEMS_FALLBACK = [
-    {name:"دجاج طازج",unit:"كجم",minQty:50,maxQty:1000,price:24,available:true,leadTime:"24 ساعة"},
-    {name:"دجاج مجمد",unit:"كجم",minQty:100,maxQty:5000,price:21,available:true,leadTime:"48 ساعة"},
-    {name:"قطع مشكلة",unit:"كجم",minQty:50,maxQty:800,price:24,available:true,leadTime:"24 ساعة"},
-    {name:"دجاج كامل",unit:"كجم",minQty:30,maxQty:500,price:22,available:false,leadTime:"48 ساعة"},
-  ];
-  const items = (((apiItems as any)?.length > 0 ? (apiItems as any) : ITEMS_FALLBACK)) as typeof ITEMS_FALLBACK;
+  // Supplier catalog items come from the platform API; empty until the backend returns them.
+  const items = ((apiItems as any)?.length > 0 ? (apiItems as any) : []) as any[];
 
   return (
     <div className="space-y-5">
@@ -13403,7 +13061,8 @@ function SupReports({}: PageProps) {
   const months = [t("أكتوبر","October"),t("سبتمبر","September"),t("أغسطس","August"),t("يوليو","July")];
   const [monthIdx, setMonthIdx] = useState(0);
   const month = months[monthIdx];
-  const STATS_FALLBACK = {accepted:12,rejected:2,totalRevenue:285000,avgOrderValue:21923,topClient:"ماكدونالدز السعودية",onTime:94};
+  // Supplier monthly stats come from the platform API; zeroed until the backend returns them.
+  const STATS_FALLBACK = {accepted:0,rejected:0,totalRevenue:0,avgOrderValue:0,topClient:"—",onTime:0};
   const apiStats = (apiReports as any)?.monthlyStats?.[monthIdx] ?? (apiReports as any)?.kpis;
   const stats = (apiStats ?? STATS_FALLBACK) as typeof STATS_FALLBACK;
 
@@ -13477,7 +13136,7 @@ export function ASABPrototype() {
   // Live operations from platform API — falls back to INITIAL_OPS when API returns empty.
   // Local setOps is preserved to drive optimistic UI for approve / reject / final-approve / ERP mutations.
   const { data: apiOps = [] } = useAccountantOperationsPlatform({ pageSize: 100 });
-  const [ops, setOps] = useState<Op[]>(INITIAL_OPS);
+  const [ops, setOps] = useState<Op[]>([]);
   // Sync incoming live ops into local state when first batch arrives.
   // Note: a deliberate one-shot effect via memoization to avoid stomping on optimistic mutations.
   useMemo(() => {
