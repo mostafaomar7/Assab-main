@@ -45,9 +45,15 @@ async function buildAll() {
   // ── 1. Build the ASAB frontend (mockup-sandbox) ──────────────────────────
   console.log("building ASAB frontend...");
   const workspaceRoot = path.resolve(__dirname, "../..");
+  // Pass env vars via the options object (not an inline `VAR=x cmd` prefix) so
+  // this works on Windows cmd.exe as well as POSIX shells.
   execSync(
-    "BASE_PATH=/ PORT=3000 NODE_ENV=production pnpm --filter @workspace/mockup-sandbox run build",
-    { cwd: workspaceRoot, stdio: "inherit" }
+    "pnpm --filter @workspace/mockup-sandbox run build",
+    {
+      cwd: workspaceRoot,
+      stdio: "inherit",
+      env: { ...process.env, BASE_PATH: "/", PORT: "3000", NODE_ENV: "production" },
+    }
   );
 
   // ── 2. Copy frontend dist → server dist/public ───────────────────────────
