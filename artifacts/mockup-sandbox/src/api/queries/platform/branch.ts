@@ -20,7 +20,7 @@ export function useBranchOverviewPlatform() {
   return useQuery({
     queryKey: queryKeys.platformBranchOverview,
     queryFn: async () => {
-      const res = await api.get<PlatformBranchOverview>("/branch/overview");
+      const res = await api.get<PlatformBranchOverview>("/company/me/branch/overview");
       return res.data;
     },
     staleTime: 15_000,
@@ -33,7 +33,7 @@ export function useBranchUploadStatusPlatform() {
     queryKey: queryKeys.platformBranchUploadStatus,
     queryFn: async () => {
       const res = await api.get<PlatformBranchUploadStatus>(
-        "/branch/upload/status",
+        "/company/me/branch/upload/status",
       );
       return res.data;
     },
@@ -52,7 +52,7 @@ export function useBranchUploadPlatform() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       body: any;
     }) => {
-      const res = await api.post<unknown>(`/branch/upload/${reportType}`, body);
+      const res = await api.post<unknown>(`/company/me/branch/upload/${reportType}`, body);
       return res.data;
     },
     onSuccess: () => {
@@ -73,7 +73,7 @@ export function useBranchEmployeesPlatform() {
     queryFn: async () => {
       const res = await api.get<
         Page<PlatformBranchEmployee> | PlatformBranchEmployee[]
-      >("/branch/employees");
+      >("/company/me/branch/employees");
       const d = res.data;
       return Array.isArray(d) ? d : (d.data ?? []);
     },
@@ -87,7 +87,7 @@ export function useAddBranchEmployeePlatform() {
       body: Partial<PlatformBranchEmployee> & { name: string; empNumber: string },
     ) => {
       const res = await api.post<PlatformBranchEmployee>(
-        "/branch/employees",
+        "/company/me/branch/employees",
         body,
       );
       return res.data;
@@ -105,7 +105,7 @@ export function useBranchInventoryItemsPlatform() {
   return useQuery({
     queryKey: queryKeys.platformBranchInventoryItems,
     queryFn: async () => {
-      const res = await api.get<unknown>("/branch/inventory-items");
+      const res = await api.get<unknown>("/company/me/branch/inventory-items");
       return res.data;
     },
   });
@@ -115,7 +115,7 @@ export function useBranchSuppliersPlatform() {
   return useQuery({
     queryKey: queryKeys.platformBranchSuppliers,
     queryFn: async () => {
-      const res = await api.get<unknown>("/branch/suppliers");
+      const res = await api.get<unknown>("/company/me/branch/suppliers");
       return res.data;
     },
   });
@@ -126,7 +126,7 @@ export function useBranchSettingsPlatform() {
   return useQuery({
     queryKey: queryKeys.platformBranchSettings,
     queryFn: async () => {
-      const res = await api.get<PlatformBranchSettings>("/branch/settings");
+      const res = await api.get<PlatformBranchSettings>("/company/me/branch/settings");
       return res.data;
     },
   });
@@ -137,7 +137,7 @@ export function useUpdateBranchSettingsPlatform() {
   return useMutation({
     mutationFn: async (patch: Partial<PlatformBranchSettings>) => {
       const res = await api.patch<PlatformBranchSettings>(
-        "/branch/settings",
+        "/company/me/branch/settings",
         patch,
       );
       return res.data;
@@ -155,7 +155,7 @@ export function useConfirmBranchAssetPlatform() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await api.post<unknown>(`/branch/assets/${id}/confirm`);
+      const res = await api.post<unknown>(`/company/me/branch/assets/${id}/confirm`);
       return res.data;
     },
     onSuccess: () => {
@@ -170,7 +170,7 @@ export function useReconfirmBranchInventoryPlatform() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await api.post<unknown>(`/branch/inventory/${id}/reconfirm`);
+      const res = await api.post<unknown>(`/company/me/branch/inventory/${id}/reconfirm`);
       return res.data;
     },
     onSuccess: () => {

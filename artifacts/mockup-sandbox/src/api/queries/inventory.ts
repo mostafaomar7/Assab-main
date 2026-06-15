@@ -43,16 +43,23 @@ export function useInventoryCatalog() {
 export function useSaveInventoryCatalog() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (items: InventoryItemDef[]) => {
-      const res = await api.post<InventoryCatalogResponse>(
-        "/company/me/inventory/items",
-        { items },
+    // Contract 2.8: PUT /company/me/inventory/catalog { branchId, items:[{name,category,unit}] }
+    // links the catalog to the branch and notifies it. Accepts the legacy items-only array too.
+    mutationFn: async (
+      payload:
+        | InventoryItemDef[]
+        | { branchId?: string; items: Array<{ name: string; category: string; unit: string }> },
+    ) => {
+      const body = Array.isArray(payload) ? { items: payload } : payload;
+      const res = await api.put<InventoryCatalogResponse>(
+        "/company/me/inventory/catalog",
+        body,
       );
       return res.data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.inventoryCatalog });
-      toast.success("تم حفظ كتالوج الأصناف");
+      toast.success("تم حفظ كتالوج الأصناف وإشعار الفرع");
     },
     onError: (e) => toast.error(getErrorMessage(e, "ar")),
   });

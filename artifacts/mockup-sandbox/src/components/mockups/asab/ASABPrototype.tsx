@@ -50,6 +50,8 @@ import {
   useAdminSettings,
   useAdminReportsCatalog,
   useAdminDistribution,
+  useUpdateAccountantAssignments,
+  useSetAccountantRestaurantModules,
   useSuspendAdminCompany,
   useActivateAdminCompany,
   useUpgradeAdminCompany,
@@ -57,7 +59,9 @@ import {
   useChangeSubscriptionPlan,
   useSuspendSubscription,
   useActivateSubscription,
+  useToggleAutoReminder,
   useDeleteAdminUser,
+  useCreateAdminUser,
   useCreateAdminCompany,
   useUpdateAdminPermissions,
   useExportAdminAuditLogs,
@@ -97,11 +101,19 @@ import {
   useProcurementOrdersPlatform,
   useProcurementSuppliersPlatform,
   useProcurementItemsPlatform,
+  useApproveProcurementOrderPlatform,
+  useBulkApproveProcurementOrdersPlatform,
+  useRejectProcurementOrderPlatform,
+  usePartialRejectProcurementOrderPlatform,
+  useSendProcurementOrderPlatform,
   // Supplier
   useSupplierOverview,
   useSupplierOrders,
   useSupplierItems,
   useSupplierReports,
+  useAcceptSupplierOrder,
+  useRejectSupplierOrder,
+  useCreateSupplierItem,
   // Mutation hooks (operations + ERP) — shared platform/company paths.
   useApproveOperation,
   useRejectOperation,
@@ -1475,6 +1487,7 @@ function AppShell({ state, ops, approveOp, rejectOp, finalApproveOp, bulkApprove
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   // Seeded empty; AdminUsers syncs this from GET /admin/users (useAdminUsers).
   const [adminUsers, setAdminUsers] = useState<AdminUserData[]>([]);
+  const createAdminUserMut = useCreateAdminUser();
 
   const role = state.role!;
   const profile = ROLE_PROFILES[role];
@@ -1545,7 +1558,12 @@ function AppShell({ state, ops, approveOp, rejectOp, finalApproveOp, bulkApprove
       {/* Add User Modal */}
       {state.modal==="add-user" && (
         <AddUserModal
-          onAdd={u=>{ setAdminUsers(prev=>[...prev,u]); setModal(null); }}
+          onAdd={u=>{
+            const roleKey = ({ "محاسب":"accountant","رئيس حسابات":"head","مدير فرع":"branch","مدير مشتريات":"procurement","مورد":"supplier","أدمن":"admin" } as Record<string,string>)[u.role] ?? u.role;
+            setAdminUsers(prev=>[...prev,u]);
+            createAdminUserMut.mutate({ ...u, role: roleKey } as any);
+            setModal(null);
+          }}
           onClose={()=>setModal(null)}/>
       )}
 
@@ -9194,9 +9212,27 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
   const selAccRests   = selAccData?.restaurants||[];
   const availableForAcc = freeRests.filter(r=>!selAccRests.includes(r));
 
-  const removeRestFromAcc = (accId:string, rest:string) => setDistAccs(p=>p.map(a=>a.id===accId?{...a,restaurants:a.restaurants.filter(r=>r!==rest)}:a));
-  const addRestToAcc = (accId:string, rest:string) => setDistAccs(p=>p.map(a=>a.id===accId?{...a,restaurants:[...a.restaurants,rest]}:a));
-  const moveAccToHead = (accId:string, headId:string) => setDistAccs(p=>p.map(a=>a.id===accId?{...a,headId}:a));
+  // Contract 1.8: PATCH /admin/accountants/{accId}/assignments reconciles restaurants + headId.
+  const assignMut  = useUpdateAccountantAssignments();
+  const modulesMut = useSetAccountantRestaurantModules();
+  const syncAssignments = (accId:string, restaurants:string[], headId:string|null) => assignMut.mutate({ accId, headId, restaurants });
+  const removeRestFromAcc = (accId:string, rest:string) => {
+    const acc = distAccs.find(a=>a.id===accId); if(!acc) return;
+    const restaurants = acc.restaurants.filter(r=>r!==rest);
+    setDistAccs(p=>p.map(a=>a.id===accId?{...a,restaurants}:a));
+    syncAssignments(accId, restaurants, acc.headId);
+  };
+  const addRestToAcc = (accId:string, rest:string) => {
+    const acc = distAccs.find(a=>a.id===accId); if(!acc) return;
+    const restaurants = [...acc.restaurants, rest];
+    setDistAccs(p=>p.map(a=>a.id===accId?{...a,restaurants}:a));
+    syncAssignments(accId, restaurants, acc.headId);
+  };
+  const moveAccToHead = (accId:string, headId:string|null) => {
+    const acc = distAccs.find(a=>a.id===accId); if(!acc) return;
+    setDistAccs(p=>p.map(a=>a.id===accId?{...a,headId}:a));
+    syncAssignments(accId, acc.restaurants, headId);
+  };
 
   // ── Module distribution ──
   const { data: modulesLookup } = useLookup("modules");
@@ -9210,36 +9246,34 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
   // Heads assignment (mode 3) state
   const [h3AccSel, setH3AccSel] = useState<string|null>(null);
   const [h3HeadFilter, setH3HeadFilter] = useState("");
-  // accModules: accId → restName → modules[]
-  const [accModules, setAccModules] = useState<Record<string,Record<string,string[]>>>({
-    acc1: {
-      "مطعم الريم — العليا": [...DIST_MODULES],
-      "مطعم الريم — جدة":   ["المبيعات","المصروفات","المشتريات"],
-      "هرفي — الرياض":       ["المبيعات","المصروفات"],
-    },
-    acc2: {
-      "هرفي — جدة":          ["المبيعات","المصروفات","المخزون"],
-      "ماكدونالدز — الرياض": ["المبيعات","المصروفات"],
-    },
-    acc3: {
-      "هرفي — مكة":          ["المبيعات","المصروفات","المشتريات","المخزون"],
-      "ماكدونالدز — الدمام": ["المبيعات"],
-    },
-    acc4: {
-      "بروستد الوطني — الطائف": ["المبيعات","المصروفات"],
-    },
-    acc5: {},
-  });
-  const toggleModuleForRest = (accId:string, rest:string, mod:string) =>
-    setAccModules(p => {
-      const cur = p[accId]?.[rest] ?? [];
-      const next = cur.includes(mod) ? cur.filter(m=>m!==mod) : [...cur, mod];
-      return { ...p, [accId]: { ...(p[accId]??{}), [rest]: next } };
-    });
-  const assignAllModules = (accId:string, rest:string) =>
+  // accModules: accId → restName → modules[]. Seeded from the distribution API; no static seed.
+  const [accModules, setAccModules] = useState<Record<string,Record<string,string[]>>>({});
+  useEffect(() => {
+    const accs = (distApi as any)?.accountants;
+    if (!Array.isArray(accs)) return;
+    const seed: Record<string,Record<string,string[]>> = {};
+    for (const a of accs) {
+      if (a?.id && a?.modulesByRestaurant && typeof a.modulesByRestaurant === "object") {
+        seed[a.id] = a.modulesByRestaurant;
+      }
+    }
+    if (Object.keys(seed).length > 0) setAccModules(seed);
+  }, [distApi]);
+  // Contract 1.9: PUT /admin/accountants/{accId}/restaurants/{restaurant}/modules
+  const toggleModuleForRest = (accId:string, rest:string, mod:string) => {
+    const cur = accModules[accId]?.[rest] ?? [];
+    const next = cur.includes(mod) ? cur.filter(m=>m!==mod) : [...cur, mod];
+    setAccModules(p => ({ ...p, [accId]: { ...(p[accId]??{}), [rest]: next } }));
+    modulesMut.mutate({ accId, restaurant: rest, modules: next });
+  };
+  const assignAllModules = (accId:string, rest:string) => {
     setAccModules(p => ({ ...p, [accId]: { ...(p[accId]??{}), [rest]: [...DIST_MODULES] } }));
-  const clearRestModules = (accId:string, rest:string) =>
+    modulesMut.mutate({ accId, restaurant: rest, modules: [...DIST_MODULES] });
+  };
+  const clearRestModules = (accId:string, rest:string) => {
     setAccModules(p => { const n={...(p[accId]??{})}; delete n[rest]; return {...p,[accId]:n}; });
+    modulesMut.mutate({ accId, restaurant: rest, modules: [] });
+  };
 
   const roleCls: Record<string,string> = {
     "محاسب":"bg-blue-50 text-blue-700 border-blue-200",
@@ -9642,7 +9676,7 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
                               }
                             </div>
                             {acc.headId && (
-                              <button onClick={e=>{ e.stopPropagation(); setDistAccs(p=>p.map(a=>a.id===acc.id?{...a,headId:null}:a)); setH3AccSel(null); }}
+                              <button onClick={e=>{ e.stopPropagation(); moveAccToHead(acc.id, null); setH3AccSel(null); }}
                                 className="w-6 h-6 rounded-full bg-red-100 text-red-500 hover:bg-red-200 flex items-center justify-center flex-shrink-0">
                                 <X size={10}/>
                               </button>
@@ -9697,7 +9731,7 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
                                         <p className="text-xs font-semibold text-gray-700">{acc.name}</p>
                                         <p className="text-[9px] text-gray-400">{acc.restaurants.length} مطعم</p>
                                       </div>
-                                      <button onClick={e=>{ e.stopPropagation(); setDistAccs(p=>p.map(a=>a.id===acc.id?{...a,headId:null}:a)); }}
+                                      <button onClick={e=>{ e.stopPropagation(); moveAccToHead(acc.id, null); }}
                                         className="w-4 h-4 rounded-full bg-red-100 text-red-400 hover:bg-red-200 flex items-center justify-center mr-1">
                                         <X size={8}/>
                                       </button>
@@ -10443,6 +10477,7 @@ function AdminSubscriptions({}: PageProps) {
   const changePlanMut = useChangeSubscriptionPlan();
   const suspendSubMut = useSuspendSubscription();
   const activateSubMut = useActivateSubscription();
+  const toggleReminderMut = useToggleAutoReminder();
   const { t, dir } = useLang();
   // Driven by GET /admin/subscriptions — mapped into the card render shape. No static seed.
   type SubCard = {
@@ -10541,7 +10576,7 @@ function AdminSubscriptions({}: PageProps) {
 
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <div className="flex items-center gap-1.5">
-                    <button onClick={()=>setAutoReminders(p=>({...p,[sub.id]:!p[sub.id]}))}
+                    <button onClick={()=>{ const next=!autoReminders[sub.id]; setAutoReminders(p=>({...p,[sub.id]:next})); toggleReminderMut.mutate({ id: sub.id, enabled: next }); }}
                       className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${autoReminders[sub.id]?"bg-purple-600":"bg-gray-200"}`}>
                       <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${autoReminders[sub.id]?"translate-x-4":"translate-x-0"}`}/>
                     </button>
@@ -10638,6 +10673,14 @@ function AdminCompanies({ navigate }:PageProps) {
   const activateMut = useActivateAdminCompany();
   const upgradeMut = useUpgradeAdminCompany();
   const createCompanyMut = useCreateAdminCompany();
+  const [coForm, setCoForm] = useState({ name:"", contactName:"", adminEmail:"", phone:"", city:"", plan:"Professional" as CompanyPlan });
+  const submitCompany = () => {
+    if (!coForm.name.trim() || !coForm.adminEmail.trim()) return;
+    createCompanyMut.mutate(
+      { name:coForm.name, contactName:coForm.contactName, contactEmail:coForm.adminEmail, contactPhone:coForm.phone, city:coForm.city, plan:coForm.plan, modules:[], adminEmail:coForm.adminEmail } as any,
+      { onSuccess: ()=>{ setShowAdd(false); setCoForm({ name:"", contactName:"", adminEmail:"", phone:"", city:"", plan:"Professional" }); } },
+    );
+  };
   const { t, dir } = useLang();
   const apiCompaniesArr = (apiCompanies as any)?.data ?? (apiCompanies as any);
   // Driven by GET /admin/companies. No static seed; map into the card shape with
@@ -10966,18 +11009,18 @@ function AdminCompanies({ navigate }:PageProps) {
               <button onClick={()=>setShowAdd(false)} className="text-purple-200 hover:text-white"><X size={18}/></button>
             </div>
             <div className="p-5 space-y-3">
-              {[[t("اسم الشركة","Company Name"),t("مجموعة ...","Group ...")],[t("اسم المسؤول","Contact Name"),""],
-                [t("البريد الإلكتروني (أدمن الشركة)","Email (Company Admin)"),"admin@company.sa"],[t("رقم الجوال","Mobile Number"),""]].map(([label,ph])=>(
-                <div key={label}>
-                  <label className="text-xs font-semibold text-gray-600 block mb-1">{label}</label>
-                  <input placeholder={ph} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:border-purple-400 outline-none"/>
-                </div>
-              ))}
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("اسم الشركة","Company Name")}</label><input value={coForm.name} onChange={e=>setCoForm(f=>({...f,name:e.target.value}))} placeholder={t("مجموعة ...","Group ...")} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:border-purple-400 outline-none"/></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("اسم المسؤول","Contact Name")}</label><input value={coForm.contactName} onChange={e=>setCoForm(f=>({...f,contactName:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:border-purple-400 outline-none"/></div>
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("المدينة","City")}</label><input value={coForm.city} onChange={e=>setCoForm(f=>({...f,city:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:border-purple-400 outline-none"/></div>
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("البريد الإلكتروني (أدمن الشركة)","Email (Company Admin)")}</label><input value={coForm.adminEmail} onChange={e=>setCoForm(f=>({...f,adminEmail:e.target.value}))} dir="ltr" placeholder="admin@company.sa" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:border-purple-400 outline-none"/></div>
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("رقم الجوال","Mobile Number")}</label><input value={coForm.phone} onChange={e=>setCoForm(f=>({...f,phone:e.target.value}))} dir="ltr" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:border-purple-400 outline-none"/></div>
+              </div>
               <div>
                 <label className="text-xs font-semibold text-gray-600 block mb-1">{t("الخطة","Plan")}</label>
                 <div className="grid grid-cols-3 gap-2">
                   {(["Basic","Professional","Enterprise"] as CompanyPlan[]).map(p=>(
-                    <button key={p} className="py-2 rounded-xl border-2 border-gray-200 text-xs font-bold hover:border-purple-400 hover:bg-purple-50 text-gray-600 transition-all">
+                    <button key={p} onClick={()=>setCoForm(f=>({...f,plan:p}))} className={`py-2 rounded-xl border-2 text-xs font-bold transition-all ${coForm.plan===p?"border-purple-500 bg-purple-50 text-purple-700":"border-gray-200 text-gray-600 hover:border-purple-400 hover:bg-purple-50"}`}>
                       {t(PLAN_NAMES_AR[p]||p, p)}<br/><span className="text-[10px] text-gray-400 font-normal">{COMPANY_PLANS_META[p].price.toLocaleString()} {t("ر.س","SAR")}</span>
                     </button>
                   ))}
@@ -10988,7 +11031,7 @@ function AdminCompanies({ navigate }:PageProps) {
               </div>
               <div className="flex gap-2 justify-end pt-1">
                 <Btn onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn>
-                <Btn variant="primary" onClick={()=>{ setShowAdd(false); createCompanyMut.mutate({ name: "شركة جديدة", plan: "Professional" } as any); }}><Send size={13}/> {t("إنشاء الحساب","Create Account")}</Btn>
+                <Btn variant="primary" onClick={submitCompany} disabled={!coForm.name.trim()||!coForm.adminEmail.trim()||createCompanyMut.isPending}><Send size={13}/> {t("إنشاء الحساب","Create Account")}</Btn>
               </div>
             </div>
           </div>
@@ -12102,10 +12145,17 @@ function ProcNewOrders({}: PageProps) {
   const [partialRejectId, setPartialRejectId] = useState<string|null>(null);
   const [partialRejectReason, setPartialRejectReason] = useState("");
 
-  const approveOne      = (id:string)     => setOrders(p=>p.map(o=>o.id===id?{...o,status:"approved" as const}:o));
-  const approveByBranch = (branch:string) => setOrders(p=>p.map(o=>o.branch===branch&&o.status==="pending"?{...o,status:"approved" as const}:o));
-  const approveBySupplier = (sup:string)  => setOrders(p=>p.map(o=>o.supplier===sup&&o.status==="pending"?{...o,status:"approved" as const}:o));
-  const approveAll      = ()              => setOrders(p=>p.map(o=>({...o,status:"approved" as const})));
+  const approveMut        = useApproveProcurementOrderPlatform();
+  const bulkApproveMut    = useBulkApproveProcurementOrdersPlatform();
+  const rejectMut         = useRejectProcurementOrderPlatform();
+  const partialRejectMut  = usePartialRejectProcurementOrderPlatform();
+  // Optimistic local update + live mutation against /company/me/procurement/orders/*.
+  const approveOne      = (id:string)     => { setOrders(p=>p.map(o=>o.id===id?{...o,status:"approved" as const}:o)); approveMut.mutate({ id }); };
+  const approveByBranch = (branch:string) => { setOrders(p=>p.map(o=>o.branch===branch&&o.status==="pending"?{...o,status:"approved" as const}:o)); bulkApproveMut.mutate({ branch }); };
+  const approveBySupplier = (sup:string)  => { setOrders(p=>p.map(o=>o.supplier===sup&&o.status==="pending"?{...o,status:"approved" as const}:o)); bulkApproveMut.mutate({ supplier: sup }); };
+  const approveAll      = ()              => { const ids = orders.filter(o=>o.status==="pending").map(o=>o.id); setOrders(p=>p.map(o=>({...o,status:"approved" as const}))); bulkApproveMut.mutate({ orderIds: ids }); };
+  const rejectOne       = (id:string)     => { setOrders(p=>p.filter(o=>o.id!==id)); rejectMut.mutate({ id, reason: t("رفض من المشتريات","Rejected by procurement") }); };
+  const confirmPartialReject = (id:string) => { partialRejectMut.mutate({ id, reason: partialRejectReason || t("رفض جزئي","Partial reject") }); setPartialRejectId(null); setPartialRejectReason(""); setExpandedId(null); };
 
   const cityList     = ["الكل",...[...new Set(orders.map(o=>o.city))]];
   const supplierList = ["الكل",...[...new Set(orders.map(o=>o.supplier))]];
@@ -12332,7 +12382,7 @@ function ProcNewOrders({}: PageProps) {
                               placeholder={t("ملاحظة إضافية (اختياري)...","Additional note (optional)...")}
                               className="w-full text-sm border border-orange-200 rounded-lg px-3 py-2 bg-white outline-none"/>
                             <div className="flex gap-2">
-                              <Btn size="sm" variant="danger" onClick={()=>{setPartialRejectId(null);setPartialRejectReason("");setExpandedId(null);}}>
+                              <Btn size="sm" variant="danger" onClick={()=>confirmPartialReject(r.id)}>
                                 <ThumbsDown size={11}/> {t("تأكيد الرفض الجزئي","Confirm Partial Reject")}
                               </Btn>
                               <Btn size="sm" onClick={()=>setPartialRejectId(null)}>{t("إلغاء","Cancel")}</Btn>
@@ -12345,7 +12395,7 @@ function ProcNewOrders({}: PageProps) {
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-50 text-orange-700 border border-orange-200 text-xs font-semibold hover:bg-orange-100">
                               <AlertTriangle size={11}/> {t("رفض جزئي","Partial Reject")}
                             </button>
-                            <Btn size="sm" variant="danger"><ThumbsDown size={12}/> {t("رفض كلي","Full Reject")}</Btn>
+                            <Btn size="sm" variant="danger" onClick={()=>rejectOne(r.id)}><ThumbsDown size={12}/> {t("رفض كلي","Full Reject")}</Btn>
                             <Btn size="sm" onClick={()=>setExpandedId(null)}>{t("إغلاق","Close")}</Btn>
                           </div>
                         )
@@ -12367,6 +12417,7 @@ function ProcGrouped({}: PageProps) {
   const { data: apiGroupedSup } = useProcurementOrdersPlatform({ status: "approved", groupBy: "supplier" });
   const [viewMode, setViewMode] = useState<"supplier"|"city">("supplier");
   const [expandedGroup, setExpandedGroup] = useState<string|null>(null);
+  const sendMut = useSendProcurementOrderPlatform();
 
   // Consolidated supplier & city groups come from the platform API; empty until returned.
   const apiSupGroupsList = (apiGroupedSup as any)?.supplierGroups ?? (apiGroupedSup as any)?.data;
@@ -12408,8 +12459,8 @@ function ProcGrouped({}: PageProps) {
                   </div>
                   <span className="font-mono font-bold text-gray-800">{fmtAmt(g.total)} {t("ر.س","SAR")}</span>
                   <div className="flex gap-1.5" onClick={e=>e.stopPropagation()}>
-                    <Btn size="sm"><Eye size={12}/> {t("تفاصيل","Details")}</Btn>
-                    <Btn size="sm" variant="primary"><Truck size={12}/> {t("إرسال للمورد","Send to Supplier")}</Btn>
+                    <Btn size="sm" onClick={()=>setExpandedGroup(expandedGroup===g.key?null:g.key)}><Eye size={12}/> {t("تفاصيل","Details")}</Btn>
+                    <Btn size="sm" variant="primary" onClick={()=>sendMut.mutate({ groupId: g.groupId ?? g.key })} disabled={sendMut.isPending}><Truck size={12}/> {t("إرسال للمورد","Send to Supplier")}</Btn>
                   </div>
                   {expandedGroup===g.key?<ChevronUp size={13} className="text-gray-400 flex-shrink-0"/>:<ChevronDown size={13} className="text-gray-400 flex-shrink-0"/>}
                 </div>
@@ -12574,8 +12625,11 @@ function SupNewOrders({}: PageProps) {
   const apiOrders = (apiOrdersResp as any)?.data;
   const [orders, setOrders] = useState<SupOrder[]>([]);
   useEffect(() => { if (Array.isArray(apiOrders)) setOrders(apiOrders as SupOrder[]); }, [apiOrders]);
-  const accept = (id:string) => setOrders(p=>p.map(o=>o.id===id?{...o,status:"accepted" as const}:o));
-  const reject = (id:string) => setOrders(p=>p.map(o=>o.id===id?{...o,status:"rejected" as const}:o));
+  const acceptMut = useAcceptSupplierOrder();
+  const rejectMut = useRejectSupplierOrder();
+  // Optimistic local update + live mutation against /asab/supplier/orders/{id}/accept|reject.
+  const accept = (id:string) => { setOrders(p=>p.map(o=>o.id===id?{...o,status:"accepted" as const}:o)); acceptMut.mutate({ id }); };
+  const reject = (id:string) => { setOrders(p=>p.map(o=>o.id===id?{...o,status:"rejected" as const}:o)); rejectMut.mutate({ id, reason: t("رفض من المورد","Rejected by supplier") }); };
 
   return (
     <div className="space-y-5">
@@ -12624,6 +12678,7 @@ function SupNewOrders({}: PageProps) {
 function BranchSettings({ navigate }:PageProps) {
   const { t } = useLang();
   useBranchSettingsPlatform();
+  const updateSettingsMut = useUpdateBranchSettingsPlatform();
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState({
     branchName:"فرع الرياض - العليا", manager:"أحمد الشمري",
@@ -12632,7 +12687,16 @@ function BranchSettings({ navigate }:PageProps) {
     taxNumber:"310012345600003", bankAccount:"SA1234567890123456789012",
     cashLimit:"5000", wasteThreshold:"3", autoReminders:true, requireImages:true
   });
-  const save = () => { setSaved(true); setTimeout(()=>setSaved(false),2500); };
+  // Contract 4.2: PATCH /company/me/branch/settings — persists the full settings form.
+  const save = () => {
+    updateSettingsMut.mutate({
+      branchName:form.branchName, manager:form.manager, phone:form.phone, address:form.address,
+      openTime:form.openTime, closeTime:form.closeTime, shiftDuration:form.shiftDuration,
+      taxNumber:form.taxNumber, bankAccount:form.bankAccount,
+      cashLimitHalalas: Math.round((parseFloat(form.cashLimit)||0)*100),
+      wasteThreshold:form.wasteThreshold, autoReminders:form.autoReminders, requireImages:form.requireImages,
+    } as any, { onSuccess: ()=>{ setSaved(true); setTimeout(()=>setSaved(false),2500); } });
+  };
 
   return (
     <div className="space-y-5">
@@ -12720,6 +12784,15 @@ function ProcItems({}: PageProps) {
   const exportItemsMut = useExportProcurementItems();
   const createItemMut = useCreateProcurementItem();
   const [search, setSearch] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ name:"", unit:"", category:"", price:"" });
+  const submitItem = () => {
+    if (!form.name.trim()) return;
+    createItemMut.mutate(
+      { name: form.name, unit: form.unit, category: form.category, lastPriceHalalas: Math.round((parseFloat(form.price) || 0) * 100) } as any,
+      { onSuccess: () => { setShowAdd(false); setForm({ name:"", unit:"", category:"", price:"" }); } },
+    );
+  };
   // Procurement items come from the platform API; empty until the backend returns them.
   const items = ((apiItems as any)?.length > 0 ? (apiItems as any) : []) as any[];
   const filtered = items.filter(i=>!search||i.name.includes(search)||i.category.includes(search)||i.supplier.includes(search));
@@ -12731,7 +12804,7 @@ function ProcItems({}: PageProps) {
         <div><h2 className="text-xl font-bold text-gray-800">{t("كتالوج الأصناف","Item Catalog")}</h2><p className="text-gray-400 text-sm mt-0.5">{filtered.length} {t("صنف","items")} · {t("تكلفة شهرية إجمالية:","Total monthly cost:")} {fmtAmt(totalMonthly)} {t("ر.س","SAR")}</p></div>
         <div className="flex gap-2">
           <button onClick={()=>exportItemsMut.mutate("xlsx")} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> Excel</button>
-          <Btn variant="primary"><Plus size={13}/> {t("إضافة صنف","Add Item")}</Btn>
+          <Btn variant="primary" onClick={()=>setShowAdd(true)}><Plus size={13}/> {t("إضافة صنف","Add Item")}</Btn>
         </div>
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
@@ -12778,6 +12851,22 @@ function ProcItems({}: PageProps) {
           </tfoot>
         </table>
       </div>
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={()=>setShowAdd(false)} dir="rtl">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">{t("إضافة صنف","Add Item")}</h3><button onClick={()=>setShowAdd(false)} className="text-gray-400"><XCircle size={18}/></button></div>
+            <div className="space-y-3">
+              <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("اسم الصنف","Item Name")}</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300"/></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("الوحدة","Unit")}</label><input value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300"/></div>
+                <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("آخر سعر (ر.س)","Last Price (SAR)")}</label><input type="number" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))} dir="ltr" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300"/></div>
+              </div>
+              <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("التصنيف","Category")}</label><input value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300"/></div>
+              <div className="flex gap-2 justify-end pt-1"><Btn size="sm" onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn size="sm" variant="primary" onClick={submitItem} disabled={!form.name.trim()||createItemMut.isPending}><Plus size={12}/> {t("إضافة","Add")}</Btn></div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -12789,6 +12878,15 @@ function ProcSuppliers({}: PageProps) {
   const createSupplierMut = useCreateSupplier();
   const [expandedSup, setExpandedSup] = useState<string|null>(null);
   const [activeTab, setActiveTab] = useState<"deliveries"|"prices">("deliveries");
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ name:"", category:"", contactName:"", phone:"", email:"" });
+  const submitSupplier = () => {
+    if (!form.name.trim()) return;
+    createSupplierMut.mutate(
+      { name: form.name, category: form.category, contactName: form.contactName, phone: form.phone, email: form.email || undefined } as any,
+      { onSuccess: () => { setShowAdd(false); setForm({ name:"", category:"", contactName:"", phone:"", email:"" }); } },
+    );
+  };
 
   // Suppliers (with deliveries + price history) come from the platform API; empty until returned.
   const suppliers = ((apiSuppliers as any)?.length > 0 ? (apiSuppliers as any) : []) as any[];
@@ -12800,7 +12898,7 @@ function ProcSuppliers({}: PageProps) {
         <div><h2 className="text-xl font-bold text-gray-800">{t("الموردون","Suppliers")}</h2><p className="text-gray-400 text-sm mt-0.5">{suppliers.length} {t("مورد","suppliers")} · {t("إجمالي شهري:","Monthly total:")} {fmtAmt(totalMonthly)} {t("ر.س","SAR")}</p></div>
         <div className="flex gap-2">
           <button onClick={()=>exportSuppliersMut.mutate("xlsx")} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold hover:bg-emerald-100"><FileText size={11}/> Excel</button>
-          <Btn variant="primary"><Plus size={13}/> {t("إضافة مورد","Add Supplier")}</Btn>
+          <Btn variant="primary" onClick={()=>setShowAdd(true)}><Plus size={13}/> {t("إضافة مورد","Add Supplier")}</Btn>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
@@ -12921,6 +13019,23 @@ function ProcSuppliers({}: PageProps) {
         <span className="text-sm font-semibold text-gray-700">{t("إجمالي الإنفاق الشهري على الموردين","Total Monthly Supplier Spend")}</span>
         <span className="font-mono font-black text-xl text-purple-700">{fmtAmt(totalMonthly)} {t("ر.س","SAR")}</span>
       </div>
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={()=>setShowAdd(false)} dir="rtl">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">{t("إضافة مورد","Add Supplier")}</h3><button onClick={()=>setShowAdd(false)} className="text-gray-400"><XCircle size={18}/></button></div>
+            <div className="space-y-3">
+              <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("اسم المورد","Supplier Name")}</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300"/></div>
+              <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("الفئة","Category")}</label><input value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300"/></div>
+              <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("اسم جهة الاتصال","Contact Name")}</label><input value={form.contactName} onChange={e=>setForm(f=>({...f,contactName:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300"/></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("الجوال","Phone")}</label><input value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} dir="ltr" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300"/></div>
+                <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("البريد (اختياري)","Email (optional)")}</label><input value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} dir="ltr" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300"/></div>
+              </div>
+              <div className="flex gap-2 justify-end pt-1"><Btn size="sm" onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn size="sm" variant="primary" onClick={submitSupplier} disabled={!form.name.trim()||createSupplierMut.isPending}><Plus size={12}/> {t("إضافة","Add")}</Btn></div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -13011,14 +13126,24 @@ function SupItems({}: PageProps) {
   const { data: apiItems } = useSupplierItems();
   const { t } = useLang();
   const exportSupItemsMut = useExportSupplierItems();
+  const createItemMut = useCreateSupplierItem();
   // Supplier catalog items come from the platform API; empty until the backend returns them.
   const items = ((apiItems as any)?.length > 0 ? (apiItems as any) : []) as any[];
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ name:"", unit:"", minQty:"", maxQty:"", price:"", leadTimeDays:"", available:true });
+  const submitItem = () => {
+    if (!form.name.trim()) return;
+    createItemMut.mutate(
+      { name: form.name, unit: form.unit, minQty: Number(form.minQty) || 0, maxQty: Number(form.maxQty) || 0, price: Number(form.price) || 0, leadTimeDays: Number(form.leadTimeDays) || 0, available: form.available } as any,
+      { onSuccess: () => { setShowAdd(false); setForm({ name:"", unit:"", minQty:"", maxQty:"", price:"", leadTimeDays:"", available:true }); } },
+    );
+  };
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div><h2 className="text-xl font-bold text-gray-800">{t("قائمة الأصناف","Item List")}</h2><p className="text-gray-400 text-sm mt-0.5">{t("المنتجات التي يوفرها المورد","Products offered by this supplier")}</p></div>
-        <Btn variant="primary"><Plus size={13}/> {t("إضافة صنف","Add Item")}</Btn>
+        <Btn variant="primary" onClick={()=>setShowAdd(true)}><Plus size={13}/> {t("إضافة صنف","Add Item")}</Btn>
       </div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <table className="w-full text-sm" dir="rtl">
@@ -13050,6 +13175,25 @@ function SupItems({}: PageProps) {
           </tbody>
         </table>
       </div>
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={()=>setShowAdd(false)} dir="rtl">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">{t("إضافة صنف","Add Item")}</h3><button onClick={()=>setShowAdd(false)} className="text-gray-400"><XCircle size={18}/></button></div>
+            <div className="space-y-3">
+              <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("اسم الصنف","Item Name")}</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300"/></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("الوحدة","Unit")}</label><input value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300"/></div>
+                <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("السعر (ر.س)","Price (SAR)")}</label><input type="number" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))} dir="ltr" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300"/></div>
+                <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("الحد الأدنى","Min Qty")}</label><input type="number" value={form.minQty} onChange={e=>setForm(f=>({...f,minQty:e.target.value}))} dir="ltr" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300"/></div>
+                <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("الحد الأقصى","Max Qty")}</label><input type="number" value={form.maxQty} onChange={e=>setForm(f=>({...f,maxQty:e.target.value}))} dir="ltr" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300"/></div>
+                <div><label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("مدة التحضير (يوم)","Lead Time (days)")}</label><input type="number" value={form.leadTimeDays} onChange={e=>setForm(f=>({...f,leadTimeDays:e.target.value}))} dir="ltr" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-300"/></div>
+                <div className="flex items-end gap-2"><label className="text-[11px] font-semibold text-gray-500">{t("متاح","Available")}</label><input type="checkbox" checked={form.available} onChange={e=>setForm(f=>({...f,available:e.target.checked}))} className="w-4 h-4 mb-2"/></div>
+              </div>
+              <div className="flex gap-2 justify-end pt-1"><Btn size="sm" onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn size="sm" variant="primary" onClick={submitItem} disabled={!form.name.trim()||createItemMut.isPending}><Plus size={12}/> {t("إضافة","Add")}</Btn></div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

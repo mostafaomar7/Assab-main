@@ -23,7 +23,7 @@ export function useProcurementOverviewPlatform() {
     queryKey: queryKeys.platformProcurementOverview,
     queryFn: async () => {
       const res = await api.get<PlatformProcurementOverview>(
-        "/procurement/overview",
+        "/company/me/procurement/overview",
       );
       return res.data;
     },
@@ -40,7 +40,7 @@ export function useProcurementOrdersPlatform(
     queryFn: async () => {
       const res = await api.get<
         Page<PlatformProcurementOrder> | PlatformProcurementOrder[]
-      >("/procurement/orders", { params: filter });
+      >("/company/me/procurement/orders", { params: filter });
       const d = res.data;
       return Array.isArray(d) ? d : (d.data ?? []);
     },
@@ -53,7 +53,7 @@ export function useProcurementOrderPlatform(id?: string) {
     enabled: Boolean(id),
     queryFn: async () => {
       const res = await api.get<PlatformProcurementOrder>(
-        `/procurement/orders/${id}`,
+        `/company/me/procurement/orders/${id}`,
       );
       return res.data;
     },
@@ -68,7 +68,7 @@ export function useApproveProcurementOrderPlatform() {
       ...body
     }: { id: string } & Record<string, unknown>) => {
       const res = await api.post<PlatformProcurementOrder>(
-        `/procurement/orders/${id}/approve`,
+        `/company/me/procurement/orders/${id}/approve`,
         body,
       );
       return res.data;
@@ -79,6 +79,26 @@ export function useApproveProcurementOrderPlatform() {
         queryKey: ["platform", "procurement", "overview"],
       });
       toast.success("تم اعتماد الطلب");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+export function useBulkApproveProcurementOrdersPlatform() {
+  const qc = useQueryClient();
+  return useMutation({
+    // Contract 5.3 bulk: POST /company/me/procurement/orders/approve { orderIds?, branch?, supplier? }
+    mutationFn: async (body: { orderIds?: string[]; branch?: string; supplier?: string }) => {
+      const res = await api.post<{ approved: string[]; count: number }>(
+        "/company/me/procurement/orders/approve",
+        body,
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["platform", "procurement", "orders"] });
+      qc.invalidateQueries({ queryKey: ["platform", "procurement", "overview"] });
+      toast.success("تم اعتماد الطلبات");
     },
     onError: (e) => toast.error(getErrorMessage(e, "ar")),
   });
@@ -97,7 +117,7 @@ export function useRejectProcurementOrderPlatform() {
       notes?: string;
     }) => {
       const res = await api.post<PlatformProcurementOrder>(
-        `/procurement/orders/${id}/reject`,
+        `/company/me/procurement/orders/${id}/reject`,
         { reason, notes },
       );
       return res.data;
@@ -121,7 +141,7 @@ export function usePartialRejectProcurementOrderPlatform() {
       ...body
     }: { id: string } & Record<string, unknown>) => {
       const res = await api.post<PlatformProcurementOrder>(
-        `/procurement/orders/${id}/partial-reject`,
+        `/company/me/procurement/orders/${id}/partial-reject`,
         body,
       );
       return res.data;
@@ -139,7 +159,7 @@ export function useConsolidateProcurementOrdersPlatform() {
   return useMutation({
     mutationFn: async (body: Record<string, unknown>) => {
       const res = await api.post<unknown>(
-        "/procurement/orders/consolidate",
+        "/company/me/procurement/orders/consolidate",
         body,
       );
       return res.data;
@@ -163,7 +183,7 @@ export function useSendProcurementOrderPlatform() {
       ...body
     }: { groupId: string } & Record<string, unknown>) => {
       const res = await api.post<unknown>(
-        `/procurement/orders/${groupId}/send`,
+        `/company/me/procurement/orders/grouped/${groupId}/send`,
         body,
       );
       return res.data;
@@ -186,7 +206,7 @@ export function useProcurementSuppliersPlatform() {
     queryFn: async () => {
       const res = await api.get<
         Page<PlatformProcurementSupplier> | PlatformProcurementSupplier[]
-      >("/procurement/suppliers");
+      >("/company/me/procurement/suppliers");
       const d = res.data;
       return Array.isArray(d) ? d : (d.data ?? []);
     },
@@ -199,7 +219,7 @@ export function useProcurementItemsPlatform() {
     queryFn: async () => {
       const res = await api.get<
         Page<PlatformProcurementItem> | PlatformProcurementItem[]
-      >("/procurement/items");
+      >("/company/me/procurement/items");
       const d = res.data;
       return Array.isArray(d) ? d : (d.data ?? []);
     },

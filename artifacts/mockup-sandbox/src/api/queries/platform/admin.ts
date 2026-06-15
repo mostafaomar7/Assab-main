@@ -261,11 +261,14 @@ export function useCreateAdminBrand() {
   return useMutation({
     mutationFn: async (body: {
       name: string;
+      /** Backend contract 1.2: owner display name + companyId are required. */
+      owner?: string;
+      companyId?: string;
       abbr?: string;
       color?: string;
       ownerEmail?: string;
       plan: string;
-      modules: string[];
+      modules?: string[];
     }) => {
       const res = await api.post<AdminBrand>("/admin/brands", body);
       return res.data;
@@ -680,6 +683,55 @@ export function useMoveToHead() {
   });
 }
 
+// ─── Accountant assignments — consolidated (contract 1.8 / 1.9) ──────────────
+export function useUpdateAccountantAssignments() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      accId,
+      ...body
+    }: {
+      accId: string;
+      headId?: string | null;
+      restaurants: string[];
+    }) => {
+      const res = await api.patch(`/admin/accountants/${accId}/assignments`, body);
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.platformAdminDistribution });
+      toast.success("تم تحديث التوزيع");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+export function useSetAccountantRestaurantModules() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      accId,
+      restaurant,
+      modules,
+    }: {
+      accId: string;
+      restaurant: string;
+      modules: string[];
+    }) => {
+      const res = await api.put(
+        `/admin/accountants/${accId}/restaurants/${restaurant}/modules`,
+        { modules },
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.platformAdminDistribution });
+      toast.success("تم تحديث الوحدات");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
 // ─── Subscriptions ───────────────────────────────────────────────────────────
 export function useAdminSubscriptions(filter: AdminSubscriptionsFilter = {}) {
   return useQuery({
@@ -948,6 +1000,45 @@ export function useGenerateAdminReport() {
       return res.data;
     },
     onSuccess: () => toast.success("تم توليد التقرير"),
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+// ─── Report distribution (contract 1.7) ──────────────────────────────────────
+export function useSendAdminReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      reportKey,
+      ...body
+    }: {
+      reportKey: string;
+      period: { from: string; to: string };
+      restaurantIds?: string[];
+      channels: Array<"email" | "inApp">;
+    }) => {
+      const res = await api.post(`/admin/reports/${reportKey}/send`, body);
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.platformAdminReportsCatalog });
+      toast.success("تم إرسال التقرير");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+export function useUploadAdminReport() {
+  return useMutation({
+    mutationFn: async ({ reportKey, file }: { reportKey: string; file: File }) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await api.post(`/admin/reports/${reportKey}/upload`, fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return res.data;
+    },
+    onSuccess: () => toast.success("تم رفع التقرير"),
     onError: (e) => toast.error(getErrorMessage(e, "ar")),
   });
 }

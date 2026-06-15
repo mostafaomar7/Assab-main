@@ -29,7 +29,7 @@ import {
   useBranchOverview, useBranchEmployees, useBranchItems, useBranchPurchaseRequests,
   useBranchSuppliers, useBranchActiveShift, useBranchSubmitItemsCount, useBranchUpload,
   useBranchRequestNewSupplier, useBranchOpenShift, useBranchCloseShift, useBranchSettings,
-  useUpdateBranchSettings,
+  useUpdateBranchSettings, useCreateBranchPurchaseRequest,
   // Procurement
   useProcurementOverview, useProcurementOrders, useGroupedOrders, useSentOrders,
   useApproveOrder, useSendGroupedOrder, useProcurementItems, useProcurementSuppliers,
@@ -1455,6 +1455,14 @@ function CAUsers() {
   }));
   const [showAdd,setShowAdd]=useState(false);
   const [search,setSearch]=useState("");
+  const [inviteForm,setInviteForm]=useState({ name:"", email:"", role:"accountant" });
+  const submitInvite=()=>{
+    if(!inviteForm.email.trim())return;
+    inviteMut.mutate(
+      { name:inviteForm.name||undefined, email:inviteForm.email, role:inviteForm.role } as any,
+      { onSuccess: ()=>{ setShowAdd(false); setInviteForm({ name:"", email:"", role:"accountant" }); } },
+    );
+  };
   const toggle=(id:string)=>{
     if (apiUsers.length > 0) {
       toggleMut.mutate(id);
@@ -1491,9 +1499,10 @@ function CAUsers() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e=>e.stopPropagation()} dir={dir}>
             <div className="px-5 py-4 bg-purple-600 text-white flex items-center justify-between"><h3 className="font-bold">{t("إضافة مستخدم","Add User")}</h3><button onClick={()=>setShowAdd(false)} className="text-purple-200 hover:text-white"><X size={18}/></button></div>
             <div className="p-5 space-y-3">
-              {[[t("الاسم الكامل","Full Name"),""],[ t("البريد الإلكتروني","Email"),"email@company.sa"]].map(([l,ph])=><div key={l}><label className="text-xs font-semibold text-gray-600 block mb-1">{l}</label><input placeholder={ph} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>)}
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الدور","Role")}</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none">{["رئيس الحسابات","محاسب","مدير فرع","مدير مشتريات"].map(r=><option key={r}>{r}</option>)}</select></div>
-              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={()=>{setShowAdd(false);inviteMut.mutate({ email:"new@company.sa", role:"accountant" });}}><Send size={13}/> {t("إرسال دعوة","Send Invite")}</Btn></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الاسم الكامل","Full Name")}</label><input value={inviteForm.name} onChange={e=>setInviteForm(f=>({...f,name:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("البريد الإلكتروني","Email")}</label><input value={inviteForm.email} onChange={e=>setInviteForm(f=>({...f,email:e.target.value}))} dir="ltr" placeholder="email@company.sa" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الدور","Role")}</label><select value={inviteForm.role} onChange={e=>setInviteForm(f=>({...f,role:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option value="head">رئيس الحسابات</option><option value="accountant">محاسب</option><option value="branch">مدير فرع</option><option value="procurement">مدير مشتريات</option></select></div>
+              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={submitInvite} disabled={!inviteForm.email.trim()||inviteMut.isPending}><Send size={13}/> {t("إرسال دعوة","Send Invite")}</Btn></div>
             </div>
           </div>
         </div>
@@ -3304,6 +3313,7 @@ function AccInventoryItemsPage({ onBack }:{ onBack:()=>void }) {
 
   useInventoryCatalog();
   const saveCatalogMut = useSaveInventoryCatalog();
+  const { data: invBranches = [] } = useInventoryBranches();
 
   const initLists=(): Record<string,string[]> => {const r:Record<string,string[]>={};Object.values(BRANCH_MAP).flat().forEach(b=>{r[b]=[];});r["فرع العليا"]=["دجاج طازج","بطاطس","زيت قلي","كاتشب"];r["فرع الملقا"]=["عجينة البيتزا","جبنة موزاريلا"];r["فرع الورود"]=["أرز بسمتي","دجاج طازج"];return r;};
   const [lists,setLists]=useState<Record<string,string[]>>(initLists);
@@ -3313,9 +3323,10 @@ function AccInventoryItemsPage({ onBack }:{ onBack:()=>void }) {
   const branchList=lists[selBranch]||[];
   const toggle=(name:string)=>{setSaved(null);setLists(p=>({...p,[selBranch]:p[selBranch]?.includes(name)?p[selBranch].filter(x=>x!==name):[...(p[selBranch]||[]),name]}));};
   const save=()=>{
-    // Best-effort: backend expects InventoryItemDef[]; mapping local string[] requires extra fields,
-    // so we pass empty for now while still wiring intent.
-    saveCatalogMut.mutate([]);
+    // Contract 2.8: send the selected items (full defs) + resolve branchId from the live branch list.
+    const branchId = invBranches.find(b=>b.branchName===selBranch)?.branchId;
+    const items = branchList.map(name=>{ const c=catalog.find(i=>i.name===name); return { name, category: c?.cat || "—", unit: (c as any)?.unit || "" }; });
+    saveCatalogMut.mutate({ branchId, items });
     setSaved(selBranch);
     setTimeout(()=>setSaved(null),2000);
   };
@@ -3380,13 +3391,30 @@ function AccInventoryItemsPage({ onBack }:{ onBack:()=>void }) {
 function AccCompanyAssets() {
   const { drafts, confirmDraft, discardDraft } = useContext(CAssetDraftContext);
   const createAssetMut = useCreateAsset();
+  const patchAssetMut = usePatchAsset();
+  const { data: branchOpts = [] } = useInventoryBranches();
   const draftAssets = drafts;
   const { data: serverAssets } = useAssets();
-  // TODO: wire up create-asset modal (useCreateAsset) once UI form exists
-  // const createAssetMut = useCreateAsset();
   const importAssetsMut = useImportAssets();
-  // TODO: wire up edit-asset modal (usePatchAsset) once UI form exists
-  // const patchAssetMut = usePatchAsset();
+  const [showAdd, setShowAdd] = useState(false);
+  const [aForm, setAForm] = useState({ name:"", category:ASSET_CATS_CD[0]||"", branchId:"", invNum:"", price:"", usefulLifeMonths:"60", custodian:"" });
+  const submitAsset = () => {
+    if (!aForm.name.trim() || !aForm.branchId) return;
+    createAssetMut.mutate(
+      { name:aForm.name, category:aForm.category, branchId:aForm.branchId, invNum:aForm.invNum||undefined, priceHalalas:Math.round((parseFloat(aForm.price)||0)*100), usefulLifeMonths:Number(aForm.usefulLifeMonths)||60, custodian:aForm.custodian||undefined },
+      { onSuccess: () => { setShowAdd(false); setAForm({ name:"", category:ASSET_CATS_CD[0]||"", branchId:"", invNum:"", price:"", usefulLifeMonths:"60", custodian:"" }); } },
+    );
+  };
+  const [editAsset, setEditAsset] = useState<any|null>(null);
+  const [eForm, setEForm] = useState({ name:"", category:"", custodian:"", status:"active" });
+  const openEdit = (a:any) => { setEditAsset(a); setEForm({ name:a.name, category:a.category, custodian:a.mgr&&a.mgr!=="—"?a.mgr:"", status:a.status==="active"?"active":"maintenance" }); };
+  const submitEdit = () => {
+    if (!editAsset) return;
+    patchAssetMut.mutate(
+      { id: editAsset._apiId || editAsset.id, patch: { name:eForm.name, category:eForm.category, custodian:eForm.custodian||undefined, status:eForm.status } },
+      { onSuccess: () => setEditAsset(null) },
+    );
+  };
   const fallbackAssets=[
     { id:"A001",name:"ثلاجة صناعية 600L",   branch:"فرع العليا",   brand:"برغر التاج",      category:"معدات مطبخ",value:18000,dep:3600, date:"يناير 2023", mgr:"فاطمة السالم",   serial:"FR-2023-001",status:"active"      },
     { id:"A002",name:"فرن بيتزا كهربائي",   branch:"فرع الملقا",   brand:"بيتزا التاج",     category:"معدات مطبخ",value:24000,dep:4800, date:"مارس 2023",  mgr:"أحمد الحربي",   serial:"OV-2023-002",status:"active"      },
@@ -3399,6 +3427,7 @@ function AccCompanyAssets() {
   const apiAssets = serverAssets?.data ?? [];
   const assets = apiAssets.map(a => ({
     id: a.publicId,
+    _apiId: a.id,
     name: a.name,
     branch: a.branchName || "—",
     brand: "—",
@@ -3431,8 +3460,7 @@ function AccCompanyAssets() {
         <div className="flex gap-2">
           <input type="file" id="asset-import-file" accept=".xlsx,.csv" onChange={e=>{ const f=e.target.files?.[0]; if(f) importAssetsMut.mutate(f); }} style={{display:"none"}}/>
           <Btn size="sm" onClick={()=>document.getElementById("asset-import-file")?.click()}><Upload size={12}/> {t("استيراد Excel","Import Excel")}</Btn>
-          {/* TODO: replace alert with createAssetMut.mutate(...) once a create-asset modal exists */}
-          <Btn variant="primary" onClick={()=>createAssetMut.mutate({name:"أصل جديد"} as any)}><Plus size={13}/> {t("أصل جديد","New Asset")}</Btn>
+          <Btn variant="primary" onClick={()=>setShowAdd(true)}><Plus size={13}/> {t("أصل جديد","New Asset")}</Btn>
         </div>
       </div>
 
@@ -3501,12 +3529,44 @@ function AccCompanyAssets() {
             <span className="font-mono text-xs text-amber-700">{fmt(a.dep)}</span>
             <div className="flex items-center gap-1.5">
               <Badge className={`text-[10px] border ${SC[a.status]}`}>{SL[a.status]}</Badge>
-              {/* TODO: replace alert with patchAssetMut.mutate({id, patch:{...}}) once an edit-asset modal exists */}
-              <button onClick={()=>alert(`✏️ تعديل الأصل: ${a.name}\n\nيمكن تعديل:\n• الحالة (نشط / صيانة / مُهلك)\n• القيمة الدفترية الحالية\n• بيانات الموقع والفرع`)} className="p-1 rounded text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"><Edit2 size={11}/></button>
+              <button onClick={()=>openEdit(a)} className="p-1 rounded text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"><Edit2 size={11}/></button>
             </div>
           </div>
         ))}
       </div>
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setShowAdd(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5 max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()} dir={dir}>
+            <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">{t("أصل جديد","New Asset")}</h3><button onClick={()=>setShowAdd(false)} className="text-gray-400"><X size={18}/></button></div>
+            <div className="space-y-3">
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("اسم الأصل","Asset Name")}</label><input value={aForm.name} onChange={e=>setAForm(f=>({...f,name:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الفئة","Category")}</label><select value={aForm.category} onChange={e=>setAForm(f=>({...f,category:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none">{ASSET_CATS_CD.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الفرع","Branch")}</label><select value={aForm.branchId} onChange={e=>setAForm(f=>({...f,branchId:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option value="">{t("اختر الفرع","Select branch")}</option>{branchOpts.map(b=><option key={b.branchId} value={b.branchId}>{b.branchName}</option>)}</select></div>
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("رقم الفاتورة","Invoice #")}</label><input value={aForm.invNum} onChange={e=>setAForm(f=>({...f,invNum:e.target.value}))} dir="ltr" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("السعر (ر.س)","Price (SAR)")}</label><input type="number" value={aForm.price} onChange={e=>setAForm(f=>({...f,price:e.target.value}))} dir="ltr" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("العمر الإنتاجي (شهر)","Useful Life (months)")}</label><input type="number" value={aForm.usefulLifeMonths} onChange={e=>setAForm(f=>({...f,usefulLifeMonths:e.target.value}))} dir="ltr" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("العهدة","Custodian")}</label><input value={aForm.custodian} onChange={e=>setAForm(f=>({...f,custodian:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>
+              </div>
+              <div className="flex gap-2 justify-end pt-1"><Btn onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={submitAsset} disabled={!aForm.name.trim()||!aForm.branchId||createAssetMut.isPending}><Plus size={13}/> {t("إضافة","Add")}</Btn></div>
+            </div>
+          </div>
+        </div>
+      )}
+      {editAsset && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setEditAsset(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e=>e.stopPropagation()} dir={dir}>
+            <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">{t("تعديل الأصل","Edit Asset")}</h3><button onClick={()=>setEditAsset(null)} className="text-gray-400"><X size={18}/></button></div>
+            <div className="space-y-3">
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("اسم الأصل","Asset Name")}</label><input value={eForm.name} onChange={e=>setEForm(f=>({...f,name:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الفئة","Category")}</label><select value={eForm.category} onChange={e=>setEForm(f=>({...f,category:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none">{ASSET_CATS_CD.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("العهدة","Custodian")}</label><input value={eForm.custodian} onChange={e=>setEForm(f=>({...f,custodian:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الحالة","Status")}</label><select value={eForm.status} onChange={e=>setEForm(f=>({...f,status:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option value="active">{t("نشط","Active")}</option><option value="maintenance">{t("صيانة","Maintenance")}</option></select></div>
+              <div className="flex gap-2 justify-end pt-1"><Btn onClick={()=>setEditAsset(null)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={submitEdit} disabled={patchAssetMut.isPending}><Check size={13}/> {t("حفظ","Save")}</Btn></div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3783,6 +3843,14 @@ function AccCompanyReminders() {
     ? serverReminders.map(r => ({ id: r.id, title: r.title, desc: r.description, due: r.dueAt, priority: r.priority, done: r.done }))
     : [];
   const [showAdd,setShowAdd]=useState(false);
+  const [remForm,setRemForm]=useState({ title:"", description:"", dueAt:"", priority:"medium" as "high"|"medium"|"low" });
+  const submitReminder=()=>{
+    if(!remForm.title.trim())return;
+    createMut.mutate(
+      { title:remForm.title, description:remForm.description, dueAt: remForm.dueAt ? new Date(remForm.dueAt).toISOString() : new Date().toISOString(), priority:remForm.priority } as any,
+      { onSuccess: ()=>{ setShowAdd(false); setRemForm({ title:"", description:"", dueAt:"", priority:"medium" }); } },
+    );
+  };
   const toggleDone=(id:string)=>{
     const r = reminders.find(x=>x.id===id);
     if(r) patchMut.mutate({ id, patch: { done: !r.done } });
@@ -3817,14 +3885,13 @@ function AccCompanyReminders() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e=>e.stopPropagation()} dir={dir}>
             <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">تذكير جديد</h3><button onClick={()=>setShowAdd(false)} className="text-gray-400 hover:text-gray-600"><X size={18}/></button></div>
             <div className="space-y-3">
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1">العنوان</label><input placeholder="عنوان التذكير..." className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1">التفاصيل</label><input placeholder="وصف اختياري..." className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">العنوان</label><input value={remForm.title} onChange={e=>setRemForm(f=>({...f,title:e.target.value}))} placeholder="عنوان التذكير..." className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">التفاصيل</label><input value={remForm.description} onChange={e=>setRemForm(f=>({...f,description:e.target.value}))} placeholder="وصف اختياري..." className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs font-semibold text-gray-600 block mb-1">المهلة</label><input type="date" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>
-                <div><label className="text-xs font-semibold text-gray-600 block mb-1">الأولوية</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option value="high">عالية</option><option value="medium">متوسطة</option><option value="low">منخفضة</option></select></div>
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">المهلة</label><input type="date" value={remForm.dueAt} onChange={e=>setRemForm(f=>({...f,dueAt:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">الأولوية</label><select value={remForm.priority} onChange={e=>setRemForm(f=>({...f,priority:e.target.value as "high"|"medium"|"low"}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option value="high">عالية</option><option value="medium">متوسطة</option><option value="low">منخفضة</option></select></div>
               </div>
-              {/* TODO: wire createMut.mutate({title, description, dueAt, priority}) once add-modal inputs are controlled */}
-              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>إلغاء</Btn><Btn variant="primary" onClick={()=>{setShowAdd(false); createMut.mutate({title:"تذكير جديد", description:"", dueAt:new Date().toISOString(), priority:"medium"} as any);}}><Check size={13}/> إضافة</Btn></div>
+              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>إلغاء</Btn><Btn variant="primary" onClick={submitReminder} disabled={!remForm.title.trim()||createMut.isPending}><Check size={13}/> إضافة</Btn></div>
             </div>
           </div>
         </div>
@@ -4641,9 +4708,16 @@ function BranchUpload() {
   const SAR = t("ر.س","SAR");
   const [salesAmt,setSalesAmt]=useState("");
   const [expAmt,setExpAmt]=useState("");
+  const [shift,setShift]=useState("morning");
+  const [expenseNote,setExpenseNote]=useState("");
   const [submitted,setSubmitted]=useState(false);
-  void uploadMut; // file upload UI not yet wired; kept for future
-  const submit=()=>{if(!salesAmt){alert(t("أدخل قيمة المبيعات","Enter sales amount"));return;}setSubmitted(true);};
+  const submit=()=>{
+    if(!salesAmt){alert(t("أدخل قيمة المبيعات","Enter sales amount"));return;}
+    uploadMut.mutate(
+      { reportType:"sales", salesHalalas: Math.round((parseFloat(salesAmt)||0)*100), shift, expensesHalalas: expAmt?Math.round((parseFloat(expAmt)||0)*100):undefined, expenseNote: expenseNote||undefined },
+      { onSuccess: ()=>setSubmitted(true) },
+    );
+  };
   if(submitted) return (
     <div className="flex flex-col items-center justify-center h-64 space-y-4 text-center" dir={dir}>
       <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center"><CheckCircle2 size={40} className="text-emerald-600"/></div>
@@ -4659,13 +4733,13 @@ function BranchUpload() {
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
           <h3 className="font-bold text-gray-800">💰 {t("المبيعات","Sales")}</h3>
           <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t(`إجمالي المبيعات (${SAR}) *`,`Total Sales (${SAR}) *`)}</label><input type="number" value={salesAmt} onChange={e=>setSalesAmt(e.target.value)} placeholder="0.00" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-emerald-400"/></div>
-          <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الشفت","Shift")}</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>{t("صباحي","Morning")}</option><option>{t("مسائي","Evening")}</option><option>{t("كامل اليوم","Full Day")}</option></select></div>
+          <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الشفت","Shift")}</label><select value={shift} onChange={e=>setShift(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option value="morning">{t("صباحي","Morning")}</option><option value="evening">{t("مسائي","Evening")}</option><option value="full">{t("كامل اليوم","Full Day")}</option></select></div>
           <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("مرفق (صورة / PDF)","Attachment (image / PDF)")}</label><div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center cursor-pointer hover:border-purple-300"><Upload size={20} className="text-gray-400 mx-auto mb-1"/><p className="text-xs text-gray-400">{t("رفع مرفق","Upload attachment")}</p></div></div>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
           <h3 className="font-bold text-gray-800">💸 {t("المصروفات","Expenses")}</h3>
           <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t(`إجمالي المصروفات (${SAR})`,`Total Expenses (${SAR})`)}</label><input type="number" value={expAmt} onChange={e=>setExpAmt(e.target.value)} placeholder="0.00" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-red-400"/></div>
-          <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("تفصيل المصروفات","Expense breakdown")}</label><textarea rows={3} placeholder={t("وصف مختصر...","Brief description...")} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none resize-none"/></div>
+          <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("تفصيل المصروفات","Expense breakdown")}</label><textarea rows={3} value={expenseNote} onChange={e=>setExpenseNote(e.target.value)} placeholder={t("وصف مختصر...","Brief description...")} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none resize-none"/></div>
           <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الفاتورة","Invoice")}</label><div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center cursor-pointer hover:border-red-300"><Paperclip size={20} className="text-gray-400 mx-auto mb-1"/><p className="text-xs text-gray-400">{t("رفع الفاتورة","Upload invoice")}</p></div></div>
         </div>
       </div>
@@ -4677,21 +4751,26 @@ function BranchUpload() {
 function BranchRequests() {
   const { t, dir } = useCLang();
   const { data: apiRequests = [] } = useBranchPurchaseRequests();
+  const createReqMut = useCreateBranchPurchaseRequest();
   // Driven by GET /company/me/branch/purchase-requests. No static seed.
-  const [localRequests,setLocalRequests]=useState<any[]>([]);
-  const requests = apiRequests.length > 0
-    ? apiRequests.map(r => ({
-        id: r.publicId || r.id,
-        item: r.itemName || "—",
-        qty: r.qty ?? 0,
-        unit: r.unit || "",
-        status: r.status === "submitted" ? "pending" : r.status,
-        date: r.createdAt,
-        urgency: "normal" as const,
-      }))
-    : localRequests;
-  const setRequests = setLocalRequests;
+  const requests = apiRequests.map(r => ({
+    id: r.publicId || r.id,
+    item: r.itemName || "—",
+    qty: r.qty ?? 0,
+    unit: r.unit || "",
+    status: r.status === "submitted" ? "pending" : r.status,
+    date: r.createdAt,
+    urgency: ((r as any).priority === "urgent" ? "urgent" : "normal") as "normal" | "urgent",
+  }));
   const [showAdd,setShowAdd]=useState(false);
+  const [reqForm,setReqForm]=useState({ itemName:"", qty:"", unit:"كجم", priority:"normal" as "normal"|"urgent" });
+  const submitRequest=()=>{
+    if(!reqForm.itemName.trim()||!reqForm.qty)return;
+    createReqMut.mutate(
+      { itemName:reqForm.itemName, qty:Number(reqForm.qty), unit:reqForm.unit, priority:reqForm.priority },
+      { onSuccess: ()=>{ setShowAdd(false); setReqForm({ itemName:"", qty:"", unit:"كجم", priority:"normal" }); } },
+    );
+  };
   const SC:Record<string,string>={pending:"bg-amber-50 text-amber-700 border-amber-200",approved:"bg-blue-50 text-blue-700 border-blue-200",delivered:"bg-emerald-50 text-emerald-700 border-emerald-200"};
   const SL:Record<string,string>={pending:t("معلق","Pending"),approved:t("معتمد","Approved"),delivered:t("تم التسليم","Delivered")};
   return (
@@ -4712,10 +4791,10 @@ function BranchRequests() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e=>e.stopPropagation()} dir={dir}>
             <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">{t("طلب شراء جديد","New Purchase Request")}</h3><button onClick={()=>setShowAdd(false)} className="text-gray-400 hover:text-gray-600"><X size={18}/></button></div>
             <div className="space-y-3">
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الصنف","Item")}</label><input placeholder={t("اسم الصنف","Item name")} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>
-              <div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الكمية","Quantity")}</label><input type="number" placeholder="0" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div><div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الوحدة","Unit")}</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>{t("كجم","kg")}</option><option>{t("كرتون","carton")}</option><option>{t("قطعة","piece")}</option><option>{t("لتر","liter")}</option></select></div></div>
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الأولوية","Priority")}</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>{t("عادي","Normal")}</option><option>{t("عاجل","Urgent")}</option></select></div>
-              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={()=>{setShowAdd(false);setRequests(p=>[...p,{id:`R${p.length+1}`,item:t("صنف جديد","New Item"),qty:0,unit:t("كجم","kg"),status:"pending",date:t("اليوم","Today"),urgency:"normal"}]);}}><Send size={13}/> {t("إرسال","Send")}</Btn></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الصنف","Item")}</label><input value={reqForm.itemName} onChange={e=>setReqForm(f=>({...f,itemName:e.target.value}))} placeholder={t("اسم الصنف","Item name")} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>
+              <div className="grid grid-cols-2 gap-3"><div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الكمية","Quantity")}</label><input type="number" value={reqForm.qty} onChange={e=>setReqForm(f=>({...f,qty:e.target.value}))} placeholder="0" dir="ltr" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div><div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الوحدة","Unit")}</label><select value={reqForm.unit} onChange={e=>setReqForm(f=>({...f,unit:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option value="كجم">{t("كجم","kg")}</option><option value="كرتون">{t("كرتون","carton")}</option><option value="قطعة">{t("قطعة","piece")}</option><option value="لتر">{t("لتر","liter")}</option></select></div></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الأولوية","Priority")}</label><select value={reqForm.priority} onChange={e=>setReqForm(f=>({...f,priority:e.target.value as "normal"|"urgent"}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option value="normal">{t("عادي","Normal")}</option><option value="urgent">{t("عاجل","Urgent")}</option></select></div>
+              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={submitRequest} disabled={!reqForm.itemName.trim()||!reqForm.qty||createReqMut.isPending}><Send size={13}/> {t("إرسال","Send")}</Btn></div>
             </div>
           </div>
         </div>
@@ -4957,7 +5036,17 @@ function ProcNew() {
   const approveMut = useApproveOrder();
   const updateOrderMut = useUpdateOrder();
   const createOrderMut = useCreateProcurementOrder();
+  const { data: supplierOpts = [] } = useProcurementSuppliers();
+  const { data: itemOpts = [] } = useProcurementItems();
   const SAR = t("ر.س","SAR");
+  const [orderForm, setOrderForm] = useState({ supplierId:"", itemId:"", qty:"", notes:"" });
+  const submitOrder = () => {
+    if (!orderForm.supplierId || !orderForm.itemId || !orderForm.qty) return;
+    createOrderMut.mutate(
+      { supplierId: orderForm.supplierId, items: [{ itemId: orderForm.itemId, qty: Number(orderForm.qty) }], notes: orderForm.notes || undefined } as any,
+      { onSuccess: () => { setShowAdd(false); setOrderForm({ supplierId:"", itemId:"", qty:"", notes:"" }); } },
+    );
+  };
   // Driven by GET /company/me/procurement/orders. No static fallback.
   const orders = apiOrders.map(o => ({
     id: o.publicId || o.id,
@@ -4995,10 +5084,13 @@ function ProcNew() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e=>e.stopPropagation()} dir={dir}>
             <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">{t("أمر شراء جديد","New Purchase Order")}</h3><button onClick={()=>setShowAdd(false)} className="text-gray-400"><X size={18}/></button></div>
             <div className="space-y-3">
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("المورد","Supplier")}</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option>شركة المروج</option><option>مؤسسة النخيل</option><option>شركة الخليج</option></select></div>
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("العلامة التجارية","Brand")}</label><select className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none">{BRANDS.map(b=><option key={b.id}>{b.name}</option>)}</select></div>
-              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("وصف الطلب","Order Description")}</label><textarea rows={3} placeholder={t("الأصناف والكميات...","Items and quantities...")} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none resize-none"/></div>
-              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={()=>{setShowAdd(false); createOrderMut.mutate({items:[]} as any);}}><Send size={13}/> {t("إنشاء","Create")}</Btn></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("المورد","Supplier")}</label><select value={orderForm.supplierId} onChange={e=>setOrderForm(f=>({...f,supplierId:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option value="">{t("اختر المورد","Select supplier")}</option>{supplierOpts.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2"><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الصنف","Item")}</label><select value={orderForm.itemId} onChange={e=>setOrderForm(f=>({...f,itemId:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"><option value="">{t("اختر الصنف","Select item")}</option>{itemOpts.map(i=><option key={i.id} value={i.id}>{i.name}</option>)}</select></div>
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الكمية","Qty")}</label><input type="number" value={orderForm.qty} onChange={e=>setOrderForm(f=>({...f,qty:e.target.value}))} dir="ltr" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none"/></div>
+              </div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("ملاحظات (اختياري)","Notes (optional)")}</label><textarea rows={2} value={orderForm.notes} onChange={e=>setOrderForm(f=>({...f,notes:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none resize-none"/></div>
+              <div className="flex gap-2 justify-end"><Btn onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={submitOrder} disabled={!orderForm.supplierId||!orderForm.itemId||!orderForm.qty||createOrderMut.isPending}><Send size={13}/> {t("إنشاء","Create")}</Btn></div>
             </div>
           </div>
         </div>
@@ -5012,6 +5104,15 @@ function ProcSuppliers() {
   const { data: apiSuppliers = [] } = useProcurementSuppliers();
   const createSupplierMut = useCreateSupplier();
   const SAR = t("ر.س","SAR");
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ name:"", category:"", contactName:"", phone:"", email:"" });
+  const submitSupplier = () => {
+    if (!form.name.trim()) return;
+    createSupplierMut.mutate(
+      { name: form.name, category: form.category, contactName: form.contactName, phone: form.phone, email: form.email || undefined } as any,
+      { onSuccess: () => { setShowAdd(false); setForm({ name:"", category:"", contactName:"", phone:"", email:"" }); } },
+    );
+  };
   // Suppliers come from GET /company/me/procurement/suppliers. No static fallback.
   const suppliers = apiSuppliers.map(s => ({
     id: s.id, name: s.name, category: s.category || "—", contact: s.email || "—",
@@ -5020,7 +5121,7 @@ function ProcSuppliers() {
   }));
   return (
     <div className="space-y-5" dir={dir}>
-      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("الموردون","Suppliers")}</h2><p className="text-gray-400 text-sm">{suppliers.filter(s=>s.active).length} {t("مورد نشط","active suppliers")}</p></div><Btn variant="primary" onClick={()=>createSupplierMut.mutate({name:"مورد جديد"} as any)}><Plus size={13}/> {t("إضافة مورد","Add Supplier")}</Btn></div>
+      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("الموردون","Suppliers")}</h2><p className="text-gray-400 text-sm">{suppliers.filter(s=>s.active).length} {t("مورد نشط","active suppliers")}</p></div><Btn variant="primary" onClick={()=>setShowAdd(true)}><Plus size={13}/> {t("إضافة مورد","Add Supplier")}</Btn></div>
       <div className="grid grid-cols-3 gap-4">
         <KpiCard label={t("موردون نشطون","Active Suppliers")} value={String(suppliers.filter(s=>s.active).length)} sub={t("مورد معتمد","approved")} icon={<Building2 size={18} className="text-blue-600"/>} accent="blue"/>
         <KpiCard label={t("إجمالي المشتريات","Total Purchases")} value={`${fmt(Math.round(suppliers.reduce((s,x)=>s+x.totalSpent,0)/1000))}K`} sub={SAR} icon={<Wallet size={18} className="text-purple-600"/>} accent="purple"/>
@@ -5036,6 +5137,21 @@ function ProcSuppliers() {
           </div>
         ))}
       </div>
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setShowAdd(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e=>e.stopPropagation()} dir={dir}>
+            <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">{t("إضافة مورد","Add Supplier")}</h3><button onClick={()=>setShowAdd(false)} className="text-gray-400"><X size={18}/></button></div>
+            <div className="space-y-3">
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("اسم المورد","Supplier Name")}</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الفئة","Category")}</label><input value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("اسم جهة الاتصال","Contact Name")}</label><input value={form.contactName} onChange={e=>setForm(f=>({...f,contactName:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الجوال","Phone")}</label><input value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} dir="ltr" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("البريد (اختياري)","Email (optional)")}</label><input value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} dir="ltr" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+              <div className="flex gap-2 justify-end pt-1"><Btn onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={submitSupplier} disabled={!form.name.trim()||createSupplierMut.isPending}><Plus size={13}/> {t("إضافة","Add")}</Btn></div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -5045,6 +5161,15 @@ function ProcItems() {
   const { data: apiItems = [] } = useProcurementItems();
   const createItemMut = useCreateProcurementItem();
   const SAR = t("ر.س","SAR");
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ name:"", unit:"", category:"", price:"" });
+  const submitItem = () => {
+    if (!form.name.trim()) return;
+    createItemMut.mutate(
+      { name: form.name, unit: form.unit, category: form.category, lastPriceHalalas: Math.round((parseFloat(form.price) || 0) * 100) } as any,
+      { onSuccess: () => { setShowAdd(false); setForm({ name:"", unit:"", category:"", price:"" }); } },
+    );
+  };
   const items = apiItems.map(i => ({
     name: i.name,
     unit: i.unit || "",
@@ -5054,7 +5179,7 @@ function ProcItems() {
   }));
   return (
     <div className="space-y-5" dir={dir}>
-      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("الأصناف والأسعار","Items & Prices")}</h2><p className="text-gray-400 text-sm">{items.length} {t("صنف","items")}</p></div><Btn variant="primary" onClick={()=>createItemMut.mutate({name:"صنف جديد"} as any)}><Plus size={13}/> {t("صنف جديد","New Item")}</Btn></div>
+      <div className="flex items-center justify-between"><div><h2 className="text-xl font-bold text-gray-800">{t("الأصناف والأسعار","Items & Prices")}</h2><p className="text-gray-400 text-sm">{items.length} {t("صنف","items")}</p></div><Btn variant="primary" onClick={()=>setShowAdd(true)}><Plus size={13}/> {t("صنف جديد","New Item")}</Btn></div>
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="grid grid-cols-5 gap-4 px-5 py-3 border-b border-gray-100 bg-gray-50 text-[10px] font-semibold text-gray-500">
           <span className="col-span-2">{t("الصنف","Item")}</span><span>{t("الوحدة","Unit")}</span><span>{t("آخر سعر","Last Price")}</span><span>{t("الموردون","Suppliers")}</span>
@@ -5068,6 +5193,22 @@ function ProcItems() {
           </div>
         ))}
       </div>
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setShowAdd(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5" onClick={e=>e.stopPropagation()} dir={dir}>
+            <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-gray-800">{t("صنف جديد","New Item")}</h3><button onClick={()=>setShowAdd(false)} className="text-gray-400"><X size={18}/></button></div>
+            <div className="space-y-3">
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("اسم الصنف","Item Name")}</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الوحدة","Unit")}</label><input value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("آخر سعر","Last Price")} ({SAR})</label><input type="number" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))} dir="ltr" className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+              </div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الفئة","Category")}</label><input value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+              <div className="flex gap-2 justify-end pt-1"><Btn onClick={()=>setShowAdd(false)}>{t("إلغاء","Cancel")}</Btn><Btn variant="primary" onClick={submitItem} disabled={!form.name.trim()||createItemMut.isPending}><Plus size={13}/> {t("إضافة","Add")}</Btn></div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

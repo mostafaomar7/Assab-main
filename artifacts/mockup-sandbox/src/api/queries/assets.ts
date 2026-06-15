@@ -29,7 +29,17 @@ export function useAssets(filter: AssetFilter = {}) {
 export function useCreateAsset() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: Omit<Asset, "id" | "publicId" | "confirmed" | "confirmedAt">) => {
+    // Contract 2.1: { name, category, branchId, invNum?, priceHalalas (or cost), usefulLifeMonths, custodian?, notes? }
+    mutationFn: async (payload: {
+      name: string;
+      category: string;
+      branchId: string;
+      invNum?: string;
+      priceHalalas: number;
+      usefulLifeMonths: number;
+      custodian?: string;
+      notes?: string;
+    }) => {
       const res = await api.post<Asset>("/company/me/assets", payload);
       return res.data;
     },
@@ -49,7 +59,14 @@ export function usePatchAsset() {
       patch,
     }: {
       id: string;
-      patch: Partial<Asset>;
+      // Contract 2.4: { status?, bookValueHalalas?, branchId?, custodian?, note?, name?, category? }
+      patch: Partial<Asset> & {
+        bookValueHalalas?: number;
+        custodian?: string;
+        note?: string;
+        category?: string;
+        status?: string;
+      };
     }) => {
       const res = await api.patch<Asset>(`/company/me/assets/${id}`, patch);
       return res.data;

@@ -221,17 +221,25 @@ export function useBranchSubmitItemsCount() {
 export function useBranchUpload() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      file,
-      reportType,
-    }: {
-      file: File;
+    // Contract 4.1: flat multipart daily upload (sales/expenses + optional attachments).
+    mutationFn: async (body: {
       reportType: string;
+      date?: string;
+      salesHalalas?: number;
+      shift?: string;
+      expensesHalalas?: number;
+      expenseNote?: string;
+      file?: File;
     }) => {
       const fd = new FormData();
-      fd.append("file", file);
-      fd.append("reportType", reportType);
-      const res = await api.post<{ attachmentId: string; status?: string }>(
+      fd.append("reportType", body.reportType);
+      if (body.date) fd.append("date", body.date);
+      if (body.salesHalalas != null) fd.append("salesHalalas", String(body.salesHalalas));
+      if (body.shift) fd.append("shift", body.shift);
+      if (body.expensesHalalas != null) fd.append("expensesHalalas", String(body.expensesHalalas));
+      if (body.expenseNote) fd.append("expenseNote", body.expenseNote);
+      if (body.file) fd.append("attachments[]", body.file);
+      const res = await api.post<{ createdOperationId?: string; status?: string }>(
         "/company/me/branch/upload",
         fd,
         { headers: { "Content-Type": "multipart/form-data" } },
@@ -240,7 +248,7 @@ export function useBranchUpload() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.branchOverview });
-      toast.success("تم رفع الملف");
+      toast.success("تم رفع البيانات للمحاسب");
     },
     onError: (e) => toast.error(getErrorMessage(e, "ar")),
   });
@@ -260,6 +268,30 @@ export function useBranchSignAttachment() {
         fields?: Record<string, string>;
       }>("/company/me/branch/upload/sign-attachment", body);
       return res.data;
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+export function useCreateBranchPurchaseRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: {
+      itemName: string;
+      qty: number;
+      unit?: string;
+      priority?: "normal" | "urgent";
+      notes?: string;
+    }) => {
+      const res = await api.post<BranchPurchaseRequest>(
+        "/company/me/branch/purchase-requests",
+        body,
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.branchPurchaseRequests });
+      toast.success("تم إرسال طلب الشراء");
     },
     onError: (e) => toast.error(getErrorMessage(e, "ar")),
   });
