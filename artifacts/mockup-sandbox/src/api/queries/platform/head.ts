@@ -102,7 +102,7 @@ export function usePendingOperations(filter: PlatformOpsFilter = {}) {
     queryKey: queryKeys.platformPendingOperations(filter),
     queryFn: async () => {
       const res = await api.get<Page<Operation> | Operation[]>(
-        "/operations/pending",
+        "/head/operations/pending",
         { params: filter },
       );
       const d = res.data;
@@ -116,7 +116,7 @@ export function useFinalApprovedOperations(filter: PlatformOpsFilter = {}) {
     queryKey: queryKeys.platformFinalApprovedOperations(filter),
     queryFn: async () => {
       const res = await api.get<Page<Operation> | Operation[]>(
-        "/operations/final-approved",
+        "/head/operations/final-approved",
         { params: filter },
       );
       const d = res.data;
@@ -130,7 +130,7 @@ export function useRejectedOperations(filter: PlatformOpsFilter = {}) {
     queryKey: queryKeys.platformRejectedOperations(filter),
     queryFn: async () => {
       const res = await api.get<Page<Operation> | Operation[]>(
-        "/operations/rejected",
+        "/head/operations/rejected",
         { params: filter },
       );
       const d = res.data;
@@ -144,7 +144,7 @@ export function useErpPreflightPlatform() {
   return useQuery({
     queryKey: queryKeys.platformErpPreflight,
     queryFn: async () => {
-      const res = await api.get<PlatformErpPreflight>("/erp/preflight");
+      const res = await api.get<PlatformErpPreflight>("/head/erp/preflight");
       return res.data;
     },
   });
@@ -157,7 +157,7 @@ export function useErpEligibleOperationsPlatform(
     queryKey: queryKeys.platformErpEligibleOperations(filter),
     queryFn: async () => {
       const res = await api.get<Page<Operation> | Operation[]>(
-        "/erp/eligible-operations",
+        "/head/erp/eligible-operations",
         { params: filter },
       );
       const d = res.data;
@@ -171,7 +171,7 @@ export function useErpBatchesPlatform(filter: PlatformErpFilter = {}) {
     queryKey: queryKeys.platformErpBatches(filter),
     queryFn: async () => {
       const res = await api.get<Page<PlatformErpBatch> | PlatformErpBatch[]>(
-        "/erp/batches",
+        "/head/erp/batches",
         { params: filter },
       );
       const d = res.data;
@@ -185,7 +185,7 @@ export function useReportsInternalPlatform() {
   return useQuery({
     queryKey: queryKeys.platformReportsInternal,
     queryFn: async () => {
-      const res = await api.get<unknown>("/reports/internal");
+      const res = await api.get<unknown>("/head/reports/internal");
       return res.data;
     },
   });
@@ -195,7 +195,7 @@ export function useReportsOwnerPlatform() {
   return useQuery({
     queryKey: queryKeys.platformReportsOwner,
     queryFn: async () => {
-      const res = await api.get<unknown>("/reports/owner");
+      const res = await api.get<unknown>("/head/reports/owner");
       return res.data;
     },
   });
