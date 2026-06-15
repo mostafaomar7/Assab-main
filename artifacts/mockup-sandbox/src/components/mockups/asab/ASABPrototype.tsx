@@ -1824,6 +1824,71 @@ function topModulePage(targetOps: Op[], prefix: string, fallback: string): PageI
   return (top ? `${prefix}${top[0]}` : fallback) as PageId;
 }
 
+// ── API Operation → local Op mapping ─────────────────────────────────────────
+// The platform API returns a different shape (branchName, amountHalalas in integer
+// halalas, operationDate, publicId, actor objects, match = match|variance|unknown).
+// Casting it straight to Op leaves display fields (e.g. timeAgo) undefined and
+// crashes the dashboards (deriveExceptions calls timeAgo.includes). Map explicitly.
+const OP_MODULE_LABELS: Record<string, string> = {
+  sales: "مبيعات", expenses: "مصروفات", purchases: "مشتريات", inventory: "مخزون",
+  shifts: "شفتات", employees: "كشف الحساب", cash: "عهدة نقدية", waste: "هالك",
+};
+
+function relativeTimeAr(dateStr?: string): string {
+  if (!dateStr) return "—";
+  const then = new Date(dateStr).getTime();
+  if (Number.isNaN(then)) return "—";
+  const hours = Math.floor((Date.now() - then) / 3_600_000);
+  if (hours < 1) return "للتو";
+  if (hours < 24) return `قبل ${hours} ساعات`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "أمس";
+  if (days < 7) return `قبل ${days} أيام`;
+  const weeks = Math.floor(days / 7);
+  if (weeks === 1) return "قبل أسبوع";
+  if (weeks < 4) return `قبل ${weeks} أسابيع`;
+  const months = Math.floor(days / 30);
+  return months <= 1 ? "قبل شهر" : `قبل ${months} أشهر`;
+}
+
+function actorName(v: unknown): string | undefined {
+  if (!v) return undefined;
+  if (typeof v === "string") return v;
+  if (typeof v === "object" && v !== null && "name" in v)
+    return String((v as { name?: unknown }).name ?? "");
+  return undefined;
+}
+
+function mapApiOpToOp(a: any): Op {
+  const matchMap: Record<string, MatchStatus> = { match: "exact", variance: "diff", unknown: "review" };
+  const originMap: Record<string, Op["origin"]> = { "branch-upload": "mobile", manual: "procurement", system: "system" };
+  return {
+    id: a.publicId ?? a.id ?? "",
+    branch: a.branchName ?? a.branchId ?? "—",
+    moduleKey: a.moduleKey,
+    moduleLabel: OP_MODULE_LABELS[a.moduleKey] ?? a.moduleKey ?? "",
+    amount: typeof a.amountHalalas === "number" ? Math.round(a.amountHalalas / 100) : (a.amount ?? 0),
+    timeAgo: relativeTimeAr(a.operationDate ?? a.createdAt),
+    match: matchMap[a.match] ?? "exact",
+    attachments: typeof a.attachments === "number" ? a.attachments : 0,
+    status: a.status,
+    diff: a.diff ?? undefined,
+    rejectReason: a.rejectReason ?? undefined,
+    isCorrection: a.isCorrection ?? undefined,
+    correctiveRef: a.correctiveRefId ?? undefined,
+    erpPosted: a.erpPosted ?? undefined,
+    erpBatchId: a.erpBatchId ?? undefined,
+    origin: originMap[a.origin] ?? "system",
+    submittedBy: actorName(a.submittedBy),
+    approvedBy: actorName(a.approvedBy),
+    approvedAt: a.approvedAt ?? undefined,
+    finalApprovedBy: actorName(a.finalApprovedBy),
+    finalApprovedAt: a.finalApprovedAt ?? undefined,
+    rejectedBy: actorName(a.rejectedBy),
+    rejectedAt: a.rejectedAt ?? undefined,
+  };
+}
+
 function deriveExceptions(ops: Op[], forRole: "accountant"|"head", lang: Lang = "ar"): ExceptionItem[] {
   const en = lang === "en";
   const items: ExceptionItem[] = [];
@@ -1831,7 +1896,7 @@ function deriveExceptions(ops: Op[], forRole: "accountant"|"head", lang: Lang = 
   // 1. Ops stuck too long in review (pending > 2 days)
   const stuck = ops.filter(o =>
     o.status==="pending" &&
-    (o.timeAgo.includes("3 أيام")||o.timeAgo.includes("4 أيام")||o.timeAgo.includes("أسبوع"))
+    ((o.timeAgo ?? "").includes("3 أيام")||(o.timeAgo ?? "").includes("4 أيام")||(o.timeAgo ?? "").includes("أسبوع"))
   );
   if(stuck.length > 0) {
     const oldestAge = stuck.map(o=>o.timeAgo).sort().pop() || "";
@@ -2780,7 +2845,7 @@ function AccDashboard({ navigate, setModal, setDetailId, ops, approveOp, rejectO
   const apiApprovalRate = (dashData as any)?.kpis?.approvalRate ?? (dashData as any)?.approvalRate;
   const approvalRate = apiApprovalRate ?? (ops.length>0 ? Math.round((approved.length+ops.filter(o=>o.status==="final-approved").length)/ops.length*100) : 0);
   const overdueCount = pending.filter(o=>{
-    const daysAgo = o.timeAgo.includes("يوم") ? parseInt(o.timeAgo) || 2 : o.timeAgo.includes("أمس") ? 1 : 0;
+    const daysAgo = (o.timeAgo ?? "").includes("يوم") ? parseInt(o.timeAgo ?? "") || 2 : (o.timeAgo ?? "").includes("أمس") ? 1 : 0;
     return daysAgo >= 2;
   }).length;
 
@@ -13286,7 +13351,7 @@ export function ASABPrototype() {
   useMemo(() => {
     if ((apiOps as unknown[]).length > 0) {
       // Best-effort merge: live ops replace seed when first non-empty payload arrives.
-      setOps((apiOps as unknown[]) as Op[]);
+      setOps((apiOps as any[]).map(mapApiOpToOp));
     }
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
