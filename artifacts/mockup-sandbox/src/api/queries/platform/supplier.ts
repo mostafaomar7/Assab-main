@@ -19,7 +19,7 @@ export function useSupplierOverview() {
   return useQuery({
     queryKey: queryKeys.supplierOverview,
     queryFn: async () => {
-      const res = await api.get<SupplierOverview>("/supplier/overview");
+      const res = await api.get<SupplierOverview>("/asab/supplier/overview");
       return res.data;
     },
     staleTime: 15_000,
@@ -32,7 +32,7 @@ export function useSupplierOrders(filter: SupplierOrdersFilter = {}) {
     queryKey: queryKeys.supplierOrders(filter),
     queryFn: async () => {
       const res = await api.get<Page<SupplierOrder> | SupplierOrder[]>(
-        "/supplier/orders",
+        "/asab/supplier/orders",
         { params: filter },
       );
       const d = res.data;
@@ -49,7 +49,7 @@ export function useAcceptSupplierOrder() {
       ...body
     }: { id: string } & Record<string, unknown>) => {
       const res = await api.post<SupplierOrder>(
-        `/supplier/orders/${id}/accept`,
+        `/asab/supplier/orders/${id}/accept`,
         body,
       );
       return res.data;
@@ -76,7 +76,7 @@ export function useRejectSupplierOrder() {
       notes?: string;
     }) => {
       const res = await api.post<SupplierOrder>(
-        `/supplier/orders/${id}/reject`,
+        `/asab/supplier/orders/${id}/reject`,
         { reason, notes },
       );
       return res.data;
@@ -98,7 +98,7 @@ export function useMarkSupplierOrderDelivered() {
       ...body
     }: { id: string } & Record<string, unknown>) => {
       const res = await api.post<SupplierOrder>(
-        `/supplier/orders/${id}/mark-delivered`,
+        `/asab/supplier/orders/${id}/mark-delivered`,
         body,
       );
       return res.data;
@@ -116,7 +116,7 @@ export function useSupplierReports() {
   return useQuery({
     queryKey: queryKeys.supplierReports,
     queryFn: async () => {
-      const res = await api.get<SupplierReports>("/supplier/reports");
+      const res = await api.get<SupplierReports>("/asab/supplier/reports");
       return res.data;
     },
   });
@@ -128,7 +128,7 @@ export function useSupplierItems() {
     queryKey: queryKeys.supplierItems,
     queryFn: async () => {
       const res = await api.get<Page<SupplierItem> | SupplierItem[]>(
-        "/supplier/items",
+        "/asab/supplier/items",
       );
       const d = res.data;
       return Array.isArray(d) ? d : (d.data ?? []);
@@ -140,7 +140,7 @@ export function useCreateSupplierItem() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: Partial<SupplierItem> & { name: string; price: number }) => {
-      const res = await api.post<SupplierItem>("/supplier/items", body);
+      const res = await api.post<SupplierItem>("/asab/supplier/items", body);
       return res.data;
     },
     onSuccess: () => {
@@ -159,7 +159,7 @@ export function useUpdateSupplierItem() {
       ...patch
     }: { id: string } & Partial<SupplierItem>) => {
       const res = await api.patch<SupplierItem>(
-        `/supplier/items/${id}`,
+        `/asab/supplier/items/${id}`,
         patch,
       );
       return res.data;
@@ -176,7 +176,7 @@ export function useDeleteSupplierItem() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      await api.delete(`/supplier/items/${id}`);
+      await api.delete(`/asab/supplier/items/${id}`);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["platform", "supplier", "items"] });
@@ -191,7 +191,7 @@ export function useToggleSupplierItemActive() {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await api.post<SupplierItem>(
-        `/supplier/items/${id}/toggle-active`,
+        `/asab/supplier/items/${id}/toggle-active`,
       );
       return res.data;
     },
@@ -207,7 +207,7 @@ export function useExportSupplierItems() {
   return useMutation({
     mutationFn: async (format: "xlsx" | "csv" = "xlsx") => {
       await downloadBlob(
-        "/supplier/items/export",
+        "/asab/supplier/items/export",
         `supplier-items.${format}`,
         { format },
       );
@@ -223,7 +223,7 @@ export function useExportSupplierOrders() {
     ) => {
       const fmt = filter.format ?? "xlsx";
       await downloadBlob(
-        "/supplier/orders/export",
+        "/asab/supplier/orders/export",
         `supplier-orders-${filter.status ?? "all"}.${fmt}`,
         { ...filter, format: fmt },
       );

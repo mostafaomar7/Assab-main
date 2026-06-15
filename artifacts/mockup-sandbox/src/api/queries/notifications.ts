@@ -88,7 +88,7 @@ export function useNotificationPreferences() {
     queryKey: ["notifications", "preferences"] as const,
     queryFn: async () => {
       const res = await api.get<NotificationPreferences>(
-        "/notifications/preferences",
+        "/admin/notifications/preferences",
       );
       return res.data;
     },
@@ -101,7 +101,7 @@ export function useUpdateNotificationPreferences() {
   return useMutation({
     mutationFn: async (patch: Partial<NotificationPreferences>) => {
       const res = await api.patch<NotificationPreferences>(
-        "/notifications/preferences",
+        "/admin/notifications/preferences",
         patch,
       );
       return res.data;
