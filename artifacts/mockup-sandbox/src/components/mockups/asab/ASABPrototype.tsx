@@ -65,6 +65,9 @@ import {
   useResetCompanyAdminPassword,
   useCreateAdminUser,
   useCreateAdminCompany,
+  useCreateAdminBrand,
+  useCreateAdminRestaurant,
+  useCreateAdminSubscription,
   useUpdateAdminPermissions,
   useExportAdminAuditLogs,
   useImportAdminUsers,
@@ -1136,6 +1139,10 @@ const BRANDS_CATALOG: {
 }[] = [];
 
 const ALL_MODULES = ["المبيعات","المصروفات","المشتريات","المخزون","الشفتات","كشف الحساب","العهد النقدية","الأصول الثابتة"];
+
+// UI plan label (فضي/ذهبي/بلاتيني) → backend plan key (silver/gold/platinum).
+const planKey = (label: string): string =>
+  (({ "فضي": "silver", "ذهبي": "gold", "بلاتيني": "platinum" }) as Record<string, string>)[label] ?? label;
 
 function AddUserModal({ onAdd, onClose }:{ onAdd:(user:AdminUserData)=>void; onClose:()=>void }) {
   const { t, dir, lang } = useLang();
@@ -10027,6 +10034,10 @@ function AdminRestaurants({}: PageProps) {
   const { data: brandsApi } = useAdminBrands();
   useAdminRestaurantSubscriptions();
   const renewSubMut = useRenewSubscription();
+  const createBrandMut = useCreateAdminBrand();
+  const createRestMut = useCreateAdminRestaurant();
+  const [brandForm, setBrandForm] = useState({ name:"", owner:"", plan:"فضي" });
+  const [restForm, setRestForm] = useState({ brandId:"", name:"", city:"" });
   // Only adopt the API shape when it includes nested restaurants/branches; otherwise
   // fall back to the mock tree so the UI stays renderable while backend backfills nesting.
   const apiBrands = brandsApi as any;
@@ -10403,12 +10414,36 @@ function AdminRestaurants({}: PageProps) {
             <button onClick={()=>setShowAddBrand(false)}><X size={14} className="text-purple-400"/></button>
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <div><label className="text-xs text-gray-500 block mb-1">{t("اسم العلامة","Brand Name")}</label><input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder={t("علامة جديدة","New brand")}/></div>
-            <div><label className="text-xs text-gray-500 block mb-1">{t("المالك / المسؤول","Owner / Manager")}</label><input className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder={t("اسم المالك","Owner name")}/></div>
+            <div><label className="text-xs text-gray-500 block mb-1">{t("اسم العلامة","Brand Name")}</label><input value={brandForm.name} onChange={e=>setBrandForm(f=>({...f,name:e.target.value}))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder={t("علامة جديدة","New brand")}/></div>
+            <div><label className="text-xs text-gray-500 block mb-1">{t("المالك / المسؤول","Owner / Manager")}</label><input value={brandForm.owner} onChange={e=>setBrandForm(f=>({...f,owner:e.target.value}))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder={t("اسم المالك","Owner name")}/></div>
             <div><label className="text-xs text-gray-500 block mb-1">{t("الباقة","Plan")}</label>
-              <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option>فضي</option><option>ذهبي</option><option>بلاتيني</option></select></div>
+              <select value={brandForm.plan} onChange={e=>setBrandForm(f=>({...f,plan:e.target.value}))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option>فضي</option><option>ذهبي</option><option>بلاتيني</option></select></div>
           </div>
-          <div className="flex gap-2 mt-3"><Btn variant="primary" size="sm" onClick={()=>setShowAddBrand(false)}>✓ {t("حفظ","Save")}</Btn><Btn size="sm" onClick={()=>setShowAddBrand(false)}>{t("إلغاء","Cancel")}</Btn></div>
+          <div className="flex gap-2 mt-3"><Btn variant="primary" size="sm" disabled={!brandForm.name.trim()||createBrandMut.isPending} onClick={()=>{ if(!brandForm.name.trim()) return; createBrandMut.mutate({ name:brandForm.name, owner:brandForm.owner||undefined, plan:planKey(brandForm.plan) }, { onSuccess:()=>{ setShowAddBrand(false); setBrandForm({name:"",owner:"",plan:"فضي"}); } }); }}>✓ {t("حفظ","Save")}</Btn><Btn size="sm" onClick={()=>setShowAddBrand(false)}>{t("إلغاء","Cancel")}</Btn></div>
+        </div>
+      )}
+
+      {showAddRest!==null && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setShowAddRest(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e=>e.stopPropagation()} dir="rtl">
+            <div className="px-5 py-4 bg-gradient-to-l from-purple-700 to-purple-600 text-white flex items-center justify-between">
+              <h3 className="font-bold">{t("إضافة مطعم جديد","Add New Restaurant")}</h3>
+              <button onClick={()=>setShowAddRest(null)} className="text-purple-200 hover:text-white"><X size={18}/></button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("العلامة التجارية","Brand")}</label>
+                <select value={restForm.brandId} onChange={e=>setRestForm(f=>({...f,brandId:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400">
+                  <option value="">{t("اختر العلامة","Select brand")}</option>
+                  {(Array.isArray(brandsApi)?brandsApi:[]).map((b:any)=><option key={b.id} value={b.id}>{b.name}</option>)}
+                </select></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("اسم المطعم","Restaurant Name")}</label><input value={restForm.name} onChange={e=>setRestForm(f=>({...f,name:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("المدينة","City")}</label><input value={restForm.city} onChange={e=>setRestForm(f=>({...f,city:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+              <div className="flex gap-2 justify-end pt-1">
+                <Btn onClick={()=>setShowAddRest(null)}>{t("إلغاء","Cancel")}</Btn>
+                <Btn variant="primary" disabled={!restForm.brandId||!restForm.name.trim()||createRestMut.isPending} onClick={()=>{ createRestMut.mutate({ brandId:restForm.brandId, name:restForm.name, city:restForm.city }, { onSuccess:()=>{ setShowAddRest(null); setRestForm({brandId:"",name:"",city:""}); } }); }}><Plus size={13}/> {t("إضافة","Add")}</Btn>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -10555,6 +10590,10 @@ function AdminSubscriptions({}: PageProps) {
   const suspendSubMut = useSuspendSubscription();
   const activateSubMut = useActivateSubscription();
   const toggleReminderMut = useToggleAutoReminder();
+  const { data: subBrandsApi } = useAdminBrands();
+  const createSubMut = useCreateAdminSubscription();
+  const [showAddSub, setShowAddSub] = useState(false);
+  const [subForm, setSubForm] = useState({ brandId:"", plan:"فضي", months:12 });
   const { t, dir } = useLang();
   // Driven by GET /admin/subscriptions — mapped into the card render shape. No static seed.
   type SubCard = {
@@ -10607,8 +10646,35 @@ function AdminSubscriptions({}: PageProps) {
           <h2 className="text-xl font-bold text-gray-800">{t("إدارة الاشتراكات","Subscription Management")}</h2>
           <p className="text-gray-400 text-sm mt-0.5">{subs.length} {t("علامة تجارية","brands")} · {totalRestaurants} {t("مطعم","restaurants")} · {totalBranches} {t("فرع","branches")}</p>
         </div>
-        <Btn variant="primary"><Plus size={14}/> {t("اشتراك جديد","New Subscription")}</Btn>
+        <Btn variant="primary" onClick={()=>setShowAddSub(true)}><Plus size={14}/> {t("اشتراك جديد","New Subscription")}</Btn>
       </div>
+
+      {showAddSub && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setShowAddSub(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e=>e.stopPropagation()} dir="rtl">
+            <div className="px-5 py-4 bg-gradient-to-l from-purple-700 to-purple-600 text-white flex items-center justify-between">
+              <h3 className="font-bold">{t("اشتراك جديد","New Subscription")}</h3>
+              <button onClick={()=>setShowAddSub(false)} className="text-purple-200 hover:text-white"><X size={18}/></button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("العلامة التجارية","Brand")}</label>
+                <select value={subForm.brandId} onChange={e=>setSubForm(f=>({...f,brandId:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400">
+                  <option value="">{t("اختر العلامة","Select brand")}</option>
+                  {(Array.isArray(subBrandsApi)?subBrandsApi:[]).map((b:any)=><option key={b.id} value={b.id}>{b.name}</option>)}
+                </select></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الباقة","Plan")}</label>
+                  <select value={subForm.plan} onChange={e=>setSubForm(f=>({...f,plan:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"><option>فضي</option><option>ذهبي</option><option>بلاتيني</option></select></div>
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("عدد الأشهر","Months")}</label><input type="number" min={1} max={36} value={subForm.months} onChange={e=>setSubForm(f=>({...f,months:Number(e.target.value)||1}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+              </div>
+              <div className="flex gap-2 justify-end pt-1">
+                <Btn onClick={()=>setShowAddSub(false)}>{t("إلغاء","Cancel")}</Btn>
+                <Btn variant="primary" disabled={!subForm.brandId||createSubMut.isPending} onClick={()=>{ createSubMut.mutate({ brandId:subForm.brandId, plan:planKey(subForm.plan), months:subForm.months }, { onSuccess:()=>{ setShowAddSub(false); setSubForm({brandId:"",plan:"فضي",months:12}); } }); }}><Plus size={13}/> {t("إنشاء","Create")}</Btn>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Summary KPIs */}
       <div className="grid grid-cols-4 gap-3">

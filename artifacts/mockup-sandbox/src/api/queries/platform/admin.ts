@@ -1082,6 +1082,96 @@ export function useUploadAdminReport() {
   });
 }
 
+// ─── Report preview / status / periods (backend batch-1 A9/A10/A11) ──────────
+export interface AdminReportPreviewRow {
+  label: string;
+  value: string;
+  type: "number" | "string";
+  header?: boolean;
+}
+
+/** A9 — preview the parsed rows of an uploaded report file. */
+export function useAdminReportPreview(
+  reportKey: string,
+  uploadId?: string,
+  period?: string,
+) {
+  return useQuery({
+    queryKey: ["platform", "admin", "reports", "preview", reportKey, uploadId, period],
+    enabled: !!reportKey && !!uploadId,
+    queryFn: async () => {
+      const res = await api.get<{ rows: AdminReportPreviewRow[] }>(
+        `/admin/reports/${reportKey}/preview`,
+        { params: { uploadId, period } },
+      );
+      return res.data;
+    },
+  });
+}
+
+export interface AdminReportStatusRow {
+  restaurantId: string;
+  restaurantName: string;
+  owner: string;
+  email: string;
+  sent: boolean;
+  sentDate: string | null;
+  viewed: boolean;
+  viewedDate: string | null;
+}
+
+/** A10 — per-restaurant sent/viewed status for a report + period. */
+export function useAdminReportStatus(reportKey: string, period?: string) {
+  return useQuery({
+    queryKey: ["platform", "admin", "reports", "status", reportKey, period],
+    enabled: !!reportKey,
+    queryFn: async () => {
+      const res = await api.get<{
+        reportKey: string;
+        period: string;
+        summary: { sent: number; notSent: number; viewed: number; notViewed: number };
+        rows: AdminReportStatusRow[];
+      }>(`/admin/reports/${reportKey}/status`, { params: { period } });
+      return res.data;
+    },
+  });
+}
+
+/** A11 — available report periods (YYYY-MM). */
+export function useAdminReportPeriods() {
+  return useQuery({
+    queryKey: ["platform", "admin", "reports", "periods"],
+    queryFn: async () => {
+      const res = await api.get<{ periods: string[] }>("/admin/reports/periods");
+      return res.data?.periods ?? [];
+    },
+  });
+}
+
+// ─── Create subscription (backend batch-1 A4) ────────────────────────────────
+export function useCreateAdminSubscription() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: {
+      brandId: string;
+      plan: string; // silver | gold | platinum
+      months: number;
+      startDate?: string;
+      monthlyPrice?: number; // integer halalas
+      reminderEnabled?: boolean;
+      modules?: string[];
+    }) => {
+      const res = await api.post<AdminSubscription>("/admin/subscriptions", body);
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["platform", "admin", "subscriptions"] });
+      toast.success("تم إنشاء الاشتراك");
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
 // ─── Bulk uploads (multipart) ────────────────────────────────────────────────
 export function useAdminUploadBrand() {
   const qc = useQueryClient();

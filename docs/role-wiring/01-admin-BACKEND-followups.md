@@ -90,6 +90,36 @@ GET /admin/audit-logs → rows = { action: "post.companies", entityType: "compan
 
 ---
 
+## B5 — `POST /admin/brands`: هل `companyId` مطلوب؟
+
+ربطنا فورم "إضافة علامة تجارية" (admin). الفورم بيجمع **الاسم + المالك + الباقة** بس، وبيبعت:
+```jsonc
+POST /admin/brands  { "name": "...", "owner": "...", "plan": "silver|gold|platinum" }
+```
+**سؤال:** هل الـ endpoint بيتطلب `companyId` (لربط البراند بشركة)؟
+- لو **آه** → محتاجين نضيف selector للشركة في الفورم؛ ابعتوا الـ validation (هل required؟ وإزاي نجيب قايمة الشركات — `GET /admin/companies`؟).
+- لو **لأ** (البراند ممكن يتعمل بدون شركة) → تمام، سيبوه.
+
+نفس السؤال لـ `useCreateAdminRestaurant` (`POST /admin/brands/{brandId}/restaurants`) — أكّدنا إنه بياخد `{name, city, status?}` بس؛ لو محتاج حقول تانية required قولوا.
+
+---
+
+## B6 — فلو مدير التقارير (A9/A10/A11): تأكيد العقود قبل ما نربط العرض
+
+ضفنا الهوكس لـ **A9 (preview)** و**A10 (status)** و**A11 (periods)** + الموجود `upload`/`send`. قبل ما نربط شاشات الـ preview/status محتاجين تأكيد 4 حاجات:
+
+1. **رد الـ upload** — `POST /admin/reports/{reportKey}/upload` (multipart `file`) بيرجّع إيه بالظبط؟ محتاجين `uploadId` عشان نمرّره لـ A9. أكّدوا الشكل:
+   ```jsonc
+   { "uploadId": "...", "parsedRows": 0, "preview": [ ... ]? }
+   ```
+2. **`type` في A9 preview** — العقد بيقول `type: "number" | "string"`. لكن شاشة الـ preview الحالية بتلوّن الصفوف حسب **income / expense / profit**. أكّدوا: الـ `type` ده **نوع القيمة** (رقم/نص) ولا **تصنيف مالي**؟ لو نوع القيمة بس، هنشيل التلوين المالي (مقبول) — بس أكّدوا.
+3. **صيغة `period`** — A11 بترجّع `periods` بأي شكل (`"2025-10"`؟)؟ و A9/A10 بياخدوا `period` بنفس الصيغة؟
+4. **`period` في الإرسال** — `POST /admin/reports/{reportKey}/send` — الـ body بياخد `period` كـ **range** `{from,to}` ولا **شهر واحد** `"YYYY-MM"`؟ (الهوك حالياً بيبعت `{from,to}`.)
+
+أول ما توصلنا الإجابات هنربط الفلو كامل (upload → preview → send → status + period selector) في باتش واحد.
+
+---
+
 ## للسياق فقط — اتصلّح في الفرونت (مش محتاج منكم حاجة)
 
 | المشكلة | الإصلاح |
@@ -98,5 +128,8 @@ GET /admin/audit-logs → rows = { action: "post.companies", entityType: "compan
 | "إضافة مستخدم" — خطوة 2 (البراندات) فاضية فمش بتعدّي | البراندات كانت من ثابت فاضي؛ بقت من `GET /admin/brands`. |
 | ماتريكس الموديولات فاضية | بقت من قائمة ثابتة (لحد ما B2 يتحل). |
 | سجل النشاطات يعرض كود خام | اتعمل formatter عربي (لحد ما B3 يتحل). |
+| "إضافة علامة تجارية" مكانتش بتبعت request | الفورم بقى controlled ومربوط بـ `POST /admin/brands` (مستني تأكيد B5). |
+| "إضافة مطعم" مكانتش بتفتح فورm | اتعمل مودال مربوط بـ `POST /admin/brands/{brandId}/restaurants`. |
+| "اشتراك جديد" مكانش بيفتح فورم | اتعمل مودال مربوط بـ `POST /admin/subscriptions` (A4). |
 
-**لسه frontend wiring باقي (شغلنا، مش شغلكم):** فورمات "إضافة علامة تجارية / إضافة مطعم / اشتراك جديد"، وفلو مدير التقارير (upload→preview→send→status)، وتوجيلز الإعدادات (مستنية B4).
+**لسه frontend wiring باقي (شغلنا، مش شغلكم):** فلو مدير التقارير (upload→preview→send→status — مستني تأكيد B6)، وتوجيلز الإعدادات (مستنية B4).
