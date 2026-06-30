@@ -1,5 +1,5 @@
 import "./_group.css";
-import { useState, useMemo, useEffect, ReactNode, createContext, useContext, type MouseEvent as ReactMouseEvent } from "react";
+import { useState, useMemo, useEffect, useRef, ReactNode, createContext, useContext, type MouseEvent as ReactMouseEvent } from "react";
 import {
   useOperations, useApproveOperation, useRejectOperation, useBulkApprove, useFinalApprove,
   useVerifyExpenseInvoice, useConvertToAssetDraft, useExpenseInvoiceAttachments,
@@ -45,6 +45,7 @@ import { SessionsList } from "../../shared/SessionsList";
 import { GlobalSearch } from "../../shared/GlobalSearch";
 import { ChangePasswordModal } from "../../../auth/ChangePasswordModal";
 import { useLanguagePref } from "../../../auth/useLanguagePref";
+import { readEntrySelection } from "../../../auth/entrySelection";
 import { NotificationPreferencesPage } from "../../shared/NotificationPreferencesPage";
 import { TwoFactorSetupWizard } from "../../shared/TwoFactorSetupWizard";
 import { ApiKeysPage } from "../../shared/ApiKeysPage";
@@ -5387,6 +5388,19 @@ function CompanyDashboardInner() {
   const selectRole = (r:CRole) => { setRole(r); setPage(DEFAULT_PAGE[r]); };
   const navigate   = (p:string) => setPage(p);
   const logout     = () => { setRole(null); setPage(""); };
+
+  // Open directly on the role picked in the pre-login entry flow (once per mount). After an
+  // in-app logout the ref stays set, so the internal role picker still works for switching roles.
+  const adoptedEntryRef = useRef(false);
+  useEffect(() => {
+    if (adoptedEntryRef.current || role) return;
+    const sel = readEntrySelection();
+    if (sel?.slug === "asab/CompanyDashboard" && sel.role && (sel.role in DEFAULT_PAGE)) {
+      adoptedEntryRef.current = true;
+      selectRole(sel.role as CRole);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
 
   if(!role) return <CompanyLoginScreen onSelect={selectRole}/>;
 

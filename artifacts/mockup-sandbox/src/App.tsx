@@ -1,6 +1,7 @@
 import { useEffect, useState, type ComponentType } from "react";
 import { modules as discoveredModules } from "./.generated/mockup-components";
-import { LoginPage } from "./auth/LoginPage";
+import { EntryFlow } from "./auth/EntryFlow";
+import { readEntrySelection } from "./auth/entrySelection";
 import { useAuth } from "./auth/AuthContext";
 import { OnboardingWizard } from "./auth/OnboardingWizard";
 import { InvitationAcceptPage } from "./auth/InvitationAcceptPage";
@@ -290,11 +291,13 @@ function App() {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
-  // After a fresh login, auto-redirect to the role-appropriate landing.
+  // After a fresh login, auto-redirect to the dashboard the user picked on the
+  // pre-login entry flow (falls back to the role-appropriate landing).
   useEffect(() => {
     if (!user || !defaultPage) return;
     if (getPreviewPath()) return; // user is already navigated somewhere
-    const slug = resolveLandingSlug(defaultPage, user.role);
+    const sel = readEntrySelection();
+    const slug = sel?.slug ?? resolveLandingSlug(defaultPage, user.role);
     window.location.hash = `#/preview/${slug}`;
   }, [user, defaultPage]);
 
@@ -328,7 +331,8 @@ function App() {
   }
 
   if (!user) {
-    return <LoginPage />;
+    // Pre-login entry: choose dashboard → choose role → login.
+    return <EntryFlow />;
   }
 
   const previewPath = getPreviewPath();
@@ -341,6 +345,28 @@ function App() {
           modules={discoveredModules}
         />
       </>
+    );
+  }
+
+  // Just authenticated with a pending entry selection → the redirect effect is about to
+  // navigate to the chosen dashboard; show a loader instead of flashing the landing.
+  if (readEntrySelection()) {
+    return (
+      <div
+        dir="rtl"
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(145deg, #0A1628 0%, #0F1C35 40%, #1B3A6B 100%)",
+          fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif",
+          color: "#94a3b8",
+          fontSize: 14,
+        }}
+      >
+        جاري فتح الداشبورد...
+      </div>
     );
   }
 

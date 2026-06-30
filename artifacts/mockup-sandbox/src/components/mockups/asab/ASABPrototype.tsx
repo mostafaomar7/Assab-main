@@ -149,6 +149,7 @@ import { PermissionHistoryDrawer } from "../../shared/PermissionHistoryDrawer";
 import { LiveChatWidget } from "../../shared/LiveChatWidget";
 import { useLanguagePref } from "../../../auth/useLanguagePref";
 import { useAuth } from "../../../auth/AuthContext";
+import { readEntrySelection } from "../../../auth/entrySelection";
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -13722,6 +13723,18 @@ export function ASABPrototype() {
 
   const login = (role:RoleId) => setAppState({ role, page:ROLE_PROFILES[role].defaultPage, detailId:null, modal:null });
   const logout = () => setAppState({ role:null, page:"", detailId:null, modal:null });
+  // Open directly on the role picked in the pre-login entry flow (once per mount). After an
+  // in-app logout the ref stays set, so the internal role picker still works for switching roles.
+  const adoptedEntryRef = useRef(false);
+  useEffect(() => {
+    if (adoptedEntryRef.current || appState.role) return;
+    const sel = readEntrySelection();
+    if (sel?.slug === "asab/ASABPrototype" && sel.role && (sel.role in ROLE_PROFILES)) {
+      adoptedEntryRef.current = true;
+      login(sel.role as RoleId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appState.role]);
   const navigate = (page:PageId) => setAppState(s=>({...s, page, modal:null}));
   const setModal = (modal:string|null) => setAppState(s=>({...s, modal}));
   const setDetailId = (detailId:string|null) => setAppState(s=>({...s, detailId}));
