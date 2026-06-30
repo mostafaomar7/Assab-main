@@ -293,12 +293,14 @@ function App() {
 
   // After a fresh login, auto-redirect to the dashboard the user picked on the
   // pre-login entry flow (falls back to the role-appropriate landing).
+  // NOTE: a stored entry selection redirects on its own — do NOT gate on
+  // defaultPage, or a null defaultPage strands us on the "opening…" loader.
   useEffect(() => {
-    if (!user || !defaultPage) return;
+    if (!user) return;
     if (getPreviewPath()) return; // user is already navigated somewhere
     const sel = readEntrySelection();
-    const slug = sel?.slug ?? resolveLandingSlug(defaultPage, user.role);
-    window.location.hash = `#/preview/${slug}`;
+    const slug = sel?.slug ?? (defaultPage ? resolveLandingSlug(defaultPage, user.role) : null);
+    if (slug) window.location.hash = `#/preview/${slug}`;
   }, [user, defaultPage]);
 
   if (initializing) {
