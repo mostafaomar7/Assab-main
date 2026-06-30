@@ -38,6 +38,7 @@ import {
   useRejectedOperations,
   useErpEligibleOperationsPlatform,
   useErpBatchesPlatform,
+  useErpPreflightPlatform,
   // Admin
   useAdminOverview,
   useAdminUsers,
@@ -182,6 +183,13 @@ interface Op {
   erpPostedAt?: string;
   // Origin: where the operation entered the system
   origin: "mobile" | "procurement" | "system";
+  // Head-enriched fields (from /head/operations/* — B-H1)
+  accountantId?: string;
+  accountantName?: string;
+  brandId?: string;
+  brandName?: string;
+  branchId?: string;
+  operationDate?: string;     // raw ISO date for date-range filtering
   submittedBy?: string;
   reviewedBy?: string;
   approvedBy?: string;
@@ -429,7 +437,7 @@ interface PageProps {
   finalApproveOp: (id: string) => void;
   bulkApprove: (ids: string[]) => void;
   addCorrectiveOp?: (refId: string) => void;
-  markErpPosted?: (ids: string[], batchId: string) => void;
+  markErpPosted?: (ids: string[]) => Promise<string> | void;
 }
 
 interface NavSection { section: string }
@@ -1503,7 +1511,7 @@ function AppShell({ state, ops, approveOp, rejectOp, finalApproveOp, bulkApprove
   state:AppState; ops:Op[];
   approveOp:(id:string)=>void; rejectOp:(id:string,r:string)=>void;
   finalApproveOp:(id:string)=>void; bulkApprove:(ids:string[])=>void;
-  addCorrectiveOp?:(refId:string)=>void; markErpPosted?:(ids:string[],batchId:string)=>void;
+  addCorrectiveOp?:(refId:string)=>void; markErpPosted?:(ids:string[])=>Promise<string>|void;
   navigate:(p:PageId)=>void; logout:()=>void;
   setModal:(id:string|null)=>void; setDetailId:(id:string|null)=>void;
 }) {
@@ -1893,6 +1901,12 @@ function mapApiOpToOp(a: any): Op {
     moduleLabel: OP_MODULE_LABELS[a.moduleKey] ?? a.moduleKey ?? "",
     amount: typeof a.amountHalalas === "number" ? Math.round(a.amountHalalas / 100) : (a.amount ?? 0),
     timeAgo: relativeTimeAr(a.operationDate ?? a.createdAt),
+    operationDate: a.operationDate ?? a.createdAt ?? undefined,
+    accountantId: a.accountantId ?? undefined,
+    accountantName: a.accountantName ?? undefined,
+    brandId: a.brandId ?? undefined,
+    brandName: a.brandName ?? undefined,
+    branchId: a.branchId ?? undefined,
     match: matchMap[a.match] ?? "exact",
     attachments: typeof a.attachments === "number" ? a.attachments : 0,
     status: a.status,
@@ -8055,8 +8069,17 @@ function HeadDashboard({ navigate, setModal, setDetailId, ops, finalApproveOp, r
   const awaitingHead = ops.filter(o=>o.status==="approved");
   const finalApproved = ops.filter(o=>o.status==="final-approved");
   const rejected = ops.filter(o=>o.status==="rejected");
+  // B-H2: bind KPIs to GET /head/dashboard (kpis.awaiting/finalApproved/erpPosted/rejected/
+  // performanceRatePct), falling back to ops-derived counts only if the payload is absent.
   const headKpis = (apiHead as any)?.kpis ?? {};
-  const performanceRate = headKpis.performanceRatePct ?? 87;
+  const kpiAwaiting   = headKpis.awaiting      ?? awaitingHead.length;
+  const kpiFinalErp   = headKpis.finalApproved ?? finalApproved.filter(o=>!o.erpPosted).length;
+  const kpiErpPosted  = headKpis.erpPosted     ?? finalApproved.filter(o=>o.erpPosted).length;
+  const kpiRejected   = headKpis.rejected      ?? rejected.length;
+  const performanceRate = headKpis.performanceRatePct ?? 0;
+  // B-H2: weeklyPerformance now ships day/thisW/lastW — no static fallback. Scale bars dynamically.
+  const weekly = (((apiHead as any)?.weeklyPerformance ?? []) as { day?:string; dayAr?:string; thisW:number; lastW:number }[]);
+  const weeklyMax = Math.max(1, ...weekly.flatMap(d=>[d.thisW, d.lastW]));
 
   return (
     <div className="space-y-5">
@@ -8065,10 +8088,10 @@ function HeadDashboard({ navigate, setModal, setDetailId, ops, finalApproveOp, r
         <p className="text-gray-400 text-sm mt-0.5">{t("الإشراف على 4 محاسبين · 100 فرع · الاعتماد النهائي وترحيل ERP","Supervising 4 accountants · 100 branches · Final approval & ERP posting")}</p>
       </div>
       <div className="grid grid-cols-5 gap-4">
-        <KpiCard label={t("بانتظار اعتمادي","Awaiting My Approval")} value={String(awaitingHead.length)} sub={t("📱 من المحاسبين · م3","📱 From accountants · S3")} icon={<Clock size={18} className="text-amber-600"/>} accent="amber" onClick={()=>setTab("approval")}/>
-        <KpiCard label={t("معتمدة نهائياً","Final Approved")} value={String(finalApproved.filter(o=>!o.erpPosted).length)} sub={t("مُغلقة · تنتظر ERP · م4","Closed · Awaiting ERP · S4")} icon={<Lock size={18} className="text-emerald-600"/>} accent="emerald" onClick={()=>setTab("erp")}/>
-        <KpiCard label={t("مُرحَّلة لـ ERP","Posted to ERP")} value={String(finalApproved.filter(o=>o.erpPosted).length)} sub={t("مُعالَجة · م5","Processed · S5")} icon={<ChevronsRight size={18} className="text-indigo-600"/>} accent="blue" onClick={()=>setTab("erp")}/>
-        <KpiCard label={t("مرفوضة","Rejected")} value={String(rejected.length)} sub={t("خارج المسار","Off pipeline")} icon={<XCircle size={18} className="text-red-600"/>} accent="red" onClick={()=>setTab("approval")}/>
+        <KpiCard label={t("بانتظار اعتمادي","Awaiting My Approval")} value={String(kpiAwaiting)} sub={t("📱 من المحاسبين · م3","📱 From accountants · S3")} icon={<Clock size={18} className="text-amber-600"/>} accent="amber" onClick={()=>setTab("approval")}/>
+        <KpiCard label={t("معتمدة نهائياً","Final Approved")} value={String(kpiFinalErp)} sub={t("مُغلقة · تنتظر ERP · م4","Closed · Awaiting ERP · S4")} icon={<Lock size={18} className="text-emerald-600"/>} accent="emerald" onClick={()=>setTab("erp")}/>
+        <KpiCard label={t("مُرحَّلة لـ ERP","Posted to ERP")} value={String(kpiErpPosted)} sub={t("مُعالَجة · م5","Processed · S5")} icon={<ChevronsRight size={18} className="text-indigo-600"/>} accent="blue" onClick={()=>setTab("erp")}/>
+        <KpiCard label={t("مرفوضة","Rejected")} value={String(kpiRejected)} sub={t("خارج المسار","Off pipeline")} icon={<XCircle size={18} className="text-red-600"/>} accent="red" onClick={()=>setTab("approval")}/>
         <KpiCard label={t("معدل الأداء","Performance Rate")} value={`${performanceRate}%`} sub={t("هذا الشهر","This Month")} icon={<TrendingUp size={18} className="text-purple-600"/>} accent="purple" onClick={()=>setTab("performance")}/>
       </div>
       {/* Weekly performance chart */}
@@ -8078,26 +8101,17 @@ function HeadDashboard({ navigate, setModal, setDetailId, ops, finalApproveOp, r
           <span className="text-xs text-gray-400">{t("الأسبوع الماضي مقارنةً بهذا الأسبوع","Last week vs this week")}</span>
         </div>
         <div className="flex items-end gap-3 h-28">
-          {((apiHead as any)?.weeklyPerformance ?? [
-            {day:t("الأحد","Sun"),    thisW:24, lastW:18},
-            {day:t("الاثنين","Mon"),  thisW:32, lastW:22},
-            {day:t("الثلاثاء","Tue"), thisW:19, lastW:28},
-            {day:t("الأربعاء","Wed"), thisW:41, lastW:31},
-            {day:t("الخميس","Thu"),  thisW:35, lastW:25},
-            {day:t("الجمعة","Fri"),  thisW:12, lastW:9},
-            {day:t("السبت","Sat"),   thisW:28, lastW:20},
-          ]).map((d:{day:string;thisW:number;lastW:number},i:number)=>{
-            const max = 41;
-            return (
+          {weekly.length===0
+            ? <div className="w-full text-center text-xs text-gray-400 self-center">{t("لا توجد بيانات أداء أسبوعية بعد","No weekly performance data yet")}</div>
+            : weekly.map((d,i)=>(
               <div key={i} className="flex-1 flex flex-col items-center gap-1">
                 <div className="w-full flex items-end gap-0.5 h-20">
-                  <div className="flex-1 bg-gray-200 rounded-t" style={{height:`${(d.lastW/max)*100}%`}}/>
-                  <div className="flex-1 bg-gradient-to-t from-purple-600 to-purple-400 rounded-t" style={{height:`${(d.thisW/max)*100}%`}}/>
+                  <div className="flex-1 bg-gray-200 rounded-t" style={{height:`${(d.lastW/weeklyMax)*100}%`}}/>
+                  <div className="flex-1 bg-gradient-to-t from-purple-600 to-purple-400 rounded-t" style={{height:`${(d.thisW/weeklyMax)*100}%`}}/>
                 </div>
-                <p className="text-[9px] text-gray-400 text-center leading-tight">{d.day}</p>
+                <p className="text-[9px] text-gray-400 text-center leading-tight">{d.dayAr ?? d.day}</p>
               </div>
-            );
-          })}
+            ))}
         </div>
         <div className="flex items-center gap-4 mt-2 pt-2 border-t border-gray-100">
           <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-purple-500 flex-shrink-0"/><span className="text-[11px] text-gray-600">{t("هذا الأسبوع","This Week")}</span></div>
@@ -8137,11 +8151,19 @@ function HeadApprovalTab({ ops, finalApproveOp, rejectOp, setModal, setDetailId,
   const awaitingHead = ops.filter(o=>o.status==="approved");
   const [expanded, setExpanded] = useState<string|null>("g0");
 
-  // group by accountant (simulated: group 1 = first 3, group 2 = rest)
-  const groups = [
-    { key:"g0", accountant:"أحمد محمد الشهري", module:"المبيعات والمصروفات", ops:awaitingHead.slice(0,Math.ceil(awaitingHead.length/2)) },
-    { key:"g1", accountant:"سارة العمري", module:"المشتريات والمخزون",    ops:awaitingHead.slice(Math.ceil(awaitingHead.length/2)) },
-  ].filter(g=>g.ops.length>0);
+  // B-H1: group by the real reviewing accountant (accountantName from /head/operations/pending).
+  const groupMap = new Map<string, Op[]>();
+  awaitingHead.forEach(op=>{
+    const acc = op.accountantName ?? t("غير محدد","Unassigned");
+    if(!groupMap.has(acc)) groupMap.set(acc, []);
+    groupMap.get(acc)!.push(op);
+  });
+  const groups = Array.from(groupMap.entries()).map(([accountant, gops], i)=>({
+    key:`g${i}`,
+    accountant,
+    module:[...new Set(gops.map(o=>o.moduleLabel))].join(" · "),
+    ops:gops,
+  })).filter(g=>g.ops.length>0);
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -8205,11 +8227,15 @@ function HeadPending({ navigate, setModal, setDetailId, ops, finalApproveOp, rej
   const [conditionalApproved, setConditionalApproved] = useState<Set<string>>(new Set());
   const REJECT_REASONS = [t("يوجد فرق في المبالغ","Amount discrepancy"),t("مستندات ناقصة","Missing documents"),t("يحتاج مراجعة المورد","Needs supplier review"),t("تكرار في القيد","Duplicate entry"),t("خطأ في الفرع","Wrong branch"),t("أخرى","Other")];
   const [selectedRejectReason, setSelectedRejectReason] = useState("");
-  const HEAD_ACCS = ["أحمد الشهري","سارة العمري","محمد الحربي","فاطمة السالم"];
-  const getAcc = (id:string) => HEAD_ACCS[parseInt(id.replace(/\D/g,"").slice(-2)||"0") % HEAD_ACCS.length];
+  // B-H1: prefer the real accountantName from /head/operations/*; fall back to a deterministic
+  // placeholder only when the API hasn't supplied one.
+  const HEAD_ACCS_FALLBACK = ["أحمد الشهري","سارة العمري","محمد الحربي","فاطمة السالم"];
+  const getAcc = (op:Op) => op.accountantName ?? HEAD_ACCS_FALLBACK[parseInt(op.id.replace(/\D/g,"").slice(-2)||"0") % HEAD_ACCS_FALLBACK.length];
+  const realAccs = [...new Set(ops.map(o=>o.accountantName).filter(Boolean))] as string[];
+  const HEAD_ACCS = realAccs.length ? realAccs : HEAD_ACCS_FALLBACK;
   let filtered = applyFilters(ops, filters).filter(o=>o.status==="approved");
   const allVal = t("الكل","All");
-  if(accFilter!==allVal) filtered = filtered.filter(o=>getAcc(o.id)===accFilter);
+  if(accFilter!==allVal) filtered = filtered.filter(o=>getAcc(o)===accFilter);
   const totalAmt = filtered.reduce((s,o)=>s+o.amount,0);
   const hasFilters = accFilter!==allVal||brandFilter!==allVal||!!filters.branch||!!filters.match||!!filters.search;
 
@@ -8223,7 +8249,7 @@ function HeadPending({ navigate, setModal, setDetailId, ops, finalApproveOp, rej
     if(groupBy==="flat") return [{ key:"all", label:"جميع العمليات", ops:filtered }];
     const map = new Map<string,Op[]>();
     filtered.forEach(op=>{
-      const key = groupBy==="module" ? op.moduleLabel : getAcc(op.id);
+      const key = groupBy==="module" ? op.moduleLabel : getAcc(op);
       if(!map.has(key)) map.set(key,[]);
       map.get(key)!.push(op);
     });
@@ -8233,7 +8259,7 @@ function HeadPending({ navigate, setModal, setDetailId, ops, finalApproveOp, rej
   const groups = buildGroups();
 
   const OpRow = ({ op }:{ op:Op }) => {
-    const accountant = getAcc(op.id);
+    const accountant = getAcc(op);
     const isCond     = conditionalId===op.id;
     const wasCond    = conditionalApproved.has(op.id);
     return (
@@ -8527,10 +8553,16 @@ function HeadModulePage({ moduleKey, navigate, setModal, setDetailId, ops, final
   const labels: Record<string,string> = {sales:t("المبيعات","Sales"),expenses:t("المصروفات","Expenses"),purchases:t("المشتريات","Purchases"),inventory:t("المخزون","Inventory"),shifts:t("الشفتات","Shifts"),employees:t("كشف الحساب","Employees"),cash:t("العهد النقدية","Petty Cash"),waste:t("الهدر والتالف","Waste"),assets:t("الأصول الثابتة","Assets")};
   const moduleEmoji: Record<string,string> = {sales:"💰",expenses:"🧾",purchases:"🛒",inventory:"📦",shifts:"🕐",employees:"👥",cash:"💵",waste:"🗑️",assets:"🏢"};
   const label = labels[moduleKey]||moduleKey;
-  const HEAD_ACCS = ["أحمد الشهري","سارة العمري","محمد الحربي","فاطمة السالم"];
-  const getAcc = (id:string) => HEAD_ACCS[parseInt(id.replace(/\D/g,"").slice(-2)||"0") % HEAD_ACCS.length];
+  // B-H1: real accountant names from the API, with a deterministic fallback.
+  const HEAD_ACCS_FALLBACK = ["أحمد الشهري","سارة العمري","محمد الحربي","فاطمة السالم"];
+  const getAcc = (op:Op) => op.accountantName ?? HEAD_ACCS_FALLBACK[parseInt(op.id.replace(/\D/g,"").slice(-2)||"0") % HEAD_ACCS_FALLBACK.length];
+  const realAccs = [...new Set(ops.map(o=>o.accountantName).filter(Boolean))] as string[];
+  const HEAD_ACCS = realAccs.length ? realAccs : HEAD_ACCS_FALLBACK;
   let filtered = applyFilters(ops, filters, mk).filter(o=>o.status==="approved");
-  if(accFilter!==allVal) filtered = filtered.filter(o=>getAcc(o.id)===accFilter);
+  if(accFilter!==allVal) filtered = filtered.filter(o=>getAcc(o)===accFilter);
+  // B-H3: apply the from/to date range (was previously dead UI — applyFilters ignores dates).
+  if(dateFrom) filtered = filtered.filter(o=>(o.operationDate ?? "").slice(0,10) >= dateFrom);
+  if(dateTo)   filtered = filtered.filter(o=>(o.operationDate ?? "").slice(0,10) <= dateTo);
   const totalAmt = filtered.reduce((s,o)=>s+o.amount,0);
   const diffCount = filtered.filter(o=>o.match==="diff").length;
   const exactCount = filtered.filter(o=>o.match==="exact").length;
@@ -8635,7 +8667,7 @@ function HeadModulePage({ moduleKey, navigate, setModal, setDetailId, ops, final
         {filtered.length===0
           ? <EmptyState icon="✅" title={t("لا توجد عمليات","No Operations")} desc={t("لا توجد عمليات بانتظار الاعتماد في هذا الموديول","No operations awaiting approval in this module")}/>
           : filtered.map(op=>{
-              const accountant = getAcc(op.id);
+              const accountant = getAcc(op);
               return (
                 <div key={op.id} className={`px-5 py-4 flex items-center gap-4 border-b border-gray-100 last:border-0 hover:bg-gray-50/60 ${op.match==="diff"?"border-r-4 border-r-red-400":""}`}>
                   <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-400 to-cyan-400 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">{accountant[0]}</div>
@@ -8674,19 +8706,21 @@ function HeadModulePage({ moduleKey, navigate, setModal, setDetailId, ops, final
 
 function HeadAccountants({}: PageProps) {
   const { data: apiPerf } = useAccountantsPerformancePlatform();
+  const exportHeadOpsMut = useExportHeadOperations();
   const { t, dir } = useLang();
   const [expandedAcc, setExpandedAcc] = useState<number|null>(null);
-  // Accountant performance + recent movements come from the platform API; empty until returned.
+  // B-H3: per-accountant performance from /head/accountants/performance.
   const accountants = ((apiPerf as any)?.length > 0 ? (apiPerf as any) : []) as any[];
-
-  const apiMovements = (apiPerf as any)?.recentMovements;
-  const recentMovements = ((apiMovements as any[])?.length > 0 ? apiMovements : []) as any[];
+  // B-H3: guard the summary average against an empty list (was NaN on divide-by-zero).
+  const avgReviewTime = accountants.length
+    ? (accountants.reduce((s,a)=>s+(a.avgTime ?? 0),0)/accountants.length).toFixed(1)
+    : "0";
 
   return (
     <div className="space-y-4" dir={dir}>
       <div className="flex items-center justify-between">
         <h3 className="font-bold text-gray-800">{t("أداء المحاسبين","Accountant Performance")}</h3>
-        <Btn size="sm"><Download size={12}/> {t("تصدير التقرير","Export Report")}</Btn>
+        <Btn size="sm" onClick={()=>exportHeadOpsMut.mutate({ format:"xlsx" })}><Download size={12}/> {t("تصدير التقرير","Export Report")}</Btn>
       </div>
 
       <div className="grid grid-cols-4 gap-3">
@@ -8703,7 +8737,7 @@ function HeadAccountants({}: PageProps) {
           <p className="text-[11px] text-gray-400 mt-0.5">{t("معلقة","Pending")}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 text-center">
-          <p className="text-2xl font-extrabold font-mono text-purple-700">{(accountants.reduce((s,a)=>s+a.avgTime,0)/accountants.length).toFixed(1)} {t("د","m")}</p>
+          <p className="text-2xl font-extrabold font-mono text-purple-700">{avgReviewTime} {t("د","m")}</p>
           <p className="text-[11px] text-gray-400 mt-0.5">{t("متوسط وقت المراجعة","Avg Review Time")}</p>
         </div>
       </div>
@@ -8776,14 +8810,19 @@ function HeadAccountants({}: PageProps) {
               <div className="border-t border-gray-100 bg-gray-50/50 p-3">
                 <p className="text-[10px] font-bold text-gray-500 mb-2">{t("آخر النشاطات","Recent Activities")}</p>
                 <div className="space-y-1.5">
-                  {recentMovements.map((mv,j)=>(
+                  {/* B-H3: recentMovements is now per-accountant. Tolerate tuple or object shape. */}
+                  {((acc.recentMovements ?? []) as any[]).map((mv:any,j:number)=>{
+                    const mtext = Array.isArray(mv) ? mv[0] : (mv.text ?? mv.label ?? mv.descriptionAr ?? "");
+                    const mtime = Array.isArray(mv) ? mv[1] : (mv.time ?? mv.timeAr ?? mv.at ?? "");
+                    const mtype = Array.isArray(mv) ? mv[2] : (mv.type ?? mv.kind ?? "");
+                    return (
                     <div key={j} className="flex items-center gap-2 text-xs">
                       <span className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0"></span>
-                      <span className="text-gray-700 flex-1">{mv[0]}</span>
-                      <span className="text-gray-400 text-[10px]">{mv[1]}</span>
-                      <span className="text-[10px] bg-white border border-gray-200 text-gray-500 px-1.5 py-0.5 rounded-full">{mv[2]}</span>
+                      <span className="text-gray-700 flex-1">{mtext}</span>
+                      <span className="text-gray-400 text-[10px]">{mtime}</span>
+                      <span className="text-[10px] bg-white border border-gray-200 text-gray-500 px-1.5 py-0.5 rounded-full">{mtype}</span>
                     </div>
-                  ))}
+                  );})}
                 </div>
               </div>
             )}
@@ -8818,17 +8857,23 @@ function HeadAccountants({}: PageProps) {
 
 function HeadERP({ ops, markErpPosted }:PageProps) {
   useErpEligibleOperationsPlatform();
-  useErpBatchesPlatform();
-  const { t, dir } = useLang();
+  // B-H4: preflight checklist + previous batches log now come from the API.
+  const { data: erpPreflight } = useErpPreflightPlatform();
+  const { data: erpBatches } = useErpBatchesPlatform();
+  const { t, dir, lang } = useLang();
   const [step, setStep] = useState<0|1|2>(0);
   const [tab, setTab] = useState<"export"|"reports">("export");
+  const [postedBatchId, setPostedBatchId] = useState("");
   // Only show ops that are final-approved but NOT yet ERP-posted
   const pendingErp = ops.filter(o=>o.status==="final-approved" && !o.erpPosted);
   const postedOps = ops.filter(o=>o.erpPosted);
   const finalApproved = ops.filter(o=>o.status==="final-approved");
   const toPost = pendingErp;
   const totalAmt = toPost.reduce((s,o)=>s+o.amount,0);
-  const batchId = `ERP-BATCH-20251014-${String(Date.now()).slice(-3)}`;
+  // B-H4: preflight shape { checks:[{ok,labelAr,labelEn,severity}], canProceed, warningCount }
+  const preflightChecks = (((erpPreflight as any)?.checks ?? []) as { ok:boolean; labelAr?:string; labelEn?:string; severity?:string }[]);
+  const preflightWarnings = (erpPreflight as any)?.warningCount ?? preflightChecks.filter(c=>!c.ok).length;
+  const erpBatchRows = (((erpBatches as any)?.data ?? erpBatches ?? []) as any[]);
 
   // ERP Reports: group posted ops by module
   const reportsByModule = postedOps.reduce<Record<string,{label:string;count:number;total:number;batchIds:string[]}>>((acc,op)=>{
@@ -8962,44 +9007,48 @@ function HeadERP({ ops, markErpPosted }:PageProps) {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <h3 className="font-bold text-gray-800 text-sm mb-3 flex items-center gap-2"><CheckCircle2 size={15} className="text-emerald-500"/> {t("قائمة التحقق قبل التصدير","Pre-Export Validation Checklist")}</h3>
         <div className="grid grid-cols-2 gap-2">
-          {[
-            {ok:true,  label:t("لا يوجد قيود معلقة تجاوزت 48 ساعة","No pending locks over 48 hours")},
-            {ok:true,  label:t("جميع مديري الفروع أكدوا الأصول","All branch managers confirmed assets")},
-            {ok:false, label:t("فرع الدمام: تقرير المبيعات مفقود","Dammam branch: sales report missing")},
-            {ok:true,  label:t("المبالغ متطابقة مع سجل الاعتمادات","Amounts match approval log")},
-            {ok:true,  label:t("لا يوجد فروقات غير محلولة في الكاش","No unresolved cash discrepancies")},
-            {ok:false, label:t("INV-B009: لم يُعتمد بعد من الرئيس","INV-B009: not yet approved by head")},
-          ].map((c,i)=>(
+          {/* B-H4: checks from GET /head/erp/preflight */}
+          {preflightChecks.length===0
+            ? <div className="col-span-2 text-xs text-gray-400 px-3 py-2">{t("لا توجد فحوصات متاحة","No checks available")}</div>
+            : preflightChecks.map((c,i)=>(
             <div key={i} className={`flex items-center gap-2 text-xs rounded-lg px-3 py-2 ${c.ok?"bg-emerald-50 text-emerald-700":"bg-red-50 text-red-700"}`}>
               {c.ok?<CheckCircle2 size={12}/>:<AlertTriangle size={12}/>}
-              <span>{c.label}</span>
+              <span>{(lang==="ar" ? c.labelAr : c.labelEn) ?? c.labelAr ?? c.labelEn}</span>
             </div>
           ))}
         </div>
-        <div className="mt-3 flex items-center gap-2 text-[11px] text-amber-700 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
-          <AlertTriangle size={11}/> {t("يوجد 2 بنود تحتاج مراجعة — يمكنك المتابعة أو تأجيل التصدير","2 items need review — you can proceed or defer export")}
-        </div>
+        {preflightWarnings>0 && (
+          <div className="mt-3 flex items-center gap-2 text-[11px] text-amber-700 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200">
+            <AlertTriangle size={11}/> {t(`يوجد ${preflightWarnings} بنود تحتاج مراجعة — يمكنك المتابعة أو تأجيل التصدير`,`${preflightWarnings} items need review — you can proceed or defer export`)}
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <h3 className="font-bold text-gray-800 text-sm mb-3 flex items-center gap-2"><Clock size={15} className="text-purple-500"/> {t("سجل دفعات التصدير السابقة","Previous Export Batches Log")}</h3>
         <div className="space-y-2">
-          {[
-            {id:"ERP-BATCH-20251013-001", date:"13 Oct 2025, 09:22", ops:18, amt:"487,200", status:"success", by:"أحمد الشهري"},
-            {id:"ERP-BATCH-20251010-002", date:"10 Oct 2025, 14:05", ops:24, amt:"1,023,400", status:"success", by:"سارة العمري"},
-            {id:"ERP-BATCH-20251007-003", date:"7 Oct 2025, 11:55",  ops:9,  amt:"231,600",  status:"partial", by:"محمد الحربي"},
-          ].map((h,i)=>(
-            <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-gray-50 border border-gray-100">
-              <span className="font-mono text-xs text-purple-600 flex-1">{h.id}</span>
-              <span className="text-[11px] text-gray-400">{h.date}</span>
-              <span className="text-xs font-mono font-bold text-gray-700">{h.ops} {t("عملية","ops")}</span>
-              <span className="text-xs font-mono font-bold text-gray-800">{h.amt} {t("ر.س","SAR")}</span>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${h.status==="success"?"bg-emerald-100 text-emerald-700":"bg-amber-100 text-amber-700"}`}>
-                {h.status==="success"?`✓ ${t("مكتمل","Done")}`:`⚡ ${t("جزئي","Partial")}`}
-              </span>
-              <span className="text-[11px] text-gray-500">{h.by}</span>
-            </div>
-          ))}
+          {/* B-H4: previous batches from GET /head/erp/batches (createdAt/completedAt). */}
+          {erpBatchRows.length===0
+            ? <div className="text-xs text-gray-400 px-3 py-2">{t("لا توجد دفعات ترحيل سابقة","No previous export batches")}</div>
+            : erpBatchRows.map((h:any,i:number)=>{
+              const bid = h.batchId ?? h.id ?? "—";
+              const bdate = h.createdAt ?? h.completedAt ?? "";
+              const bcount = h.operationsCount ?? h.count ?? (Array.isArray(h.operationIds)?h.operationIds.length:0);
+              const bamt = typeof h.totalHalalas==="number" ? Math.round(h.totalHalalas/100).toLocaleString() : (h.total ?? h.amount ?? "—");
+              const bstatus = h.status ?? "success";
+              const bby = h.createdByName ?? h.by ?? "";
+              return (
+              <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-gray-50 border border-gray-100">
+                <span className="font-mono text-xs text-purple-600 flex-1">{bid}</span>
+                <span className="text-[11px] text-gray-400">{bdate ? new Date(bdate).toLocaleDateString("ar-SA") : ""}</span>
+                <span className="text-xs font-mono font-bold text-gray-700">{bcount} {t("عملية","ops")}</span>
+                <span className="text-xs font-mono font-bold text-gray-800">{bamt} {t("ر.س","SAR")}</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${bstatus==="success"||bstatus==="completed"?"bg-emerald-100 text-emerald-700":"bg-amber-100 text-amber-700"}`}>
+                  {bstatus==="success"||bstatus==="completed"?`✓ ${t("مكتمل","Done")}`:`⚡ ${t("جزئي","Partial")}`}
+                </span>
+                <span className="text-[11px] text-gray-500">{bby}</span>
+              </div>
+            );})}
         </div>
       </div>
 
@@ -9123,9 +9172,11 @@ function HeadERP({ ops, markErpPosted }:PageProps) {
             <div className="flex gap-3">
               <Btn onClick={()=>setStep(0)}>← {t("رجوع","Back")}</Btn>
               <Btn variant="primary"
-                onClick={()=>{
+                onClick={async ()=>{
                   if(toPost.length > 0 && markErpPosted) {
-                    markErpPosted(toPost.map(o=>o.id), batchId);
+                    // B-H4: use the batchId returned by POST /erp/batches instead of a client-made one.
+                    const serverId = await markErpPosted(toPost.map(o=>o.id));
+                    if(typeof serverId === "string") setPostedBatchId(serverId);
                   }
                   setStep(2);
                 }}
@@ -9143,7 +9194,7 @@ function HeadERP({ ops, markErpPosted }:PageProps) {
             <div>
               <h3 className="text-xl font-bold text-gray-800 mb-2">{t("تم الترحيل بنجاح!","Posted Successfully!")}</h3>
               <p className="text-gray-500 text-sm">{t("تم إرسال","Sent")} {toPost.length} {t("عملية بإجمالي","operations totaling")} {fmtAmt(totalAmt)} {t("ر.س إلى نظام ERP","SAR to ERP")}</p>
-              <p className="text-gray-400 text-xs mt-1 font-mono">{t("رقم دفعة الترحيل:","Batch ID:")} {batchId}</p>
+              <p className="text-gray-400 text-xs mt-1 font-mono">{t("رقم دفعة الترحيل:","Batch ID:")} {postedBatchId || "—"}</p>
               <div className="mt-3 inline-flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-2">
                 <Lock size={13} className="text-indigo-600"/>
                 <span className="text-sm text-indigo-700 font-semibold">{t("السجلات مُرحَّلة ومُغلقة نهائياً","Records posted and permanently closed")}</span>
@@ -13557,18 +13608,31 @@ export function ASABPrototype() {
   const [appState, setAppState] = useState<AppState>({ role:null, page:"", detailId:null, modal:null });
   // Live operations from platform API — falls back to INITIAL_OPS when API returns empty.
   // Local setOps is preserved to drive optimistic UI for approve / reject / final-approve / ERP mutations.
+  const isHead = appState.role === "head";
   const { data: apiOps = [] } = useAccountantOperationsPlatform({ pageSize: 100 });
+  // B-H1: head reads from the enriched /head/operations/* queues (accountantName, brandName,
+  // branchName, amountHalalas baked in) — not the thin /accountant/operations shape.
+  const { data: headPendingOps = [] }  = usePendingOperations({}, { enabled: isHead });
+  const { data: headFinalOps = [] }    = useFinalApprovedOperations({}, { enabled: isHead });
+  const { data: headRejectedOps = [] } = useRejectedOperations({}, { enabled: isHead });
   const [ops, setOps] = useState<Op[]>([]);
   // Sync incoming live ops into local state when first batch arrives.
   // Note: a deliberate one-shot effect via memoization to avoid stomping on optimistic mutations.
   useMemo(() => {
-    if ((apiOps as unknown[]).length > 0) {
+    if (isHead) {
+      const merged = [
+        ...(headPendingOps as any[]),
+        ...(headFinalOps as any[]),
+        ...(headRejectedOps as any[]),
+      ];
+      if (merged.length > 0) setOps(merged.map(mapApiOpToOp));
+    } else if ((apiOps as unknown[]).length > 0) {
       // Best-effort merge: live ops replace seed when first non-empty payload arrives.
       setOps((apiOps as any[]).map(mapApiOpToOp));
     }
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiOps]);
+  }, [apiOps, headPendingOps, headFinalOps, headRejectedOps, isHead]);
 
   const login = (role:RoleId) => setAppState({ role, page:ROLE_PROFILES[role].defaultPage, detailId:null, modal:null });
   const logout = () => setAppState({ role:null, page:"", detailId:null, modal:null });
@@ -13666,16 +13730,25 @@ export function ASABPrototype() {
   };
 
   // ERP posting: marks ops as posted with batch ID — separate from final-approval.
-  // Also creates an ERP batch on the backend so the operation set is recorded.
-  const markErpPosted = (ids:string[], batchId:string) => {
+  // B-H4: create the batch on the backend and adopt the server-issued batchId (uuid/human id)
+  // instead of generating one on the client.
+  const markErpPosted = async (ids:string[]): Promise<string> => {
     const set = new Set(ids);
     const postedAt = now();
+    let serverBatchId = "";
+    try {
+      const res = await erpBatchMut.mutateAsync({ operationIds: ids });
+      serverBatchId = (res as any)?.batchId ?? (res as any)?.id ?? "";
+    } catch {
+      // mutation surfaces its own error toast; fall through to an optimistic id
+    }
+    const finalBatchId = serverBatchId || `ERP-BATCH-${ids.length}-${ids[0] ?? ""}`;
     setOps(p=>p.map(o=>
       set.has(o.id) && o.status==="final-approved" && !o.erpPosted
-        ? { ...o, erpPosted:true, erpBatchId:batchId, erpPostedAt:postedAt }
+        ? { ...o, erpPosted:true, erpBatchId:finalBatchId, erpPostedAt:postedAt }
         : o
     ));
-    erpBatchMut.mutate({ operationIds: ids });
+    return finalBatchId;
   };
 
   if(!appState.role) return (

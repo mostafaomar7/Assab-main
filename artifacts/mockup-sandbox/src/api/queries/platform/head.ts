@@ -97,9 +97,13 @@ export function useMarkAllHeadRemindersDonePlatform() {
 }
 
 // ─── Operations queues ──────────────────────────────────────────────────────
-export function usePendingOperations(filter: PlatformOpsFilter = {}) {
+export function usePendingOperations(
+  filter: PlatformOpsFilter = {},
+  options: { enabled?: boolean } = {},
+) {
   return useQuery({
     queryKey: queryKeys.platformPendingOperations(filter),
+    enabled: options.enabled ?? true,
     queryFn: async () => {
       const res = await api.get<Page<Operation> | Operation[]>(
         "/head/operations/pending",
@@ -111,9 +115,13 @@ export function usePendingOperations(filter: PlatformOpsFilter = {}) {
   });
 }
 
-export function useFinalApprovedOperations(filter: PlatformOpsFilter = {}) {
+export function useFinalApprovedOperations(
+  filter: PlatformOpsFilter = {},
+  options: { enabled?: boolean } = {},
+) {
   return useQuery({
     queryKey: queryKeys.platformFinalApprovedOperations(filter),
+    enabled: options.enabled ?? true,
     queryFn: async () => {
       const res = await api.get<Page<Operation> | Operation[]>(
         "/head/operations/final-approved",
@@ -125,9 +133,13 @@ export function useFinalApprovedOperations(filter: PlatformOpsFilter = {}) {
   });
 }
 
-export function useRejectedOperations(filter: PlatformOpsFilter = {}) {
+export function useRejectedOperations(
+  filter: PlatformOpsFilter = {},
+  options: { enabled?: boolean } = {},
+) {
   return useQuery({
     queryKey: queryKeys.platformRejectedOperations(filter),
+    enabled: options.enabled ?? true,
     queryFn: async () => {
       const res = await api.get<Page<Operation> | Operation[]>(
         "/head/operations/rejected",
