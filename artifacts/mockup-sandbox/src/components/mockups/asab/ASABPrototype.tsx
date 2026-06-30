@@ -149,7 +149,7 @@ import { PermissionHistoryDrawer } from "../../shared/PermissionHistoryDrawer";
 import { LiveChatWidget } from "../../shared/LiveChatWidget";
 import { useLanguagePref } from "../../../auth/useLanguagePref";
 import { useAuth } from "../../../auth/AuthContext";
-import { readEntrySelection } from "../../../auth/entrySelection";
+import { readEntrySelection, clearEntrySelection } from "../../../auth/entrySelection";
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -10858,8 +10858,8 @@ function AdminSubscriptions({}: PageProps) {
   const onChangePlan = (id: string, plan: string) => changePlanMut.mutate({ id, plan });
   void onSuspendSub; void onActivateSub; void onChangePlan;
 
-  const totalRestaurants = subs.reduce((s,b)=>s+b.restaurants.length,0);
-  const totalBranches    = subs.reduce((s,b)=>s+b.restaurants.reduce((ss,r)=>ss+r.branches.length,0),0);
+  const totalRestaurants = subs.reduce((s,b)=>s+(b.restaurants?.length ?? 0),0);
+  const totalBranches    = subs.reduce((s,b)=>s+(b.restaurants ?? []).reduce((ss,r)=>ss+(r.branches?.length ?? 0),0),0);
 
   return (
     <div className="space-y-5" dir={dir}>
@@ -10910,8 +10910,8 @@ function AdminSubscriptions({}: PageProps) {
       <div className="space-y-3">
         {subs.map((sub)=>{
           const isExp = expandedSub===sub.id;
-          const restCount   = sub.restaurants.length;
-          const branchCount = sub.restaurants.reduce((s,r)=>s+r.branches.length,0);
+          const restCount   = sub.restaurants?.length ?? 0;
+          const branchCount = (sub.restaurants ?? []).reduce((s,r)=>s+(r.branches?.length ?? 0),0);
 
           return (
             <div key={sub.id} className={`bg-white rounded-xl border-2 shadow-sm overflow-hidden ${statusCls[sub.subStatus]}`}>
@@ -10971,10 +10971,10 @@ function AdminSubscriptions({}: PageProps) {
                     <div>
                       <p className="text-xs font-bold text-gray-500 mb-2">{t("المطاعم والفروع","Restaurants & Branches")}</p>
                       <div className="space-y-1">
-                        {sub.restaurants.map(r=>(
+                        {(sub.restaurants ?? []).map(r=>(
                           <div key={r.id} className="flex items-center justify-between text-xs">
                             <span className="text-gray-700">{r.name}</span>
-                            <span className="text-gray-400">{r.branches.length} {t("فروع","branches")}</span>
+                            <span className="text-gray-400">{r.branches?.length ?? 0} {t("فروع","branches")}</span>
                           </div>
                         ))}
                       </div>
@@ -13736,8 +13736,15 @@ export function ASABPrototype() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiOps, headPendingOps, headFinalOps, headRejectedOps, isHead]);
 
+  const { logout: authLogout } = useAuth();
   const login = (role:RoleId) => setAppState({ role, page:ROLE_PROFILES[role].defaultPage, detailId:null, modal:null });
-  const logout = () => setAppState({ role:null, page:"", detailId:null, modal:null });
+  // Full sign-out: clear the pre-login entry selection + the auth session so the user returns
+  // to the entry flow (dashboard → role → login), not the in-mockup role picker.
+  const logout = () => {
+    clearEntrySelection();
+    setAppState({ role:null, page:"", detailId:null, modal:null });
+    void authLogout();
+  };
   // Open directly on the role picked in the pre-login entry flow (once per mount). After an
   // in-app logout the ref stays set, so the internal role picker still works for switching roles.
   const adoptedEntryRef = useRef(false);
