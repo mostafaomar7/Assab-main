@@ -439,7 +439,7 @@ interface PageProps {
   ops: Op[];
   approveOp: (id: string) => void;
   rejectOp: (id: string, reason: string) => void;
-  finalApproveOp: (id: string) => void;
+  finalApproveOp: (id: string, conditional?: { note: string }) => void;
   bulkApprove: (ids: string[]) => void;
   addCorrectiveOp?: (refId: string) => void;
   markErpPosted?: (ids: string[]) => Promise<string> | void;
@@ -1515,7 +1515,7 @@ function Sidebar({ role, ops, page, navigate, logout, collapsed, setCollapsed }:
 function AppShell({ state, ops, approveOp, rejectOp, finalApproveOp, bulkApprove, addCorrectiveOp, markErpPosted, navigate, logout, setModal, setDetailId }:{
   state:AppState; ops:Op[];
   approveOp:(id:string)=>void; rejectOp:(id:string,r:string)=>void;
-  finalApproveOp:(id:string)=>void; bulkApprove:(ids:string[])=>void;
+  finalApproveOp:(id:string, conditional?:{note:string})=>void; bulkApprove:(ids:string[])=>void;
   addCorrectiveOp?:(refId:string)=>void; markErpPosted?:(ids:string[])=>Promise<string>|void;
   navigate:(p:PageId)=>void; logout:()=>void;
   setModal:(id:string|null)=>void; setDetailId:(id:string|null)=>void;
@@ -8391,7 +8391,7 @@ function HeadPending({ navigate, setModal, setDetailId, ops, finalApproveOp, rej
               placeholder={t("اكتب الشروط أو الملاحظات المطلوبة من الفرع قبل التنفيذ النهائي...","Write conditions or notes required from the branch before final execution...")}
               className="w-full text-sm border border-amber-200 rounded-lg px-3 py-2 resize-none h-20 bg-white focus:outline-none focus:border-amber-400"/>
             <div className="flex gap-2 mt-2">
-              <button onClick={()=>{ setConditionalApproved(p=>new Set(p).add(op.id)); finalApproveOp(op.id); setConditionalId(null); }}
+              <button onClick={()=>{ setConditionalApproved(p=>new Set(p).add(op.id)); finalApproveOp(op.id, { note: approvalComment }); setConditionalId(null); }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 transition-all">
                 <CheckCircle2 size={11}/> {t("تأكيد الاعتماد المشروط","Confirm Conditional Approval")}
               </button>
@@ -13762,7 +13762,7 @@ export function ASABPrototype() {
     ));
     rejectMut.mutate({ id, reason });
   };
-  const finalApproveOp = (id:string) => {
+  const finalApproveOp = (id:string, conditional?: { note: string }) => {
     setOps(p=>p.map(o=>
       o.id===id && o.status==="approved"
         ? { ...o, status:"final-approved" as OpStatus,
@@ -13770,7 +13770,8 @@ export function ASABPrototype() {
             finalApprovedAt: now() }
         : o
     ));
-    finalMut.mutate({ id });
+    // B-H / section أ #8: carry the conditional-approval note through to the API instead of dropping it.
+    finalMut.mutate({ id, isConditional: !!conditional, conditionalNote: conditional?.note });
   };
   const bulkApprove = (ids:string[]) => {
     const set = new Set(ids);
