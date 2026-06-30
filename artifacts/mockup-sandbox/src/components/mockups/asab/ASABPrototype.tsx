@@ -33,12 +33,17 @@ import {
   useHeadDashboardPlatform,
   useAccountantsPerformancePlatform,
   useHeadRemindersPlatform,
+  usePatchHeadReminderPlatform,
+  useMarkAllHeadRemindersDonePlatform,
   usePendingOperations,
   useFinalApprovedOperations,
   useRejectedOperations,
   useErpEligibleOperationsPlatform,
   useErpBatchesPlatform,
   useErpPreflightPlatform,
+  useReportsInternalPlatform,
+  useReportsOwnerPlatform,
+  useDownloadHeadReport,
   // Admin
   useAdminOverview,
   useAdminUsers,
@@ -1783,7 +1788,7 @@ function PageRouter({ state, pageProps, adminUsers, setAdminUsers }:{
     if(page==="head-accountants")  return <HeadAccountants {...p}/>;
     if(page==="head-erp")          return <HeadERP {...p}/>;
     if(page==="head-reports")      return <OwnerReportsPage {...p}/>;
-    if(page==="head-reminders")    return <AccReminders {...p}/>;
+    if(page==="head-reminders")    return <HeadReminders {...p}/>;
     const mk = page.replace("head-","") as ModuleKey;
     return <HeadModulePage moduleKey={mk} {...p}/>;
   }
@@ -2477,6 +2482,11 @@ function OwnerReportsPage({ ops }: PageProps) {
   const { t, lang, dir } = useLang();
   const en = lang === "en";
   const [tab, setTab] = useState<"internal"|"owner">("owner");
+  // B-H5: internal report catalogue + owner headline come from the API now.
+  const { data: internalReportsApi } = useReportsInternalPlatform();
+  const { data: ownerApi } = useReportsOwnerPlatform();
+  const dlReport = useDownloadHeadReport();
+  const internalReports = (((internalReportsApi as any)?.data ?? internalReportsApi ?? []) as any[]);
 
   // — Owner layer data source: ERP-posted only — the verified financial record
   const postedOps    = ops.filter(o=>o.erpPosted);
@@ -2485,8 +2495,12 @@ function OwnerReportsPage({ ops }: PageProps) {
   const purPosted    = postedOps.filter(o=>o.moduleKey==="purchases").reduce((s,o)=>s+o.amount,0);
   const netPosition  = salesPosted - expPosted - purPosted;
 
-  // Period comparison vs September 2025 baseline
-  const netPctChange = SEPT_NET > 0 ? Math.round(((netPosition - SEPT_NET) / SEPT_NET) * 100) : null;
+  // B-H5: previous-month baseline + netPctChange now come from /head/reports/owner
+  // (currentMonthNet/previousMonthNet/netPctChange, halalas). September constants are a fallback only.
+  const baselineNet = (ownerApi as any)?.previousMonthNet != null
+    ? Math.round((ownerApi as any).previousMonthNet / 100)
+    : SEPT_NET;
+  const netPctChange = (ownerApi as any)?.netPctChange ?? (baselineNet > 0 ? Math.round(((netPosition - baselineNet) / baselineNet) * 100) : null);
 
   // Branch rankings from ERP-posted ops — descending by amount
   const branchAmts: Record<string,number> = {};
@@ -2574,26 +2588,32 @@ function OwnerReportsPage({ ops }: PageProps) {
               <p className="text-xs text-blue-600 mt-0.5">{t("تشمل البيانات في جميع مراحل المراجعة · تُستخدم لمتابعة الأداء الداخلي وليس للقرار المالي النهائي","Includes data across all review stages · Used for internal performance tracking, not final financial decisions")}</p>
             </div>
           </div>
+          {/* B-H5: catalogue from GET /head/reports/internal; buttons wired to the row downloadUrl. */}
+          {internalReports.length===0 ? (
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-10 text-center text-gray-400 text-sm">
+              {t("لا توجد تقارير داخلية متاحة بعد","No internal reports available yet")}
+            </div>
+          ) : (
           <div className="grid grid-cols-3 gap-4">
-            {[
-              {title:t("تقرير المبيعات الشهري","Monthly Sales Report"),       icon:"💰", desc:t("إجمالي المبيعات لكل الفروع مجمعةً","Total sales aggregated across all branches")},
-              {title:t("تقرير المصروفات التشغيلية","Operating Expenses Report"),icon:"💸", desc:t("المصروفات المرفوعة والمعتمدة","Submitted and approved expenses")},
-              {title:t("تقرير المشتريات والموردين","Purchases & Suppliers"),   icon:"🛒", desc:t("الطلبات والفواتير الواردة","Purchase orders and incoming invoices")},
-              {title:t("كشف مستحقات الموظفين","Employee Payroll Statement"),   icon:"👥", desc:t("الرواتب والبدلات الشهرية","Monthly salaries and allowances")},
-              {title:t("تقرير المخزون والجرد","Inventory & Stock Report"),     icon:"📦", desc:t("حركة المخزون وفروقات الجرد","Inventory movement and variance")},
-              {title:t("تقرير الأداء العام","Overall Performance Report"),     icon:"📊", desc:t("ملخص شامل لجميع الموديولات","Comprehensive summary of all modules")},
-            ].map((r,i)=>(
+            {internalReports.map((r:any,i:number)=>{
+              const title = (en ? r.labelEn : r.labelAr) ?? r.labelAr ?? r.labelEn ?? r.title ?? "";
+              const desc  = (en ? r.descEn : r.descAr) ?? r.desc ?? "";
+              const url   = r.downloadUrl as string | undefined;
+              const fname = `${(r.key ?? r.labelAr ?? "report")}.xlsx`;
+              const doDownload = ()=>{ if(url) dlReport.mutate({ url, filename:fname }); };
+              return (
               <div key={i} className="bg-white rounded-xl border border-gray-100 p-5 hover:border-blue-200 hover:shadow-sm transition-all shadow-sm">
-                <div className="text-2xl mb-3">{r.icon}</div>
-                <p className="font-bold text-gray-800 text-sm">{r.title}</p>
-                <p className="text-xs text-gray-400 mt-1 mb-3">{r.desc}</p>
+                <div className="text-2xl mb-3">{r.icon ?? "📊"}</div>
+                <p className="font-bold text-gray-800 text-sm">{title}</p>
+                <p className="text-xs text-gray-400 mt-1 mb-3">{desc}</p>
                 <div className="flex items-center gap-2">
-                  <Btn size="sm"><Eye size={11}/> {t("عرض","View")}</Btn>
-                  <Btn size="sm"><Download size={11}/> {t("تحميل","Download")}</Btn>
+                  <Btn size="sm" onClick={doDownload} disabled={!url}><Eye size={11}/> {t("عرض","View")}</Btn>
+                  <Btn size="sm" onClick={doDownload} disabled={!url}><Download size={11}/> {t("تحميل","Download")}</Btn>
                 </div>
               </div>
-            ))}
+            );})}
           </div>
+          )}
         </div>
       )}
 
@@ -2727,7 +2747,7 @@ function OwnerReportsPage({ ops }: PageProps) {
                   </div>
                   <div className="px-6 py-4 grid grid-cols-4 gap-4">
                     {[
-                      { label:t("صافي المركز المالي","Net Position"), oct:netPosition, sep:SEPT_NET, isIncome:true },
+                      { label:t("صافي المركز المالي","Net Position"), oct:netPosition, sep:baselineNet, isIncome:true },
                       { label:t("الإيرادات","Revenue"),               oct:salesPosted, sep:SEPT_BASELINE.sales||0, isIncome:true  },
                       { label:t("المصروفات","Expenses"),              oct:expPosted,   sep:SEPT_BASELINE.expenses||0, isIncome:false },
                       { label:t("المشتريات","Purchases"),             oct:purPosted,   sep:SEPT_BASELINE.purchases||0, isIncome:false },
@@ -8061,6 +8081,72 @@ function ReportsPage({}: PageProps) {
 // ════════════════════════════════════════════════════════════
 // HEAD ACCOUNTANT PAGES
 // ════════════════════════════════════════════════════════════
+
+// B-H6: head reminders are now a real platform surface (/head/reminders). This replaces the
+// previous reuse of the accountant page whose send-buttons were local-only and whose list
+// came from the wrong (accountant) endpoint.
+function HeadReminders({}: PageProps) {
+  const { t, dir } = useLang();
+  const { data: apiReminders } = useHeadRemindersPlatform();
+  const patchReminderMut = usePatchHeadReminderPlatform();
+  const markAllDoneMut = useMarkAllHeadRemindersDonePlatform();
+  const list = (((apiReminders as any)?.data ?? apiReminders ?? []) as any[]);
+  const isDone = (r:any) => r.done ?? r.isDone ?? false;
+  const open = list.filter(r=>!isDone(r));
+  const done = list.filter(r=>isDone(r));
+  const titleOf = (r:any) => r.titleAr ?? r.title ?? "";
+  const bodyOf  = (r:any) => r.bodyAr ?? r.body ?? "";
+  const timeOf  = (r:any) => r.timeAr ?? (r.dueAt ?? r.createdAt ? new Date(r.dueAt ?? r.createdAt).toLocaleString("ar-SA",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}) : "");
+
+  const Row = ({ r }:{ r:any }) => (
+    <div className={`px-5 py-3.5 flex items-center gap-3 border-b border-gray-50 last:border-0 ${isDone(r)?"opacity-60":""}`}>
+      <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center text-base flex-shrink-0">{r.icon ?? "🔔"}</div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-semibold ${isDone(r)?"text-gray-400 line-through":"text-gray-800"}`}>{titleOf(r)}</p>
+        {bodyOf(r) && <p className="text-xs text-gray-400 mt-0.5">{bodyOf(r)}</p>}
+      </div>
+      <span className="text-[11px] text-gray-400 flex-shrink-0">{timeOf(r)}</span>
+      {!isDone(r) && (
+        <button onClick={()=>patchReminderMut.mutate({ id:r.id, done:true } as any)} disabled={patchReminderMut.isPending}
+          className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 font-semibold hover:bg-emerald-100 disabled:opacity-60">
+          <CheckCircle2 size={12}/> {t("تم","Done")}
+        </button>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="space-y-5" dir={dir}>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-gray-800">{t("التذكيرات","Reminders")}</h2>
+          <p className="text-gray-400 text-sm mt-0.5">{open.length} {t("تذكير مفتوح","open reminders")} · {done.length} {t("منجز","done")}</p>
+        </div>
+        {open.length>0 && (
+          <Btn variant="success" size="sm" onClick={()=>markAllDoneMut.mutate()} disabled={markAllDoneMut.isPending}>
+            <CheckCircle2 size={13}/> {t("تعليم الكل كمنجز","Mark all done")}
+          </Btn>
+        )}
+      </div>
+      {list.length===0
+        ? <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-10"><EmptyState icon="🔔" title={t("لا توجد تذكيرات","No Reminders")} desc={t("ستظهر تذكيراتك هنا","Your reminders will appear here")}/></div>
+        : (
+          <>
+            <Card title={`${t("مفتوحة","Open")} (${open.length})`}>
+              {open.length===0 ? <div className="px-5 py-6 text-center text-gray-400 text-sm">{t("لا توجد تذكيرات مفتوحة","No open reminders")}</div> : open.map(r=><Row key={r.id} r={r}/>)}
+            </Card>
+            {done.length>0 && (
+              <Card title={`${t("منجزة","Done")} (${done.length})`}>
+                {done.map(r=><Row key={r.id} r={r}/>)}
+              </Card>
+            )}
+          </>
+        )
+      }
+    </div>
+  );
+}
+
 function HeadDashboard({ navigate, setModal, setDetailId, ops, finalApproveOp, rejectOp, bulkApprove, markErpPosted }:PageProps) {
   const { data: apiHead } = useHeadDashboardPlatform();
   useHeadRemindersPlatform();

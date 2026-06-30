@@ -4,7 +4,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { api, type Page } from "../../client";
+import { api, downloadBlob, type Page } from "../../client";
 import { getErrorMessage } from "../../errors";
 import type { Operation } from "../../types";
 import type {
@@ -210,5 +210,22 @@ export function useReportsOwnerPlatform() {
       const res = await api.get<unknown>("/head/reports/owner");
       return res.data;
     },
+  });
+}
+
+// B-H5: download an internal report from its API-provided downloadUrl (blob, Bearer-authed).
+export function useDownloadHeadReport() {
+  return useMutation({
+    mutationFn: async ({ url, filename }: { url: string; filename: string }) => {
+      // downloadUrl looks like "/api/v1/operations/export?moduleKey=sales".
+      // `api` is already based at ${BASE}/api/v1, so strip origin + the /api/v1 prefix.
+      let path = url.replace(/^https?:\/\/[^/]+/, "").replace(/^\/api\/v1/, "");
+      const [p, qs] = path.split("?");
+      const params = qs
+        ? Object.fromEntries(new URLSearchParams(qs))
+        : undefined;
+      await downloadBlob(p, filename, params);
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
   });
 }
