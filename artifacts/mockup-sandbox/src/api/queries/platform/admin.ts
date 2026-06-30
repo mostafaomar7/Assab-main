@@ -568,6 +568,45 @@ export function useDeleteAdminUser() {
   });
 }
 
+export function useResetAdminUserPassword() {
+  return useMutation({
+    mutationFn: async ({ id, sendEmail = true }: { id: string; sendEmail?: boolean }) => {
+      const res = await api.post<{ ok: boolean; emailSent: boolean }>(
+        `/admin/users/${id}/reset-password`,
+        { sendEmail },
+      );
+      return res.data;
+    },
+    // The temp password is emailed, never returned — confirm via emailSent.
+    onSuccess: (d) =>
+      toast.success(
+        d?.emailSent
+          ? "تم إرسال كلمة مرور جديدة إلى بريد المستخدم"
+          : "تم إعادة تعيين كلمة المرور",
+      ),
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+export function useResetCompanyAdminPassword() {
+  return useMutation({
+    mutationFn: async ({ id, notify = true }: { id: string; notify?: boolean }) => {
+      const res = await api.post<{ ok: boolean; emailedTo: string; resetAt: string }>(
+        `/admin/companies/${id}/admin/reset-password`,
+        { notify },
+      );
+      return res.data;
+    },
+    onSuccess: (d) =>
+      toast.success(
+        d?.emailedTo
+          ? `تم إرسال كلمة المرور إلى ${d.emailedTo}`
+          : "تم إعادة تعيين كلمة مرور أدمن الشركة",
+      ),
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
 export function useActivateAdminUser() {
   const qc = useQueryClient();
   return useMutation({

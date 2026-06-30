@@ -61,6 +61,8 @@ import {
   useActivateSubscription,
   useToggleAutoReminder,
   useDeleteAdminUser,
+  useResetAdminUserPassword,
+  useResetCompanyAdminPassword,
   useCreateAdminUser,
   useCreateAdminCompany,
   useUpdateAdminPermissions,
@@ -133,6 +135,7 @@ import { WebhooksPage } from "../../shared/WebhooksPage";
 import { PermissionHistoryDrawer } from "../../shared/PermissionHistoryDrawer";
 import { LiveChatWidget } from "../../shared/LiveChatWidget";
 import { useLanguagePref } from "../../../auth/useLanguagePref";
+import { useAuth } from "../../../auth/AuthContext";
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -9359,6 +9362,7 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
     return true;
   });
   const deleteUserMut = useDeleteAdminUser();
+  const resetPwdMut = useResetAdminUserPassword();
   const deleteUser = (email:string) => {
     const target = users.find(u=>u.email===email);
     setUsers((prev:AdminUserData[])=>prev.filter(u=>u.email!==email));
@@ -9946,7 +9950,7 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
                         )}
                         <div className="flex gap-2 pt-2 border-t border-gray-200">
                           <Btn size="sm"><Edit2 size={12}/> {t("تعديل الصلاحيات","Edit Permissions")}</Btn>
-                          <Btn size="sm" variant="ghost">{t("إعادة تعيين كلمة المرور","Reset Password")}</Btn>
+                          <Btn size="sm" variant="ghost" onClick={(e)=>{ e.stopPropagation(); if(u.id && window.confirm(t("إعادة تعيين كلمة مرور هذا المستخدم؟ سيتم إرسال كلمة مرور جديدة بالبريد.","Reset this user's password? A new password will be emailed."))) resetPwdMut.mutate({ id: u.id }); }}>{t("إعادة تعيين كلمة المرور","Reset Password")}</Btn>
                           <button onClick={(e)=>{ e.stopPropagation(); deleteUser(u.email); }}
                             className="mr-auto px-3 py-1 rounded-lg text-xs text-red-500 hover:bg-red-50 flex items-center gap-1">
                             <Trash2 size={12}/> {t("حذف","Delete")}
@@ -10738,6 +10742,7 @@ function AdminCompanies({ navigate }:PageProps) {
   const activateMut = useActivateAdminCompany();
   const upgradeMut = useUpgradeAdminCompany();
   const createCompanyMut = useCreateAdminCompany();
+  const resetCompanyPwdMut = useResetCompanyAdminPassword();
   const [coForm, setCoForm] = useState({ name:"", contactName:"", adminEmail:"", phone:"", city:"", plan:"Professional" as CompanyPlan });
   const submitCompany = () => {
     if (!coForm.name.trim() || !coForm.adminEmail.trim()) return;
@@ -10949,7 +10954,7 @@ function AdminCompanies({ navigate }:PageProps) {
                   <p className="font-semibold text-gray-800 text-sm">{t("أدمن الشركة","Company Admin")}</p>
                   <p className="text-xs text-gray-500 mt-0.5" dir="ltr">{selected.adminEmail}</p>
                   <div className="flex gap-1.5 mt-2">
-                    <button className="px-2 py-1 rounded-lg bg-purple-50 border border-purple-200 text-purple-700 text-[10px] font-bold hover:bg-purple-100">{t("إعادة تعيين كلمة المرور","Reset Password")}</button>
+                    <button onClick={()=>{ if(selected.id && window.confirm(t("إعادة تعيين كلمة مرور أدمن الشركة؟ سيتم إرسالها بالبريد.","Reset company admin password? It will be emailed."))) resetCompanyPwdMut.mutate({ id: selected.id }); }} className="px-2 py-1 rounded-lg bg-purple-50 border border-purple-200 text-purple-700 text-[10px] font-bold hover:bg-purple-100">{t("إعادة تعيين كلمة المرور","Reset Password")}</button>
                     <button className="px-2 py-1 rounded-lg bg-gray-100 text-gray-600 text-[10px] font-bold hover:bg-gray-200">{t("تسجيل الدخول باسمهم","Login as Them")}</button>
                   </div>
                 </div>
@@ -11814,6 +11819,8 @@ function AdminPermissions({}: PageProps) {
 
 function AdminSettings({}: PageProps) {
   useAdminSettings();
+  const { user } = useAuth();
+  const hasCompany = !!user?.companyId;
   const { t, lang, setLang } = useLang();
   const langPrefMut = useLanguagePref();
   const [showPwd,setShowPwd]=useState(false);
@@ -11869,16 +11876,20 @@ function AdminSettings({}: PageProps) {
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors">
             <Bell size={14}/> {t("تفضيلات الإشعارات","Notification Preferences")}
           </button>
-          <button
-            onClick={()=>setSettingsView("apikeys")}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors">
-            <KeyRound size={14}/> {t("مفاتيح API","API Keys")}
-          </button>
-          <button
-            onClick={()=>setSettingsView("webhooks")}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors">
-            <Webhook size={14}/> Webhooks
-          </button>
+          {hasCompany && (
+            <button
+              onClick={()=>setSettingsView("apikeys")}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors">
+              <KeyRound size={14}/> {t("مفاتيح API","API Keys")}
+            </button>
+          )}
+          {hasCompany && (
+            <button
+              onClick={()=>setSettingsView("webhooks")}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors">
+              <Webhook size={14}/> Webhooks
+            </button>
+          )}
           <button
             onClick={()=>setShowPermHistory(true)}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-bold hover:bg-gray-50 transition-colors">
