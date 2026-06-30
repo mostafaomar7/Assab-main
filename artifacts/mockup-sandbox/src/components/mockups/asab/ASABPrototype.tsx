@@ -1155,7 +1155,17 @@ function AddUserModal({ onAdd, onClose }:{ onAdd:(user:AdminUserData)=>void; onC
   const isChief           = role === "رئيس حسابات";
   const isMorrad          = role === "مورد";
 
-  const availableRests = BRANDS_CATALOG.filter(b=>selBrands.includes(b.name)).flatMap(b=>b.restaurants);
+  // Brands/restaurants/branches come from the API (GET /admin/brands), not a static catalog.
+  const { data: brandsApi } = useAdminBrands();
+  const brandList = (Array.isArray(brandsApi) ? brandsApi : []).map((b:any)=>({
+    id: b.id, name: b.name, color: b.color ?? "#7C3AED",
+    abbr: b.abbr ?? (typeof b.name === "string" ? b.name.slice(0,2) : "؟"),
+    restaurants: (b.restaurants ?? []).map((r:any)=>({
+      id: r.id, name: r.name,
+      branches: (r.branches ?? []).map((br:any)=> typeof br === "string" ? br : br.name),
+    })),
+  }));
+  const availableRests = brandList.filter(b=>selBrands.includes(b.name)).flatMap(b=>b.restaurants);
   const availableBranches = availableRests.filter(r=>selRests.includes(r.name)).flatMap(r=>r.branches);
 
   const scopeFor = (): AdminUserData["scope"] => {
@@ -1246,7 +1256,7 @@ function AddUserModal({ onAdd, onClose }:{ onAdd:(user:AdminUserData)=>void; onC
                 <div>
                   <label className="text-xs font-semibold text-gray-600 block mb-2">{t("تخصيص العلامات التجارية","Assign Brands")} <span className="text-red-500">*</span></label>
                   <div className="grid grid-cols-2 gap-2">
-                    {BRANDS_CATALOG.map(b=>(
+                    {brandList.map(b=>(
                       <label key={b.id} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${selBrands.includes(b.name)?"border-purple-400 bg-purple-50":"border-gray-100 hover:border-gray-300"}`}>
                         <input type="checkbox" checked={selBrands.includes(b.name)} onChange={()=>{ toggleArr(selBrands,b.name,setSelBrands); setSelRests([]); setSelBranches([]); }} className="sr-only"/>
                         <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0" style={{background:b.color}}>{b.abbr}</div>
@@ -9303,10 +9313,8 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
   };
 
   // ── Module distribution ──
-  const { data: modulesLookup } = useLookup("modules");
-  const DIST_MODULES = (Array.isArray(modulesLookup)
-    ? (modulesLookup as any[]).map((m: any) => m.labelAr ?? m.name ?? m.value)
-    : []) as string[];
+  // Admin has no companyId → /company/me/lookups/modules 404s. Use the known module set.
+  const DIST_MODULES = ALL_MODULES;
   const [distModeType, setDistModeType] = useState<"restaurant"|"module"|"heads">("restaurant");
   const [modAccSel, setModAccSel] = useState<string>("acc1");
   const [modAccFilter, setModAccFilter] = useState("");
@@ -11498,6 +11506,22 @@ function AdminReports({}: PageProps) {
   );
 }
 
+// Audit `action` arrives as a raw code like "post.companies" — turn it into Arabic.
+function humanAuditLabel(description?: string, action?: string): string {
+  if (description && !/^[a-z]+\.[a-z._-]+$/i.test(description)) return description;
+  const a = action ?? "";
+  const [method, entity] = a.split(".");
+  const verbs: Record<string, string> = { post: "إنشاء", put: "تعديل", patch: "تعديل", delete: "حذف", get: "عرض" };
+  const ents: Record<string, string> = {
+    companies: "شركة", subscriptions: "اشتراك", users: "مستخدم", brands: "علامة تجارية",
+    restaurants: "مطعم", branches: "فرع", permissions: "الصلاحيات", reports: "تقرير",
+    settings: "الإعدادات", accountants: "تعيين محاسب", assets: "أصل", operations: "عملية",
+  };
+  const v = verbs[method] ?? method ?? "";
+  const e = ents[entity] ?? entity ?? "";
+  return (v || e) ? `${v} ${e}`.trim() : a;
+}
+
 function AdminAudit({}: PageProps) {
   const { data: apiAuditLogs } = useAdminAuditLogs();
   const exportAuditMut = useExportAdminAuditLogs();
@@ -11507,7 +11531,7 @@ function AdminAudit({}: PageProps) {
   const apiLogsArr = (apiAuditLogs as any)?.data ?? (apiAuditLogs as any);
   const ALL_LOGS: AuditRow[] = Array.isArray(apiLogsArr)
     ? (apiLogsArr as any[]).map((l:any)=>({
-        action: l.action ?? l.description ?? "",
+        action: humanAuditLabel(l.description, l.action),
         user: l.actorName ?? l.user ?? "",
         time: l.occurredAt ? new Date(l.occurredAt).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}) : "",
         icon: "📋",
@@ -11681,7 +11705,9 @@ function AdminPermissions({}: PageProps) {
 
   const saveChanges = () => {
     setSaved(true); setChanges(0);
-    updatePermsMut.mutate({ matrix } as any);
+    // Hook wraps the array in { matrix } itself — pass the bare array, not { matrix }
+    // (double-wrapping produced body { matrix: { matrix: [...] } } → 422).
+    updatePermsMut.mutate(matrix as any);
   };
   const resetAll    = () => { setMatrix(prev=>prev); setSaved(false); setChanges(0); };
 
