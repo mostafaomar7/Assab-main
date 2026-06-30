@@ -68,6 +68,8 @@ import {
   useCreateAdminBrand,
   useCreateAdminRestaurant,
   useCreateAdminSubscription,
+  useCreateAdminBranch,
+  useUpdateAdminRestaurant,
   useUpdateAdminPermissions,
   useExportAdminAuditLogs,
   useImportAdminUsers,
@@ -10036,8 +10038,16 @@ function AdminRestaurants({}: PageProps) {
   const renewSubMut = useRenewSubscription();
   const createBrandMut = useCreateAdminBrand();
   const createRestMut = useCreateAdminRestaurant();
-  const [brandForm, setBrandForm] = useState({ name:"", owner:"", plan:"فضي" });
+  const createBranchMut = useCreateAdminBranch();
+  const updateRestMut = useUpdateAdminRestaurant();
+  const { data: companiesApi } = useAdminCompanies();
+  const companyOptions = (((companiesApi as any)?.data ?? companiesApi ?? []) as any[]);
+  const [brandForm, setBrandForm] = useState({ name:"", owner:"", plan:"فضي", companyId:"" });
   const [restForm, setRestForm] = useState({ brandId:"", name:"", city:"" });
+  const [addBranchRest, setAddBranchRest] = useState<string|null>(null);
+  const [branchName, setBranchName] = useState("");
+  const [editRest, setEditRest] = useState<any|null>(null);
+  const [editRestForm, setEditRestForm] = useState({ name:"", city:"", status:"active" });
   // Only adopt the API shape when it includes nested restaurants/branches; otherwise
   // fall back to the mock tree so the UI stays renderable while backend backfills nesting.
   const apiBrands = brandsApi as any;
@@ -10413,13 +10423,18 @@ function AdminRestaurants({}: PageProps) {
             <p className="font-semibold text-purple-800 text-sm">{t("إضافة علامة تجارية جديدة","Add New Brand")}</p>
             <button onClick={()=>setShowAddBrand(false)}><X size={14} className="text-purple-400"/></button>
           </div>
+          <div className="mb-3"><label className="text-xs text-gray-500 block mb-1">{t("الشركة","Company")} <span className="text-red-500">*</span></label>
+            <select value={brandForm.companyId} onChange={e=>setBrandForm(f=>({...f,companyId:e.target.value}))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+              <option value="">{t("اختر الشركة","Select company")}</option>
+              {companyOptions.map((c:any)=><option key={c.id} value={c.id}>{c.name}</option>)}
+            </select></div>
           <div className="grid grid-cols-3 gap-3">
             <div><label className="text-xs text-gray-500 block mb-1">{t("اسم العلامة","Brand Name")}</label><input value={brandForm.name} onChange={e=>setBrandForm(f=>({...f,name:e.target.value}))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder={t("علامة جديدة","New brand")}/></div>
             <div><label className="text-xs text-gray-500 block mb-1">{t("المالك / المسؤول","Owner / Manager")}</label><input value={brandForm.owner} onChange={e=>setBrandForm(f=>({...f,owner:e.target.value}))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder={t("اسم المالك","Owner name")}/></div>
             <div><label className="text-xs text-gray-500 block mb-1">{t("الباقة","Plan")}</label>
               <select value={brandForm.plan} onChange={e=>setBrandForm(f=>({...f,plan:e.target.value}))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option>فضي</option><option>ذهبي</option><option>بلاتيني</option></select></div>
           </div>
-          <div className="flex gap-2 mt-3"><Btn variant="primary" size="sm" disabled={!brandForm.name.trim()||createBrandMut.isPending} onClick={()=>{ if(!brandForm.name.trim()) return; createBrandMut.mutate({ name:brandForm.name, owner:brandForm.owner||undefined, plan:planKey(brandForm.plan) }, { onSuccess:()=>{ setShowAddBrand(false); setBrandForm({name:"",owner:"",plan:"فضي"}); } }); }}>✓ {t("حفظ","Save")}</Btn><Btn size="sm" onClick={()=>setShowAddBrand(false)}>{t("إلغاء","Cancel")}</Btn></div>
+          <div className="flex gap-2 mt-3"><Btn variant="primary" size="sm" disabled={!brandForm.name.trim()||!brandForm.companyId||createBrandMut.isPending} onClick={()=>{ if(!brandForm.name.trim()||!brandForm.companyId) return; createBrandMut.mutate({ name:brandForm.name, companyId:brandForm.companyId, owner:brandForm.owner||undefined, plan:planKey(brandForm.plan) }, { onSuccess:()=>{ setShowAddBrand(false); setBrandForm({name:"",owner:"",plan:"فضي",companyId:""}); } }); }}>✓ {t("حفظ","Save")}</Btn><Btn size="sm" onClick={()=>setShowAddBrand(false)}>{t("إلغاء","Cancel")}</Btn></div>
         </div>
       )}
 
@@ -10441,6 +10456,46 @@ function AdminRestaurants({}: PageProps) {
               <div className="flex gap-2 justify-end pt-1">
                 <Btn onClick={()=>setShowAddRest(null)}>{t("إلغاء","Cancel")}</Btn>
                 <Btn variant="primary" disabled={!restForm.brandId||!restForm.name.trim()||createRestMut.isPending} onClick={()=>{ createRestMut.mutate({ brandId:restForm.brandId, name:restForm.name, city:restForm.city }, { onSuccess:()=>{ setShowAddRest(null); setRestForm({brandId:"",name:"",city:""}); } }); }}><Plus size={13}/> {t("إضافة","Add")}</Btn>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {addBranchRest!==null && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setAddBranchRest(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" onClick={e=>e.stopPropagation()} dir="rtl">
+            <div className="px-5 py-4 bg-gradient-to-l from-purple-700 to-purple-600 text-white flex items-center justify-between">
+              <h3 className="font-bold">{t("إضافة فرع","Add Branch")}</h3>
+              <button onClick={()=>setAddBranchRest(null)} className="text-purple-200 hover:text-white"><X size={18}/></button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("اسم الفرع","Branch Name")}</label><input value={branchName} onChange={e=>setBranchName(e.target.value)} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+              <div className="flex gap-2 justify-end pt-1">
+                <Btn onClick={()=>setAddBranchRest(null)}>{t("إلغاء","Cancel")}</Btn>
+                <Btn variant="primary" disabled={!branchName.trim()||createBranchMut.isPending} onClick={()=>{ createBranchMut.mutate({ restaurantId:addBranchRest, name:branchName } as any, { onSuccess:()=>{ setAddBranchRest(null); setBranchName(""); } }); }}><Plus size={13}/> {t("إضافة","Add")}</Btn>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editRest && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setEditRest(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e=>e.stopPropagation()} dir="rtl">
+            <div className="px-5 py-4 bg-gradient-to-l from-purple-700 to-purple-600 text-white flex items-center justify-between">
+              <h3 className="font-bold">{t("تعديل المطعم","Edit Restaurant")}</h3>
+              <button onClick={()=>setEditRest(null)} className="text-purple-200 hover:text-white"><X size={18}/></button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("اسم المطعم","Restaurant Name")}</label><input value={editRestForm.name} onChange={e=>setEditRestForm(f=>({...f,name:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("المدينة","City")}</label><input value={editRestForm.city} onChange={e=>setEditRestForm(f=>({...f,city:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"/></div>
+                <div><label className="text-xs font-semibold text-gray-600 block mb-1">{t("الحالة","Status")}</label><select value={editRestForm.status} onChange={e=>setEditRestForm(f=>({...f,status:e.target.value}))} className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-purple-400"><option value="active">{t("نشط","Active")}</option><option value="suspended">{t("موقوف","Suspended")}</option></select></div>
+              </div>
+              <div className="flex gap-2 justify-end pt-1">
+                <Btn onClick={()=>setEditRest(null)}>{t("إلغاء","Cancel")}</Btn>
+                <Btn variant="primary" disabled={!editRestForm.name.trim()||updateRestMut.isPending} onClick={()=>{ updateRestMut.mutate({ id:editRest.id, name:editRestForm.name, city:editRestForm.city, status:editRestForm.status } as any, { onSuccess:()=>setEditRest(null) }); }}>{t("حفظ","Save")}</Btn>
               </div>
             </div>
           </div>
@@ -10518,7 +10573,7 @@ function AdminRestaurants({}: PageProps) {
                                 {rsub.status==="expired"?t("تفعيل","Activate"):t("تجديد","Renew")}
                               </button>
                             )}
-                            <Btn size="sm" variant="ghost"><Edit2 size={11}/></Btn>
+                            <Btn size="sm" variant="ghost" onClick={()=>{ setEditRest(rest); setEditRestForm({ name:rest.name, city:rest.city??"", status:rest.status??"active" }); }}><Edit2 size={11}/></Btn>
                           </div>
                           <ChevronDown size={13} className={`text-gray-300 transition-transform flex-shrink-0 ${isRExp?"rotate-180":""}`}/>
                         </div>
@@ -10542,7 +10597,7 @@ function AdminRestaurants({}: PageProps) {
                             <div className="rounded-xl border border-gray-200 overflow-hidden bg-white">
                               <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200">
                                 <p className="text-[11px] font-bold text-gray-600">{t("الفروع","Branches")} ({rest.branches.length})</p>
-                                <button className="text-[10px] text-purple-600 hover:underline flex items-center gap-1"><Plus size={10}/> {t("إضافة فرع","Add Branch")}</button>
+                                <button onClick={()=>{ setAddBranchRest(rest.id); setBranchName(""); }} className="text-[10px] text-purple-600 hover:underline flex items-center gap-1"><Plus size={10}/> {t("إضافة فرع","Add Branch")}</button>
                               </div>
                               <div className="divide-y divide-gray-100">
                                 {rest.branches.map((br,bi)=>(
@@ -10569,7 +10624,7 @@ function AdminRestaurants({}: PageProps) {
 
                   {/* Add restaurant button */}
                   <div className="px-5 py-3 flex justify-end border-t border-gray-100">
-                    <button className="text-xs text-purple-600 hover:underline flex items-center gap-1"><Plus size={11}/> {t("إضافة مطعم لـ","Add restaurant to")} {brand.name}</button>
+                    <button onClick={()=>{ setRestForm(f=>({...f,brandId:brand.id})); setShowAddRest(brand.id); }} className="text-xs text-purple-600 hover:underline flex items-center gap-1"><Plus size={11}/> {t("إضافة مطعم لـ","Add restaurant to")} {brand.name}</button>
                   </div>
                 </div>
               )}

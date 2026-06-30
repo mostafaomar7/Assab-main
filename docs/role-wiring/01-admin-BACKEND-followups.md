@@ -90,17 +90,9 @@ GET /admin/audit-logs → rows = { action: "post.companies", entityType: "compan
 
 ---
 
-## B5 — `POST /admin/brands`: هل `companyId` مطلوب؟
+## B5 — ✅ محلولة في الفرونت (مش محتاج منكم حاجة)
 
-ربطنا فورم "إضافة علامة تجارية" (admin). الفورم بيجمع **الاسم + المالك + الباقة** بس، وبيبعت:
-```jsonc
-POST /admin/brands  { "name": "...", "owner": "...", "plan": "silver|gold|platinum" }
-```
-**سؤال:** هل الـ endpoint بيتطلب `companyId` (لربط البراند بشركة)؟
-- لو **آه** → محتاجين نضيف selector للشركة في الفورم؛ ابعتوا الـ validation (هل required؟ وإزاي نجيب قايمة الشركات — `GET /admin/companies`؟).
-- لو **لأ** (البراند ممكن يتعمل بدون شركة) → تمام، سيبوه.
-
-نفس السؤال لـ `useCreateAdminRestaurant` (`POST /admin/brands/{brandId}/restaurants`) — أكّدنا إنه بياخد `{name, city, status?}` بس؛ لو محتاج حقول تانية required قولوا.
+`POST /admin/brands` بيتطلب `companyId` (اتأكد بـ422: `The company id field is required`). ضفنا **selector للشركة** في فورم إضافة العلامة (من `GET /admin/companies`) وبنبعت `companyId` دلوقتي. لو عندكم تعليق على الحقل سيبوه؛ غير كده تمام.
 
 ---
 
