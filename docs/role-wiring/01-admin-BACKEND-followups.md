@@ -4,89 +4,55 @@
 
 ---
 
-## B1 — `/admin/notifications/preferences` بيرجع 404
+## B1 — ✅ محلولة (الباك سجّل الـ route تحت بادئة admin)
 
-إنت قلت قبل كده إن المسار ده موجود (`api.php:255-256`, role: admin)، لكنه **بيرجع 404**:
+الـ route كان موجود في الـ shared group بس (`/api/v1/notifications/preferences`) ومكانش تحت `/admin`. اتسجّل دلوقتي:
+- `GET /admin/notifications/preferences`
+- `PATCH /admin/notifications/preferences` (body = `Partial<NotificationPreferences>`)
 
-```
-GET https://ivory-snail-183262.hostingersite.com/api/v1/admin/notifications/preferences
-→ 404 Not Found
-```
+الفرونت بالفعل بينده على المسار الصح (`useNotificationPreferences` / `useUpdateNotificationPreferences`) فالصفحة هتشتغل من غير تعديل عندنا.
 
-**المطلوب:** تأكيد إن الـ route متسجّل فعلاً ويرجّع شكل `NotificationPreferences`:
+> ⚠️ **caveat مفتوح:** `channels.whatsapp` بيرجع `{ enabled }` بس — **من غير `address`** (مفيش عمود لسه). `email` بيرجع `address`. لو محتاجين حقل رقم واتساب، الباك قال يضيف عمود + migration — **نأكد لهم لو محتاجينه**.
+
+---
+
+## B2 — ✅ محلولة (lookup جديد + بنبعت المفاتيح)
+
+- **B2.1:** الباك ضاف `GET /admin/lookups/modules` (admin-accessible)، كل row فيه `value`+`key` (نفس القيمة) + `labelAr`/`labelEn`/`icon`. الفرونت بقى بيستخدمه (`useAdminModules`) بدل `/company/me/lookups/modules` اللي كان بيرجّع 404.
+- **B2.2:** الباك أكّد: نبعت **المفاتيح** (`["sales","expenses",...]`) مش الأسماء العربية. الـ `PUT /admin/accountants/{accId}/restaurants/{restaurant}/modules` بيخزّن `modules[]` كما هي في `module_keys` واللي بتقراها طبقة الـ gating كمفاتيح. الفرونت اتعدّل يبعت `value`/`key` من الـ lookup. **تم.**
+
+> ⚠️ **قيد مفتوح من الباك:** الـ data model بيخزّن قائمة موديولات **واحدة flat لكل محاسب**، مش لكل (محاسب × مطعم). يعني الـ endpoint بيطبّق الموديولات على المحاسب **عبر كل مطاعمه**. الاختلاف per-restaurant مش متخزّن لسه (محتاج schema change). الـ UI عندنا بيوزّع per-restaurant — **محتاجين نتفق:** نخلّي الماتريكس per-accountant بس، ولا نطلب منهم schema change للـ per-restaurant؟
+
+---
+
+## B3 — ✅ محلولة (الباك بيرجّع labels جاهزة)
+
+`GET /admin/audit-logs` و `/{id}` بقوا بيرجّعوا `descriptionAr` + `descriptionEn` جاهزين لكل row. الفرونت بقى بيستخدمهم مباشرة (والـ formatter القديم بقى fallback بس للـ rows القديمة). **تم.**
+
 ```jsonc
-{
-  "channels": {
-    "inApp":   { "enabled": true },
-    "email":   { "enabled": true, "address": "..." },
-    "push":    { "enabled": false },
-    "whatsapp":{ "enabled": false, "address": "..." }
-  },
-  "events": { "operation.created": { "inApp": true, "email": false, "push": false }, ... },
-  "quietHours": { "enabled": false, "startsAt": "22:00", "endsAt": "07:00" }
-}
+{ "action": "post.companies", "descriptionAr": "إنشاء شركة", "descriptionEn": "Created company", ... }
 ```
-ونفس الكلام لـ `PATCH /admin/notifications/preferences` (body = `Partial<NotificationPreferences>`).
-
-> الفرونت بينده على المسار ده بالظبط (`useNotificationPreferences` / `useUpdateNotificationPreferences`). صفحة "تفضيلات الإشعارات" بتفضل بتحمّل (loading) بسببه.
 
 ---
 
-## B2 — مصدر الموديولات لصفحة توزيع المحاسبين (admin)
+## B4 — ✅ محلولة (أسماء الحقول اتأكدت، الـ12 توجل اتربطوا)
 
-ماتريكس **"توزيع المطاعم → حسب الموديول"** (admin) محتاجة قائمة الموديولات. الفرونت كان بينده:
+الباك بعت أسماء الحقول النهائية وربطنا الـ12 control عليها (11 boolean + 1 integer). تصحيحات على تخميننا:
+- `api.paymentGatewayConnection` (مش `paymentGateway`)
+- `api.mobileAppInterface` (مش `mobileApp`)
+- `security.twoFactorAuthRequired` (مش `twoFactorRequired`)
+- `security.passwordPolicyEnabled` = **boolean** (مش string `"strong"`)
+- `security.sessionDurationMinutes` = integer دقائق
 
-```
-GET /api/v1/company/me/lookups/modules → 404 Not Found
-```
-
-ده مسار **company-scoped**، وحساب الـ admin الـ `companyId` بتاعه `null` → بيفشل دايماً على صفحة admin.
-
-**حل مؤقت في الفرونت:** بنستخدم قائمة موديولات ثابتة دلوقتي (المبيعات/المصروفات/المشتريات/المخزون/الشفتات/كشف الحساب/العهد النقدية/الأصول الثابتة) عشان نوقف الـ 404 والماتريكس ترجع تشتغل.
-
-**المطلوب منكم (واحد من دول):**
-1. توفّروا `GET /admin/lookups/modules` (admin-accessible) يرجّع:
-   ```jsonc
-   { "data": [ { "value": "sales", "labelAr": "المبيعات", "labelEn": "Sales" }, ... ] }
-   ```
-2. **و الأهم:** أكّدوا الـ `PUT /admin/accountants/{accId}/restaurants/{restaurant}/modules` بيتوقّع إيه في `modules[]`؟
-   - **مفاتيح** (`["sales","expenses",...]`) ولا **أسماء عربية** (`["المبيعات","المصروفات",...]`)؟
-   - الفرونت حالياً بيبعت **الأسماء العربية**. لو إنتوا متوقعين المفاتيح، قولوا وإحنا نعمل الـ mapping.
-
----
-
-## B3 — سجل النشاطات: `action` كود خام بدون label بشري
-
-```
-GET /admin/audit-logs → rows = { action: "post.companies", entityType: "companies", actorName: "أمين النظام", occurredAt: "..." }
-```
-
-اللي بيتعرض للمستخدم = `post.companies` / `post.subscriptions` (مش مفهوم).
-
-**حل مؤقت في الفرونت:** بنحوّل `post.companies → "إنشاء شركة"` بـ formatter (method + entity).
-
-**المطلوب (تحسين، مش blocker):** ضيفوا حقل بشري جاهز لكل row:
-```jsonc
-{ "action": "post.companies", "descriptionAr": "إنشاء شركة جديدة", "descriptionEn": "Created a company", ... }
-```
-عشان منعملش reverse-engineering للأكواد على الفرونت.
-
----
-
-## B4 — تأكيد شكل `AdminSettings` (توجيلز الإعدادات)
-
-`GET /admin/settings` بيرجّع `{ notifications, backup, api, security }` كـ objects **مبهمة** (`Record<string,unknown>`). توجيلز كروت الإعدادات الـ4 في صفحة admin-settings **مش شغّالة** لأننا مش عارفين أسماء الحقول عشان نربطها ونحفظها بـ `PATCH /admin/settings`.
-
-**المطلوب:** ابعتوا **أسماء الحقول الفعلية + أنواعها** لكل قسم، مثال متوقّع:
 ```jsonc
 {
   "notifications": { "approvalNotifications": true, "subscriptionAlerts": true, "dailyPerformanceReports": false },
   "backup":        { "dailyAutoBackup": true, "weeklyBackup": true, "dataEncryption": true },
-  "api":           { "erpConnection": true, "paymentGateway": false, "mobileApp": true },
-  "security":      { "twoFactorRequired": false, "sessionDurationMinutes": 60, "passwordPolicy": "strong" }
+  "api":           { "erpConnection": true, "paymentGatewayConnection": false, "mobileAppInterface": true },
+  "security":      { "twoFactorAuthRequired": false, "sessionDurationMinutes": 60, "passwordPolicyEnabled": true }
 }
 ```
-وأكّدوا إن `PATCH /admin/settings` بياخد `Partial<AdminSettings>` بنفس الحقول دي. أول ما توصلنا الحقول هنربط الـ12 توجل ونحفظهم.
+`PATCH /admin/settings` بياخد deep partial merge → بنبعت section/key واحد في المرة. **تم.**
 
 ---
 

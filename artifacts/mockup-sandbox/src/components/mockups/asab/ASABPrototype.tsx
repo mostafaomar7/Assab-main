@@ -48,6 +48,8 @@ import {
   useAdminAuditLogs,
   useAdminPermissions,
   useAdminSettings,
+  useUpdateAdminSettings,
+  useAdminModules,
   useAdminReportsCatalog,
   useAdminDistribution,
   useUpdateAccountantAssignments,
@@ -9264,6 +9266,7 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
   const { t, dir } = useLang();
   const { data: apiUsers } = useAdminUsers();
   const { data: distApi } = useAdminDistribution();
+  const { data: modulesLookup } = useAdminModules();
   const importUsersMut = useImportAdminUsers();
   // Sync the user list from the API (GET /admin/users). No static seed.
   useEffect(() => {
@@ -9322,8 +9325,18 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
   };
 
   // ── Module distribution ──
-  // Admin has no companyId → /company/me/lookups/modules 404s. Use the known module set.
-  const DIST_MODULES = ALL_MODULES;
+  // B2: source modules from GET /admin/lookups/modules and send KEYS (value), not Arabic labels.
+  // Backend stores modules[] verbatim into module_keys; Arabic names break permission resolution.
+  const MODULE_FALLBACK = [
+    { value:"sales", label:"المبيعات" }, { value:"expenses", label:"المصروفات" },
+    { value:"purchases", label:"المشتريات" }, { value:"inventory", label:"المخزون" },
+    { value:"shifts", label:"الشفتات" }, { value:"account_statement", label:"كشف الحساب" },
+    { value:"cash_custody", label:"العهد النقدية" }, { value:"fixed_assets", label:"الأصول الثابتة" },
+  ];
+  const lookupModules = (((modulesLookup as any)?.data ?? []) as any[])
+    .map(m => ({ value: m.value ?? m.key, label: m.labelAr ?? m.labelEn ?? m.value }))
+    .filter(m => m.value);
+  const DIST_MODULES = lookupModules.length ? lookupModules : MODULE_FALLBACK;
   const [distModeType, setDistModeType] = useState<"restaurant"|"module"|"heads">("restaurant");
   const [modAccSel, setModAccSel] = useState<string>("acc1");
   const [modAccFilter, setModAccFilter] = useState("");
@@ -9352,8 +9365,9 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
     modulesMut.mutate({ accId, restaurant: rest, modules: next });
   };
   const assignAllModules = (accId:string, rest:string) => {
-    setAccModules(p => ({ ...p, [accId]: { ...(p[accId]??{}), [rest]: [...DIST_MODULES] } }));
-    modulesMut.mutate({ accId, restaurant: rest, modules: [...DIST_MODULES] });
+    const allKeys = DIST_MODULES.map(m=>m.value);
+    setAccModules(p => ({ ...p, [accId]: { ...(p[accId]??{}), [rest]: allKeys } }));
+    modulesMut.mutate({ accId, restaurant: rest, modules: allKeys });
   };
   const clearRestModules = (accId:string, rest:string) => {
     setAccModules(p => { const n={...(p[accId]??{})}; delete n[rest]; return {...p,[accId]:n}; });
@@ -9666,7 +9680,7 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
                               <tr className="bg-gray-50 border-b border-gray-100">
                                 <th className="px-4 py-2.5 text-xs font-bold text-gray-500 text-right min-w-[140px]">{t("المطعم","Restaurant")}</th>
                                 {DIST_MODULES.map(m=>(
-                                  <th key={m} className="px-2 py-2.5 text-[10px] font-bold text-gray-400 text-center min-w-[60px]">{m.slice(0,5)}</th>
+                                  <th key={m.value} className="px-2 py-2.5 text-[10px] font-bold text-gray-400 text-center min-w-[60px]" title={m.label}>{m.label.slice(0,5)}</th>
                                 ))}
                                 <th className="px-3 py-2.5 text-[10px] font-bold text-gray-400 text-center">الكل</th>
                               </tr>
@@ -9674,7 +9688,7 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
                             <tbody className="divide-y divide-gray-50">
                               {accRests.filter(r=>!modRestFilter||r.includes(modRestFilter)).map((rest,ri)=>{
                                 const mods = accModules[modAccSel]?.[rest] ?? [];
-                                const allChecked = DIST_MODULES.every(m=>mods.includes(m));
+                                const allChecked = DIST_MODULES.every(m=>mods.includes(m.value));
                                 return (
                                   <tr key={rest} className={`hover:bg-gray-50/50 ${ri%2===1?"bg-gray-50/30":""}`}>
                                     <td className="px-4 py-2.5">
@@ -9682,10 +9696,10 @@ function AdminUsers({ navigate, setModal, ops, approveOp, rejectOp, finalApprove
                                       <p className="text-[10px] text-gray-400">{mods.length}/{DIST_MODULES.length} موديول</p>
                                     </td>
                                     {DIST_MODULES.map(m=>{
-                                      const checked = mods.includes(m);
+                                      const checked = mods.includes(m.value);
                                       return (
-                                        <td key={m} className="px-2 py-2.5 text-center">
-                                          <button onClick={()=>toggleModuleForRest(modAccSel,rest,m)}
+                                        <td key={m.value} className="px-2 py-2.5 text-center">
+                                          <button onClick={()=>toggleModuleForRest(modAccSel,rest,m.value)}
                                             className={`w-6 h-6 rounded-md flex items-center justify-center mx-auto transition-all ${checked?"bg-purple-600 text-white shadow-sm":"bg-gray-100 text-gray-400 hover:bg-purple-100 hover:text-purple-600"}`}>
                                             {checked ? <Check size={11}/> : <span className="text-[10px]">—</span>}
                                           </button>
@@ -11652,7 +11666,8 @@ function AdminAudit({}: PageProps) {
   const apiLogsArr = (apiAuditLogs as any)?.data ?? (apiAuditLogs as any);
   const ALL_LOGS: AuditRow[] = Array.isArray(apiLogsArr)
     ? (apiLogsArr as any[]).map((l:any)=>({
-        action: humanAuditLabel(l.description, l.action),
+        // B3: backend now ships ready-made descriptionAr/descriptionEn; formatter is only a fallback.
+        action: (en ? l.descriptionEn : l.descriptionAr) ?? l.descriptionAr ?? humanAuditLabel(l.description, l.action),
         user: l.actorName ?? l.user ?? "",
         time: l.occurredAt ? new Date(l.occurredAt).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}) : "",
         icon: "📋",
@@ -11965,7 +11980,8 @@ function AdminPermissions({}: PageProps) {
 }
 
 function AdminSettings({}: PageProps) {
-  useAdminSettings();
+  const { data: settingsData } = useAdminSettings();
+  const updateSettingsMut = useUpdateAdminSettings();
   const { user } = useAuth();
   const hasCompany = !!user?.companyId;
   const { t, lang, setLang } = useLang();
@@ -11981,23 +11997,62 @@ function AdminSettings({}: PageProps) {
   return (
     <div className="space-y-5"><h2 className="text-xl font-bold text-gray-800">{t("إعدادات النظام","System Settings")}</h2>
       <div className="grid grid-cols-2 gap-5">
-        {[
-          {title:t("إعدادات الإشعارات","Notification Settings"),icon:"🔔",items:[t("إشعارات الاعتماد","Approval Notifications"),t("تنبيهات الاشتراك","Subscription Alerts"),t("تقارير الأداء اليومية","Daily Performance Reports")]},
-          {title:t("إعدادات النسخ الاحتياطي","Backup Settings"),icon:"💾",items:[t("نسخ تلقائي يومي","Daily Auto Backup"),t("نسخ أسبوعي","Weekly Backup"),t("تشفير البيانات","Data Encryption")]},
-          {title:t("إعدادات API","API Settings"),icon:"🔗",items:[t("اتصال ERP","ERP Connection"),t("اتصال بوابة الدفع","Payment Gateway Connection"),t("واجهة تطبيق الموبايل","Mobile App Interface")]},
-          {title:t("إعدادات الأمان","Security Settings"),icon:"🔐",items:[t("المصادقة الثنائية","Two-Factor Authentication"),t("مدة الجلسة","Session Duration"),t("سياسة كلمة المرور","Password Policy")]}
-        ].map((s,i)=>(
-          <Card key={i} title={`${s.icon} ${s.title}`}>
+        {/* B4: wired to GET/PATCH /admin/settings with the backend's authoritative field names.
+            PATCH is a deep partial merge → send one section/key at a time. */}
+        {([
+          {section:"notifications",title:t("إعدادات الإشعارات","Notification Settings"),icon:"🔔",fields:[
+            {key:"approvalNotifications",label:t("إشعارات الاعتماد","Approval Notifications"),type:"bool"},
+            {key:"subscriptionAlerts",label:t("تنبيهات الاشتراك","Subscription Alerts"),type:"bool"},
+            {key:"dailyPerformanceReports",label:t("تقارير الأداء اليومية","Daily Performance Reports"),type:"bool"},
+          ]},
+          {section:"backup",title:t("إعدادات النسخ الاحتياطي","Backup Settings"),icon:"💾",fields:[
+            {key:"dailyAutoBackup",label:t("نسخ تلقائي يومي","Daily Auto Backup"),type:"bool"},
+            {key:"weeklyBackup",label:t("نسخ أسبوعي","Weekly Backup"),type:"bool"},
+            {key:"dataEncryption",label:t("تشفير البيانات","Data Encryption"),type:"bool"},
+          ]},
+          {section:"api",title:t("إعدادات API","API Settings"),icon:"🔗",fields:[
+            {key:"erpConnection",label:t("اتصال ERP","ERP Connection"),type:"bool"},
+            {key:"paymentGatewayConnection",label:t("اتصال بوابة الدفع","Payment Gateway Connection"),type:"bool"},
+            {key:"mobileAppInterface",label:t("واجهة تطبيق الموبايل","Mobile App Interface"),type:"bool"},
+          ]},
+          {section:"security",title:t("إعدادات الأمان","Security Settings"),icon:"🔐",fields:[
+            {key:"twoFactorAuthRequired",label:t("المصادقة الثنائية","Two-Factor Authentication"),type:"bool"},
+            {key:"sessionDurationMinutes",label:t("مدة الجلسة (دقائق)","Session Duration (min)"),type:"int"},
+            {key:"passwordPolicyEnabled",label:t("سياسة كلمة المرور","Password Policy"),type:"bool"},
+          ]},
+        ] as { section:string; title:string; icon:string; fields:{key:string;label:string;type:"bool"|"int"}[] }[]).map((s)=>{
+          const sectionVal = ((settingsData as any)?.[s.section] ?? {}) as Record<string,any>;
+          return (
+          <Card key={s.section} title={`${s.icon} ${s.title}`}>
             <div className="p-4 space-y-3">
-              {s.items.map((item,j)=>(
-                <div key={j} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                  <span className="text-sm text-gray-700">{item}</span>
-                  <div className="w-10 h-5 rounded-full bg-purple-600 cursor-pointer relative flex-shrink-0"><div className="w-4 h-4 bg-white rounded-full absolute right-0.5 top-0.5"></div></div>
-                </div>
-              ))}
+              {s.fields.map((f)=>{
+                if (f.type==="int") {
+                  const val = Number(sectionVal[f.key] ?? 60);
+                  return (
+                    <div key={f.key} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                      <span className="text-sm text-gray-700">{f.label}</span>
+                      <input type="number" min={5} key={val} defaultValue={val}
+                        onBlur={e=>{ const n=Number(e.target.value); if(n>0 && n!==val) updateSettingsMut.mutate({ [s.section]:{ [f.key]:n } } as any); }}
+                        className="w-20 text-sm border border-gray-200 rounded-lg px-2 py-1 text-center"/>
+                    </div>
+                  );
+                }
+                const on = !!sectionVal[f.key];
+                return (
+                  <div key={f.key} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                    <span className="text-sm text-gray-700">{f.label}</span>
+                    <button type="button" disabled={updateSettingsMut.isPending}
+                      onClick={()=>updateSettingsMut.mutate({ [s.section]:{ [f.key]:!on } } as any)}
+                      className={`w-10 h-5 rounded-full cursor-pointer relative flex-shrink-0 transition-colors disabled:opacity-60 ${on?"bg-purple-600":"bg-gray-300"}`}>
+                      <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all ${on?"right-0.5":"left-0.5"}`}></div>
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </Card>
-        ))}
+          );
+        })}
       </div>
 
       {/* ── Account Settings ─────────────────────── */}

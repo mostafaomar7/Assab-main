@@ -1004,6 +1004,27 @@ export function useUpdateAdminSettings() {
   });
 }
 
+// ─── Modules lookup (admin-scoped; replaces /company/me/lookups/modules) ──────
+export interface AdminModuleLookup {
+  value: string;
+  key: string;
+  labelAr: string;
+  labelEn: string;
+  icon?: string;
+}
+export function useAdminModules() {
+  return useQuery({
+    queryKey: ["platform", "admin", "lookups", "modules"] as const,
+    queryFn: async () => {
+      const res = await api.get<{ data: AdminModuleLookup[] }>(
+        "/admin/lookups/modules",
+      );
+      return res.data;
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
 // ─── Reports ─────────────────────────────────────────────────────────────────
 export function useAdminReportsCatalog() {
   return useQuery({

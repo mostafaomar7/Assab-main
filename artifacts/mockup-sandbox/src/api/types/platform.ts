@@ -176,10 +176,27 @@ export interface AdminAuditLogEntry {
 }
 
 export interface AdminSettings {
-  notifications?: Record<string, unknown>;
-  backup?: Record<string, unknown>;
-  api?: Record<string, unknown>;
-  security?: Record<string, unknown>;
+  // Authoritative field names confirmed by backend (B4).
+  notifications?: {
+    approvalNotifications?: boolean;
+    subscriptionAlerts?: boolean;
+    dailyPerformanceReports?: boolean;
+  } & Record<string, unknown>;
+  backup?: {
+    dailyAutoBackup?: boolean;
+    weeklyBackup?: boolean;
+    dataEncryption?: boolean;
+  } & Record<string, unknown>;
+  api?: {
+    erpConnection?: boolean;
+    paymentGatewayConnection?: boolean;
+    mobileAppInterface?: boolean;
+  } & Record<string, unknown>;
+  security?: {
+    twoFactorAuthRequired?: boolean;
+    sessionDurationMinutes?: number;
+    passwordPolicyEnabled?: boolean;
+  } & Record<string, unknown>;
   [k: string]: unknown;
 }
 
