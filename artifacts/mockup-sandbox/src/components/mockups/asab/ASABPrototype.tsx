@@ -13695,28 +13695,28 @@ export function ASABPrototype() {
   // Live operations from platform API — falls back to INITIAL_OPS when API returns empty.
   // Local setOps is preserved to drive optimistic UI for approve / reject / final-approve / ERP mutations.
   const isHead = appState.role === "head";
-  const { data: apiOps = [] } = useAccountantOperationsPlatform({ pageSize: 100 });
+  const { data: apiOps } = useAccountantOperationsPlatform({ pageSize: 100 });
   // B-H1: head reads from the enriched /head/operations/* queues (accountantName, brandName,
   // branchName, amountHalalas baked in) — not the thin /accountant/operations shape.
-  const { data: headPendingOps = [] }  = usePendingOperations({}, { enabled: isHead });
-  const { data: headFinalOps = [] }    = useFinalApprovedOperations({}, { enabled: isHead });
-  const { data: headRejectedOps = [] } = useRejectedOperations({}, { enabled: isHead });
+  // NOTE: no `= []` defaults — a fresh [] literal each render would make these effect deps
+  // unstable and loop setOps. Leave them `undefined` until react-query yields a stable ref.
+  const { data: headPendingOps }  = usePendingOperations({}, { enabled: isHead });
+  const { data: headFinalOps }    = useFinalApprovedOperations({}, { enabled: isHead });
+  const { data: headRejectedOps } = useRejectedOperations({}, { enabled: isHead });
   const [ops, setOps] = useState<Op[]>([]);
-  // Sync incoming live ops into local state when first batch arrives.
-  // Note: a deliberate one-shot effect via memoization to avoid stomping on optimistic mutations.
-  useMemo(() => {
+  // Sync incoming live ops into local state when a non-empty batch arrives. A side effect, so
+  // useEffect (not useMemo); deps are the stable react-query data refs.
+  useEffect(() => {
     if (isHead) {
       const merged = [
-        ...(headPendingOps as any[]),
-        ...(headFinalOps as any[]),
-        ...(headRejectedOps as any[]),
+        ...((headPendingOps as any[]) ?? []),
+        ...((headFinalOps as any[]) ?? []),
+        ...((headRejectedOps as any[]) ?? []),
       ];
       if (merged.length > 0) setOps(merged.map(mapApiOpToOp));
-    } else if ((apiOps as unknown[]).length > 0) {
-      // Best-effort merge: live ops replace seed when first non-empty payload arrives.
+    } else if (((apiOps as unknown[]) ?? []).length > 0) {
       setOps((apiOps as any[]).map(mapApiOpToOp));
     }
-    return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiOps, headPendingOps, headFinalOps, headRejectedOps, isHead]);
 
