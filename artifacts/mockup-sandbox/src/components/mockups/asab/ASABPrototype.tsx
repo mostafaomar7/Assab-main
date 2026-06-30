@@ -2598,7 +2598,10 @@ function OwnerReportsPage({ ops }: PageProps) {
           <div className="grid grid-cols-3 gap-4">
             {internalReports.map((r:any,i:number)=>{
               const title = (en ? r.labelEn : r.labelAr) ?? r.labelAr ?? r.labelEn ?? r.title ?? "";
-              const desc  = (en ? r.descEn : r.descAr) ?? r.desc ?? "";
+              // B-H5 contract: { moduleKey, labelAr, labelEn, count, total(halalas), downloadUrl }
+              const totalSar = typeof r.total === "number" ? Math.round(r.total/100).toLocaleString() : null;
+              const desc  = (en ? r.descEn : r.descAr) ?? r.desc
+                ?? [r.count!=null ? `${r.count} ${t("عملية","ops")}` : null, totalSar!=null ? `${totalSar} ${t("ر.س","SAR")}` : null].filter(Boolean).join(" · ");
               const url   = r.downloadUrl as string | undefined;
               const fname = `${(r.key ?? r.labelAr ?? "report")}.xlsx`;
               const doDownload = ()=>{ if(url) dlReport.mutate({ url, filename:fname }); };
@@ -8320,9 +8323,13 @@ function HeadPending({ navigate, setModal, setDetailId, ops, finalApproveOp, rej
   const getAcc = (op:Op) => op.accountantName ?? HEAD_ACCS_FALLBACK[parseInt(op.id.replace(/\D/g,"").slice(-2)||"0") % HEAD_ACCS_FALLBACK.length];
   const realAccs = [...new Set(ops.map(o=>o.accountantName).filter(Boolean))] as string[];
   const HEAD_ACCS = realAccs.length ? realAccs : HEAD_ACCS_FALLBACK;
+  // B-H1: brand & branch filter options come from the enriched ops rows.
+  const BRAND_OPTS  = [...new Set(ops.map(o=>o.brandName).filter(Boolean))] as string[];
+  const BRANCH_OPTS = [...new Set(ops.map(o=>o.branch).filter(Boolean))] as string[];
   let filtered = applyFilters(ops, filters).filter(o=>o.status==="approved");
   const allVal = t("الكل","All");
   if(accFilter!==allVal) filtered = filtered.filter(o=>getAcc(o)===accFilter);
+  if(brandFilter!==allVal) filtered = filtered.filter(o=>o.brandName===brandFilter);
   const totalAmt = filtered.reduce((s,o)=>s+o.amount,0);
   const hasFilters = accFilter!==allVal||brandFilter!==allVal||!!filters.branch||!!filters.match||!!filters.search;
 
@@ -8438,14 +8445,15 @@ function HeadPending({ navigate, setModal, setDetailId, ops, finalApproveOp, rej
           <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("العلامة التجارية","Brand")}</label>
             <select value={brandFilter} onChange={e=>setBrandFilter(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-              {[t("الكل","All")].map(b=><option key={b}>{b}</option>)}
+              <option>{allVal}</option>
+              {BRAND_OPTS.map(b=><option key={b}>{b}</option>)}
             </select>
           </div>
           <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("الفرع","Branch")}</label>
             <select value={filters.branch} onChange={e=>setFilters({...filters,branch:e.target.value})} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
               <option value="">{t("الكل","All")}</option>
-              {BRANCHES.map(b=><option key={b}>{b}</option>)}
+              {BRANCH_OPTS.map(b=><option key={b}>{b}</option>)}
             </select>
           </div>
           <div>
@@ -8645,8 +8653,12 @@ function HeadModulePage({ moduleKey, navigate, setModal, setDetailId, ops, final
   const getAcc = (op:Op) => op.accountantName ?? HEAD_ACCS_FALLBACK[parseInt(op.id.replace(/\D/g,"").slice(-2)||"0") % HEAD_ACCS_FALLBACK.length];
   const realAccs = [...new Set(ops.map(o=>o.accountantName).filter(Boolean))] as string[];
   const HEAD_ACCS = realAccs.length ? realAccs : HEAD_ACCS_FALLBACK;
+  // B-H1: brand & branch filter options from the enriched ops rows.
+  const BRAND_OPTS  = [...new Set(ops.map(o=>o.brandName).filter(Boolean))] as string[];
+  const BRANCH_OPTS = [...new Set(ops.map(o=>o.branch).filter(Boolean))] as string[];
   let filtered = applyFilters(ops, filters, mk).filter(o=>o.status==="approved");
   if(accFilter!==allVal) filtered = filtered.filter(o=>getAcc(o)===accFilter);
+  if(brandFilter!==allVal) filtered = filtered.filter(o=>o.brandName===brandFilter);
   // B-H3: apply the from/to date range (was previously dead UI — applyFilters ignores dates).
   if(dateFrom) filtered = filtered.filter(o=>(o.operationDate ?? "").slice(0,10) >= dateFrom);
   if(dateTo)   filtered = filtered.filter(o=>(o.operationDate ?? "").slice(0,10) <= dateTo);
@@ -8698,14 +8710,15 @@ function HeadModulePage({ moduleKey, navigate, setModal, setDetailId, ops, final
           <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("العلامة التجارية","Brand")}</label>
             <select value={brandFilter} onChange={e=>setBrandFilter(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
-              {[allVal].map(b=><option key={b}>{b}</option>)}
+              <option>{allVal}</option>
+              {BRAND_OPTS.map(b=><option key={b}>{b}</option>)}
             </select>
           </div>
           <div>
             <label className="text-[11px] font-semibold text-gray-500 block mb-1">{t("الفرع","Branch")}</label>
             <select value={filters.branch} onChange={e=>setFilters({...filters,branch:e.target.value})} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
               <option value="">{allVal}</option>
-              {BRANCHES.map(b=><option key={b}>{b}</option>)}
+              {BRANCH_OPTS.map(b=><option key={b}>{b}</option>)}
             </select>
           </div>
           <div>
@@ -8840,7 +8853,7 @@ function HeadAccountants({}: PageProps) {
                   <p className="text-xs text-gray-400">{acc.branches} {t("فرع مخصص","branches assigned")}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1">
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${acc.levelCls}`}>{acc.level}</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${acc.levelCls}`}>{acc.levelLabelAr ?? acc.level}</span>
                   <div className="flex items-center gap-0.5">
                     {[1,2,3,4,5].map(s=><Star key={s} size={10} fill={s<=Math.round(acc.rating)?"#F59E0B":"none"} className={s<=Math.round(acc.rating)?"text-amber-400":"text-gray-200"}/>)}
                     <span className="text-[10px] text-gray-500 mr-0.5">{acc.rating}</span>
@@ -8899,9 +8912,10 @@ function HeadAccountants({}: PageProps) {
                 <div className="space-y-1.5">
                   {/* B-H3: recentMovements is now per-accountant. Tolerate tuple or object shape. */}
                   {((acc.recentMovements ?? []) as any[]).map((mv:any,j:number)=>{
-                    const mtext = Array.isArray(mv) ? mv[0] : (mv.text ?? mv.label ?? mv.descriptionAr ?? "");
-                    const mtime = Array.isArray(mv) ? mv[1] : (mv.time ?? mv.timeAr ?? mv.at ?? "");
-                    const mtype = Array.isArray(mv) ? mv[2] : (mv.type ?? mv.kind ?? "");
+                    // B-H3 contract: { id, actionAr, timeAr, module, moduleLabelAr } (tuple-tolerant).
+                    const mtext = Array.isArray(mv) ? mv[0] : (mv.actionAr ?? mv.text ?? mv.label ?? mv.descriptionAr ?? "");
+                    const mtime = Array.isArray(mv) ? mv[1] : (mv.timeAr ?? mv.time ?? mv.at ?? "");
+                    const mtype = Array.isArray(mv) ? mv[2] : (mv.moduleLabelAr ?? mv.module ?? mv.type ?? mv.kind ?? "");
                     return (
                     <div key={j} className="flex items-center gap-2 text-xs">
                       <span className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0"></span>
@@ -9120,8 +9134,9 @@ function HeadERP({ ops, markErpPosted }:PageProps) {
             : erpBatchRows.map((h:any,i:number)=>{
               const bid = h.batchId ?? h.id ?? "—";
               const bdate = h.createdAt ?? h.completedAt ?? "";
-              const bcount = h.operationsCount ?? h.count ?? (Array.isArray(h.operationIds)?h.operationIds.length:0);
-              const bamt = typeof h.totalHalalas==="number" ? Math.round(h.totalHalalas/100).toLocaleString() : (h.total ?? h.amount ?? "—");
+              const bcount = h.operationCount ?? h.operationsCount ?? h.count ?? (Array.isArray(h.operationIds)?h.operationIds.length:0);
+              const bamtHalalas = typeof h.totalAmount==="number" ? h.totalAmount : (typeof h.totalHalalas==="number" ? h.totalHalalas : null);
+              const bamt = bamtHalalas != null ? Math.round(bamtHalalas/100).toLocaleString() : (h.total ?? h.amount ?? "—");
               const bstatus = h.status ?? "success";
               const bby = h.createdByName ?? h.by ?? "";
               return (
