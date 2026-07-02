@@ -74,6 +74,7 @@ import {
   useCreateAdminUser,
   useCreateAdminCompany,
   useCreateAdminBrand,
+  useResetBrandOwnerPassword,
   useCreateAdminRestaurant,
   useCreateAdminSubscription,
   useCreateAdminBranch,
@@ -10230,12 +10231,13 @@ function AdminRestaurants({}: PageProps) {
   useAdminRestaurantSubscriptions();
   const renewSubMut = useRenewSubscription();
   const createBrandMut = useCreateAdminBrand();
+  const resetOwnerMut = useResetBrandOwnerPassword();
   const createRestMut = useCreateAdminRestaurant();
   const createBranchMut = useCreateAdminBranch();
   const updateRestMut = useUpdateAdminRestaurant();
   const { data: companiesApi } = useAdminCompanies();
   const companyOptions = (((companiesApi as any)?.data ?? companiesApi ?? []) as any[]);
-  const [brandForm, setBrandForm] = useState({ name:"", owner:"", plan:"فضي", companyId:"" });
+  const [brandForm, setBrandForm] = useState({ name:"", owner:"", ownerEmail:"", plan:"فضي", companyId:"" });
   const [restForm, setRestForm] = useState({ brandId:"", name:"", city:"" });
   const [addBranchRest, setAddBranchRest] = useState<string|null>(null);
   const [branchName, setBranchName] = useState("");
@@ -10627,7 +10629,10 @@ function AdminRestaurants({}: PageProps) {
             <div><label className="text-xs text-gray-500 block mb-1">{t("الباقة","Plan")}</label>
               <select value={brandForm.plan} onChange={e=>setBrandForm(f=>({...f,plan:e.target.value}))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option>فضي</option><option>ذهبي</option><option>بلاتيني</option></select></div>
           </div>
-          <div className="flex gap-2 mt-3"><Btn variant="primary" size="sm" disabled={!brandForm.name.trim()||!brandForm.companyId||createBrandMut.isPending} onClick={()=>{ if(!brandForm.name.trim()||!brandForm.companyId) return; createBrandMut.mutate({ name:brandForm.name, companyId:brandForm.companyId, owner:brandForm.owner||undefined, plan:planKey(brandForm.plan) }, { onSuccess:()=>{ setShowAddBrand(false); setBrandForm({name:"",owner:"",plan:"فضي",companyId:""}); } }); }}>✓ {t("حفظ","Save")}</Btn><Btn size="sm" onClick={()=>setShowAddBrand(false)}>{t("إلغاء","Cancel")}</Btn></div>
+          <div className="mt-3"><label className="text-xs text-gray-500 block mb-1">{t("بريد المالك (اختياري)","Owner Email (optional)")}</label>
+            <input type="email" dir="ltr" value={brandForm.ownerEmail} onChange={e=>setBrandForm(f=>({...f,ownerEmail:e.target.value}))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-right" placeholder="owner@example.com"/>
+            <p className="text-[11px] text-gray-400 mt-1">{t("لو دخلت بريد المالك، هيتعمله حساب دخول وتتبعتله كلمة المرور على البريد.","If provided, a login account is created and the password is emailed to the owner.")}</p></div>
+          <div className="flex gap-2 mt-3"><Btn variant="primary" size="sm" disabled={!brandForm.name.trim()||!brandForm.companyId||createBrandMut.isPending} onClick={()=>{ if(!brandForm.name.trim()||!brandForm.companyId) return; createBrandMut.mutate({ name:brandForm.name, companyId:brandForm.companyId, owner:brandForm.owner||undefined, ownerEmail:brandForm.ownerEmail.trim()||undefined, plan:planKey(brandForm.plan) }, { onSuccess:()=>{ setShowAddBrand(false); setBrandForm({name:"",owner:"",ownerEmail:"",plan:"فضي",companyId:""}); } }); }}>✓ {t("حفظ","Save")}</Btn><Btn size="sm" onClick={()=>setShowAddBrand(false)}>{t("إلغاء","Cancel")}</Btn></div>
         </div>
       )}
 
@@ -10722,6 +10727,15 @@ function AdminRestaurants({}: PageProps) {
                   <div className="text-center hidden md:block"><p className="text-base font-bold text-gray-800">{restCount}</p><p className="text-[10px] text-gray-400">{t("مطعم","Restaurant")}</p></div>
                   <div className="text-center hidden md:block"><p className="text-base font-bold text-gray-800">{branchCount}</p><p className="text-[10px] text-gray-400">{t("فرع","Branch")}</p></div>
                   <div className="text-center hidden md:block"><p className="text-base font-bold text-gray-800">{brand.modules.length}</p><p className="text-[10px] text-gray-400">{t("موديول","Module")}</p></div>
+                  {brand.ownerEmail && (
+                    <button
+                      onClick={(e)=>{ e.stopPropagation(); if(resetOwnerMut.isPending) return; if(window.confirm(t(`إرسال باسورد جديد إلى ${brand.ownerEmail}؟`,`Send a new password to ${brand.ownerEmail}?`))) resetOwnerMut.mutate({ brandId:brand.id }); }}
+                      disabled={resetOwnerMut.isPending}
+                      title={t("إعادة تعيين باسورد المالك","Reset owner password")}
+                      className="text-[10px] font-semibold text-purple-600 hover:text-purple-800 border border-purple-200 rounded-lg px-2 py-1 disabled:opacity-50">
+                      {t("باسورد المالك","Owner PW")}
+                    </button>
+                  )}
                   <ChevronDown size={16} className={`text-gray-400 transition-transform ${isExpanded?"rotate-180":""}`}/>
                 </div>
               </div>

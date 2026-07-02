@@ -72,7 +72,12 @@ export interface AdminBrand {
   name: string;
   abbr?: string;
   color?: string;
+  owner?: string;
   ownerEmail?: string;
+  /** B-A6: id of the brand-owner user created/linked on create. null when no ownerEmail. */
+  ownerUserId?: string | null;
+  /** B-A6: whether the temp-password / link email actually went out. */
+  emailSent?: boolean;
   plan?: string;
   modules?: string[];
   restaurants?: AdminRestaurant[];

@@ -273,9 +273,47 @@ export function useCreateAdminBrand() {
       const res = await api.post<AdminBrand>("/admin/brands", body);
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["platform", "admin", "brands"] });
-      toast.success("تم إضافة العلامة التجارية");
+      // B-A6: surface owner-provisioning outcome so the admin knows the
+      // owner's login credentials were (or weren't) emailed.
+      if (data?.ownerEmail) {
+        if (data.emailSent) {
+          toast.success("تم إنشاء العلامة وإرسال بيانات الدخول لبريد المالك");
+        } else {
+          toast.warning("تم إنشاء العلامة وحساب المالك، لكن تعذّر إرسال البريد");
+        }
+      } else {
+        toast.success("تم إضافة العلامة التجارية");
+      }
+    },
+    onError: (e) => toast.error(getErrorMessage(e, "ar")),
+  });
+}
+
+/** B-A6: re-send / reset the brand owner's password by email. */
+export function useResetBrandOwnerPassword() {
+  return useMutation({
+    mutationFn: async ({
+      brandId,
+      notify = true,
+    }: {
+      brandId: string;
+      notify?: boolean;
+    }) => {
+      const res = await api.post<{
+        ok: boolean;
+        emailedTo: string;
+        resetAt: string;
+      }>(`/admin/brands/${brandId}/owner/reset-password`, { notify });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      toast.success(
+        data?.emailedTo
+          ? `تم إرسال باسورد جديد إلى ${data.emailedTo}`
+          : "تم إعادة تعيين باسورد المالك",
+      );
     },
     onError: (e) => toast.error(getErrorMessage(e, "ar")),
   });
