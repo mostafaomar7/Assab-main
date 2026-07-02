@@ -2898,18 +2898,30 @@ function AccDashboard({ navigate, setModal, setDetailId, ops, approveOp, rejectO
   const { t, lang } = useLang();
   // Live data subscription — falls back to inline `ops` prop on empty / error.
   const { data: dashData } = useAccountantDashboardPlatform();
+  const kpis = dashData?.kpis;
+  const apiModules = dashData?.modules;
   const [filters, setFilters] = useState<Filters>({branch:"",status:"pending",match:"",search:""});
   const [period, setPeriod] = useState<"today"|"week"|"month">("today");
 
   const pending = ops.filter(o=>o.status==="pending");
   const approved = ops.filter(o=>o.status==="approved");
   const rejected = ops.filter(o=>o.status==="rejected");
-  const apiApprovalRate = (dashData as any)?.kpis?.approvalRate ?? (dashData as any)?.approvalRate;
-  const approvalRate = apiApprovalRate ?? (ops.length>0 ? Math.round((approved.length+ops.filter(o=>o.status==="final-approved").length)/ops.length*100) : 0);
-  const overdueCount = pending.filter(o=>{
+  const finalApprovedOps = ops.filter(o=>o.status==="final-approved");
+
+  // Prefer backend counts when available; fall back to client-computed from ops.
+  const awaitingReviewCount = kpis?.awaitingReview ?? pending.length;
+  const iApprovedCount      = kpis?.iApproved      ?? approved.length;
+  const finalApprovedCount  = kpis?.finalApproved  ?? finalApprovedOps.length;
+  const approvalRate        = kpis?.approvalRate   ?? (ops.length>0 ? Math.round((approved.length+finalApprovedOps.length)/ops.length*100) : 0);
+  const localOverdue = pending.filter(o=>{
     const daysAgo = (o.timeAgo ?? "").includes("يوم") ? parseInt(o.timeAgo ?? "") || 2 : (o.timeAgo ?? "").includes("أمس") ? 1 : 0;
     return daysAgo >= 2;
   }).length;
+  const overdueCount = kpis?.overdueCount ?? localOverdue;
+
+  // Backend `modules[]` keyed by `.key` — used to override client-computed counts per module.
+  const apiModulesByKey: Record<string,{pendingCount:number;totalCount:number}> = {};
+  apiModules?.forEach(m=>{ if(m.key) apiModulesByKey[m.key] = {pendingCount:m.pendingCount, totalCount:m.totalCount}; });
 
   const pendingByModule: Record<ModuleKey,number> = {} as any;
   pending.forEach(o=>{ pendingByModule[o.moduleKey]=(pendingByModule[o.moduleKey]||0)+1; });
@@ -2955,11 +2967,11 @@ function AccDashboard({ navigate, setModal, setDetailId, ops, approveOp, rejectO
 
       <div className="grid grid-cols-4 gap-4">
         <div className="relative">
-          <KpiCard label={t("تنتظر مراجعتي","Awaiting My Review")} value={String(pending.length)} sub={t("📱 رُفعت من الفروع","📱 Uploaded from branches")} icon={<Clock size={20} className="text-amber-600"/>} accent="amber"/>
+          <KpiCard label={t("تنتظر مراجعتي","Awaiting My Review")} value={String(awaitingReviewCount)} sub={t("📱 رُفعت من الفروع","📱 Uploaded from branches")} icon={<Clock size={20} className="text-amber-600"/>} accent="amber"/>
           {overdueCount>0 && <span className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{overdueCount} {t("متأخر","overdue")}</span>}
         </div>
-        <KpiCard label={t("وافقت عليها","I Approved")} value={String(approved.length)} sub={t("بانتظار الاعتماد النهائي","Awaiting final approval")} icon={<CheckCircle2 size={20} className="text-sky-600"/>} accent="blue"/>
-        <KpiCard label={t("معتمدة نهائياً","Final Approved")} value={String(ops.filter(o=>o.status==="final-approved").length)} sub={t("مُغلقة — تنتظر ERP أو مُرحَّلة","Closed — awaiting ERP or posted")} icon={<Lock size={20} className="text-emerald-600"/>} accent="emerald"/>
+        <KpiCard label={t("وافقت عليها","I Approved")} value={String(iApprovedCount)} sub={t("بانتظار الاعتماد النهائي","Awaiting final approval")} icon={<CheckCircle2 size={20} className="text-sky-600"/>} accent="blue"/>
+        <KpiCard label={t("معتمدة نهائياً","Final Approved")} value={String(finalApprovedCount)} sub={t("مُغلقة — تنتظر ERP أو مُرحَّلة","Closed — awaiting ERP or posted")} icon={<Lock size={20} className="text-emerald-600"/>} accent="emerald"/>
         <KpiCard label={t("معدل الموافقة","Approval Rate")} value={`${approvalRate}%`} sub={`${t("هذا","This")} ${period==="today"?t("اليوم","Day"):period==="week"?t("الأسبوع","Week"):t("الشهر","Month")}`} icon={<TrendingUp size={20} className="text-purple-600"/>} accent="purple"/>
       </div>
 
@@ -2974,7 +2986,20 @@ function AccDashboard({ navigate, setModal, setDetailId, ops, approveOp, rejectO
             {label:t("المراجعة","Review"),done:ops.filter(o=>o.status!=="pending").length,total:ops.length,color:"bg-purple-500"},
             {label:t("الموافقة","Approval"),done:ops.filter(o=>o.status==="approved"||o.status==="final-approved").length,total:ops.length,color:"bg-emerald-500"},
             {label:t("التوثيق","Documentation"),done:ops.filter(o=>o.status==="final-approved"&&o.erpPosted).length,total:ops.filter(o=>o.status==="final-approved").length||1,color:"bg-blue-500"},
-            {label:t("الفروع المكتملة","Completed Branches"),done:(dashData as any)?.completedBranches ?? 4,total:(dashData as any)?.totalBranches ?? 8,color:"bg-cyan-500"},
+            // Backend dashboard does not expose completedBranches/totalBranches — fall back to a
+            // derived signal: fully-processed branches vs. total branches touched by any op.
+            (() => {
+              const perBranch = new Map<string,{done:number;total:number}>();
+              ops.forEach(o=>{
+                const cur = perBranch.get(o.branch) ?? {done:0,total:0};
+                cur.total++;
+                if (o.status !== "pending") cur.done++;
+                perBranch.set(o.branch, cur);
+              });
+              let doneBranches = 0;
+              perBranch.forEach(v=>{ if (v.total>0 && v.done===v.total) doneBranches++; });
+              return {label:t("الفروع المكتملة","Completed Branches"),done:doneBranches,total:perBranch.size||1,color:"bg-cyan-500"};
+            })(),
           ].map(({label,done,total,color})=>{
             const pct = Math.min(100,total>0?Math.round(done/total*100):0);
             return (
@@ -3002,8 +3027,9 @@ function AccDashboard({ navigate, setModal, setDetailId, ops, approveOp, rejectO
           <Card title={t("الموديولات التسعة","Nine Modules")} actions={<span className="text-xs text-gray-400">{t("المعلق / الإجمالي","Pending / Total")}</span>}>
             <div className="p-4 grid grid-cols-4 gap-3">
               {modules.map(m=>{
-                const mod_pending = m.key ? (pendingByModule[m.key]||0) : 0;
-                const mod_total = m.key ? ops.filter(o=>o.moduleKey===m.key).length : 0;
+                const apiRow = m.key ? apiModulesByKey[m.key] : undefined;
+                const mod_pending = apiRow?.pendingCount ?? (m.key ? (pendingByModule[m.key]||0) : 0);
+                const mod_total   = apiRow?.totalCount   ?? (m.key ? ops.filter(o=>o.moduleKey===m.key).length : 0);
                 return (
                   <button key={m.id} onClick={()=>navigate(m.id)}
                     className="flex flex-col items-center gap-1.5 p-3 rounded-xl border border-gray-100 hover:border-purple-300 hover:bg-purple-50/40 transition-all relative cursor-pointer">
